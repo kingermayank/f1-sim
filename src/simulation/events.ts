@@ -70,6 +70,7 @@ export interface RaceState {
 
 export type RaceEvent =
   | { type: 'start'; tick: number }
+  | { type: 'sector'; tick: number; driverId: string; lap: number; sector: 1 | 2 | 3; sectorTime: number }
   | { type: 'lap'; tick: number; driverId: string; lap: number; lapTime: number }
   | { type: 'overtake'; tick: number; attackerId: string; defenderId: string; position: number }
   | { type: 'pit-entry' | 'pit-exit'; tick: number; driverId: string }
