@@ -933,7 +933,7 @@ git commit -m "feat: integrate playback state with race engine"
 **Files:**
 - Create: `src/assets/asset-registry.ts`
 - Create: `src/assets/credits.json`
-- Create: `scripts/verify-assets.mjs`
+- Modify: `scripts/verify-assets.mjs`
 - Create: `public/assets/models/monaco-track.glb`
 - Create: `public/assets/models/f1-car.glb`
 - Create: `public/assets/textures/teams/*.webp`
@@ -1252,7 +1252,7 @@ git commit -m "feat: add race audio and accessibility preferences"
 
 **Files:**
 - Create: `tests/e2e/race.spec.ts`
-- Create: `playwright.config.ts`
+- Modify: `playwright.config.ts`
 - Create: `README.md`
 - Modify: `src/assets/credits.json` if verification exposes omissions.
 
