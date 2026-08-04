@@ -16,7 +16,7 @@ export type PitState = 'track' | 'entry' | 'lane' | 'exit' | 'stopped';
 export type CarStatus = 'running' | 'finished' | 'retired';
 export type TargetLine = 'racing' | 'attack' | 'defend' | 'pit';
 
-export interface CarState {
+export interface BaseCarState {
   driverId: string;
   lap: number;
   /** Normalized distance around the current lap, from 0 (line) to < 1. */
@@ -29,11 +29,28 @@ export interface CarState {
   pitState: PitState;
   position: number;
   timing: CarTiming;
-  status: CarStatus;
   targetLine: TargetLine;
-  finishPosition?: number;
-  retirementTick?: number;
 }
+
+export type RunningCarState = BaseCarState & {
+  status: 'running';
+  finishPosition?: never;
+  retirementTick?: never;
+};
+
+export type FinishedCarState = BaseCarState & {
+  status: 'finished';
+  finishPosition: number;
+  retirementTick?: never;
+};
+
+export type RetiredCarState = BaseCarState & {
+  status: 'retired';
+  finishPosition?: never;
+  retirementTick: number;
+};
+
+export type CarState = RunningCarState | FinishedCarState | RetiredCarState;
 
 export type RacePhase = 'grid' | 'racing' | 'finished';
 export type RaceFlag = 'green' | 'yellow' | 'safety-car';
@@ -47,8 +64,8 @@ export interface RaceState {
   flag: RaceFlag;
   weather: Weather;
   safetyCar: SafetyCarState;
-  cars: CarState[];
-  events: RaceEvent[];
+  cars: readonly CarState[];
+  events: readonly RaceEvent[];
 }
 
 export type RaceEvent =

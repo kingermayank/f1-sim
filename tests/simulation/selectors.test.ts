@@ -1,24 +1,41 @@
 import { getClassification, getIntervals } from '../../src/simulation/selectors';
 import type { CarState, RaceState } from '../../src/simulation/events';
 
-function car(overrides: Partial<CarState> & Pick<CarState, 'driverId'>): CarState {
+function carBase(driverId: string) {
   return {
+    driverId,
     lap: 0,
     distance: 0,
     lateralOffset: 0,
     speed: 0,
-    tire: { compound: 'medium', wear: 0, temperature: 0 },
+    tire: { compound: 'medium' as const, wear: 0, temperature: 0 },
     fuelFactor: 1,
     damage: 0,
-    pitState: 'track',
+    pitState: 'track' as const,
     position: 1,
     timing: { lastLap: null, bestLap: null, totalTime: 0 },
-    status: 'running',
-    targetLine: 'racing',
-    ...overrides,
-    driverId: overrides.driverId,
+    targetLine: 'racing' as const,
   };
 }
+
+function runningCar(driverId: string, overrides: Partial<Omit<CarState, 'driverId' | 'status'>> = {}): CarState {
+  return { ...carBase(driverId), status: 'running', ...overrides } as CarState;
+}
+
+function finishedCar(driverId: string, finishPosition: number, position = finishPosition): CarState {
+  return { ...carBase(driverId), status: 'finished', finishPosition, position };
+}
+
+function retiredCar(driverId: string, retirementTick: number): CarState {
+  return { ...carBase(driverId), status: 'retired', retirementTick };
+}
+
+// @ts-expect-error Finished cars must carry immutable finishing metadata.
+const malformedFinishedCar: CarState = { ...carBase('missing-finish'), status: 'finished' };
+// @ts-expect-error Retired cars must carry immutable retirement metadata.
+const malformedRetiredCar: CarState = { ...carBase('missing-retirement'), status: 'retired' };
+void malformedFinishedCar;
+void malformedRetiredCar;
 
 function state(cars: CarState[]): RaceState {
   return {
@@ -41,16 +58,16 @@ it('orders active cars by completed distance and retirees behind finishers', () 
     { driverId: 'c', lap: 4, distance: 0.9, status: 'retired' },
   ] as CarState[];
 
-  expect(getClassification({ cars } as RaceState).map((entry) => entry.driverId)).toEqual(['b', 'a', 'c']);
+  expect(getClassification({ cars } as never).map((entry) => entry.driverId)).toEqual(['b', 'a', 'c']);
 });
 
 it('orders finishers by position, then running cars, then retirees by retirement tick', () => {
   const classification = getClassification(state([
-    car({ driverId: 'runner', lap: 10, distance: 0.9 }),
-    car({ driverId: 'second', status: 'finished', position: 2 }),
-    car({ driverId: 'first', status: 'finished', position: 1 }),
-    car({ driverId: 'late-retirement', status: 'retired', retirementTick: 30 }),
-    car({ driverId: 'early-retirement', status: 'retired', retirementTick: 12 }),
+    runningCar('runner', { lap: 10, distance: 0.9 }),
+    finishedCar('second', 2, 99),
+    finishedCar('first', 1, 98),
+    retiredCar('late-retirement', 30),
+    retiredCar('early-retirement', 12),
   ]));
 
   expect(classification.map((entry) => entry.driverId)).toEqual([
@@ -60,8 +77,8 @@ it('orders finishers by position, then running cars, then retirees by retirement
 
 it('derives leader intervals without mutating car state', () => {
   const race = state([
-    car({ driverId: 'leader', lap: 8, distance: 0.5, speed: 0.02 }),
-    car({ driverId: 'follower', lap: 8, distance: 0.3, speed: 0.01 }),
+    runningCar('leader', { lap: 8, distance: 0.5, speed: 0.02 }),
+    runningCar('follower', { lap: 8, distance: 0.3, speed: 0.01 }),
   ]);
   const originalCars = structuredClone(race.cars);
 

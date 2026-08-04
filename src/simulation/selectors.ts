@@ -8,14 +8,6 @@ function completedDistance(car: CarState): number {
   return car.lap + car.distance;
 }
 
-function finishPosition(car: CarState): number {
-  return car.finishPosition ?? car.position;
-}
-
-function retirementTick(car: CarState): number {
-  return car.retirementTick ?? Number.NEGATIVE_INFINITY;
-}
-
 /** Returns a new, deterministic classification without changing race state. */
 export function getClassification(state: Pick<RaceState, 'cars'>): CarState[] {
   return [...state.cars].sort((left, right) => {
@@ -25,7 +17,7 @@ export function getClassification(state: Pick<RaceState, 'cars'>): CarState[] {
     if (rankDifference !== 0) return rankDifference;
 
     if (left.status === 'finished' && right.status === 'finished') {
-      const positionDifference = finishPosition(left) - finishPosition(right);
+      const positionDifference = left.finishPosition - right.finishPosition;
       return positionDifference || compareText(left.driverId, right.driverId);
     }
 
@@ -34,8 +26,12 @@ export function getClassification(state: Pick<RaceState, 'cars'>): CarState[] {
       return distanceDifference || compareText(left.driverId, right.driverId);
     }
 
-    const retirementDifference = retirementTick(right) - retirementTick(left);
-    return retirementDifference || compareText(left.driverId, right.driverId);
+    if (left.status === 'retired' && right.status === 'retired') {
+      const retirementDifference = right.retirementTick - left.retirementTick;
+      return retirementDifference || compareText(left.driverId, right.driverId);
+    }
+
+    return compareText(left.driverId, right.driverId);
   });
 }
 
