@@ -1,0 +1,5 @@
+:root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background: #07110f; color: #f6f4eb; }
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; min-height: 100%; margin: 0; }
+button, select { font: inherit; }
+.app-shell { min-height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at 50% 20%, #173c32, #07110f 65%); }
