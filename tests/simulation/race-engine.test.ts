@@ -95,7 +95,11 @@ describe('RaceEngine', () => {
   });
 
   it('emits start, sector, lap, and finish events with realistic lap timing', () => {
-    const engine = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(
+      { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
+      MONACO_TRACK,
+      DRIVERS_2026,
+    );
     engine.runToFinish();
     const events = engine.drainEvents();
     const sectorEvents = events.filter((event) => event.type === 'sector');
@@ -106,11 +110,16 @@ describe('RaceEngine', () => {
     expect(new Set(sectorEvents.map((event) => event.sector))).toEqual(new Set([1, 2, 3]));
     expect(lapEvents).toHaveLength(22 * DEFAULT_RACE_CONFIG.laps);
     expect(finishEvents).toHaveLength(22);
-    expect(lapEvents.every((event) => event.lapTime > 60 && event.lapTime < 100)).toBe(true);
+    // Pit laps include Monaco's roughly 20-second lane loss.
+    expect(lapEvents.every((event) => event.lapTime > 60 && event.lapTime < 130)).toBe(true);
   });
 
   it('finishes and classifies all 22 cars after 78 laps', () => {
-    const engine = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(
+      { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
+      MONACO_TRACK,
+      DRIVERS_2026,
+    );
 
     engine.runToFinish();
     const snapshot = engine.snapshot();
