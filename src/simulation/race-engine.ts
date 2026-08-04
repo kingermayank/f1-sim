@@ -3,10 +3,12 @@ import type { TrackDefinition, TrackZone } from '../track/track-types';
 import type {
   CarState,
   FinishedCarState,
+  PitState,
   RaceEvent,
   RaceState,
   RetiredCarState,
   RunningCarState,
+  SafetyCarState,
 } from './events';
 import { evaluateIncident } from './incidents';
 import { evaluateOvertake } from './overtakes';
@@ -67,6 +69,26 @@ export interface RaceEngine {
   snapshot(): Readonly<RaceState>;
   drainEvents(): RaceEvent[];
   runToFinish(): void;
+}
+
+export interface SafetyCarCatchupInput {
+  gapSeconds: number;
+  hasCarAhead: boolean;
+  safetyCar: SafetyCarState;
+  pitState: PitState;
+  penaltyTicks: number;
+}
+
+/** A pace multiplier only; position and timing still advance through normal movement. */
+export function calculateSafetyCarCatchupFactor(input: SafetyCarCatchupInput): number {
+  if (
+    (input.safetyCar !== 'deploying' && input.safetyCar !== 'deployed')
+    || !input.hasCarAhead
+    || input.pitState !== 'track'
+    || input.penaltyTicks > 0
+    || input.gapSeconds <= 0.35
+  ) return 1;
+  return Math.min(1.35, 1 + (input.gapSeconds - 0.35) * 0.08);
 }
 
 function cloneEvent(event: RaceEvent): RaceEvent {
@@ -393,6 +415,13 @@ export function createRaceEngine(
       ? car.tire.compound === 'wet' ? 1 : car.tire.compound === 'intermediate' ? 1.025 : 0.72
       : car.tire.compound === 'wet' ? 0.82 : car.tire.compound === 'intermediate' ? 0.88 : 1;
     const noiseRange = (1 - driver.ratings.consistency) * 0.012;
+    const safetyCarCatchupFactor = calculateSafetyCarCatchupFactor({
+      gapSeconds: context.gapSeconds,
+      hasCarAhead: context.ahead !== undefined,
+      safetyCar: state.safetyCar,
+      pitState: car.pitState,
+      penaltyTicks: runtime.penaltyTicks,
+    });
     const paceFactor = calculateTargetPace({
       basePace: 0.92 + driver.ratings.pace * 0.08,
       consistencyNoise: prng.range(-noiseRange, noiseRange),
@@ -401,7 +430,8 @@ export function createRaceEngine(
       trafficFactor: context.gapSeconds < 1.1 ? 0.99 : 1,
       slipstreamFactor: context.gapSeconds < 0.75 && state.flag === 'green' ? 1.004 : 1,
       damageFactor: 1 - car.damage * 0.55,
-      flagFactor: state.flag === 'green' ? 1 : state.flag === 'yellow' ? 0.7 : 0.55,
+      flagFactor: (state.flag === 'green' ? 1 : state.flag === 'yellow' ? 0.7 : 0.55)
+        * safetyCarCatchupFactor,
     });
     const speed = paceFactor / REFERENCE_LAP_SECONDS;
     const startDistance = car.distance;
@@ -473,6 +503,8 @@ export function createRaceEngine(
         timing: nextTiming,
         status: 'finished',
         finishPosition: 0,
+        targetLine: 'racing',
+        lateralOffset: 0,
       };
       finishCandidates.push({
         carIndex,
@@ -500,14 +532,23 @@ export function createRaceEngine(
   }
 
   function applyOvertakes(cars: CarState[]): CarState[] {
-    if (state.flag !== 'green' || state.tick % OVERTAKE_CHECK_TICKS !== 0) return cars;
-    const result = [...cars];
+    const result = cars.map((car) => {
+      if (car.status !== 'running' || car.pitState !== 'track') return car;
+      const inPassingZone = passingZones.some((zone) => atZone(car.distance, zone));
+      return state.flag !== 'green' || !inPassingZone
+        ? { ...car, targetLine: 'racing' as const, lateralOffset: 0 }
+        : car;
+    });
+    if (state.flag !== 'green' || state.tick % OVERTAKE_CHECK_TICKS !== 0) return result;
     const indexByDriver = new Map(result.map((car, index) => [car.driverId, index]));
     const active = getClassification({ cars: result }).filter(
       (car): car is RunningCarState => car.status === 'running' && car.pitState === 'track',
     );
 
-    for (let orderIndex = 1; orderIndex < active.length; orderIndex += 1) {
+    // Alternate disjoint adjacent pairs so a middle car cannot be attacker and
+    // defender in the same ordering checkpoint.
+    const firstAttackerIndex = Math.floor(state.tick / OVERTAKE_CHECK_TICKS) % 2 === 0 ? 1 : 2;
+    for (let orderIndex = firstAttackerIndex; orderIndex < active.length; orderIndex += 2) {
       const defender = active[orderIndex - 1]!;
       const attacker = active[orderIndex]!;
       if (defender.lap >= config.laps - 1 && defender.distance > 0.995) continue;
@@ -523,7 +564,9 @@ export function createRaceEngine(
       const decision = evaluateOvertake({
         paceAdvantage,
         gapSeconds,
-        passingZone: passingZones.some((zone) => atZone(attacker.distance, zone)),
+        passingZone: passingZones.some((zone) => (
+          atZone(attacker.distance, zone) && atZone(defender.distance, zone)
+        )),
         attackerSkill: attackerDriver.ratings.overtaking,
         defenderSkill: defenderDriver.ratings.defending,
       }, prng);
@@ -531,15 +574,25 @@ export function createRaceEngine(
       const defenderIndex = indexByDriver.get(defender.driverId);
       if (attackerIndex === undefined || defenderIndex === undefined) continue;
 
-      if (decision === 'attack') {
-        result[attackerIndex] = { ...attacker, targetLine: 'attack', lateralOffset: -1.2 };
-        result[defenderIndex] = { ...defender, targetLine: 'defend', lateralOffset: 1.1 };
-      } else if (decision === 'failed') {
+      if (decision === 'none' || decision === 'failed') {
         result[attackerIndex] = { ...attacker, targetLine: 'racing', lateralOffset: 0 };
         result[defenderIndex] = { ...defender, targetLine: 'racing', lateralOffset: 0 };
+      } else if (decision === 'attack') {
+        result[attackerIndex] = { ...attacker, targetLine: 'attack', lateralOffset: -1.2 };
+        result[defenderIndex] = { ...defender, targetLine: 'defend', lateralOffset: 1.1 };
       } else if (decision === 'contact') {
-        result[attackerIndex] = { ...attacker, damage: Math.min(1, attacker.damage + 0.08), targetLine: 'racing' };
-        result[defenderIndex] = { ...defender, damage: Math.min(1, defender.damage + 0.05), targetLine: 'racing' };
+        result[attackerIndex] = {
+          ...attacker,
+          damage: Math.min(1, attacker.damage + 0.08),
+          targetLine: 'racing',
+          lateralOffset: 0,
+        };
+        result[defenderIndex] = {
+          ...defender,
+          damage: Math.min(1, defender.damage + 0.05),
+          targetLine: 'racing',
+          lateralOffset: 0,
+        };
         emit({
           type: 'incident',
           tick: state.tick,
@@ -548,10 +601,10 @@ export function createRaceEngine(
         });
       } else if (decision === 'pass') {
         result[attackerIndex] = setCompletedDistance(
-          { ...attacker, targetLine: 'attack', lateralOffset: -0.8 },
+          { ...attacker, targetLine: 'racing', lateralOffset: 0 },
           completedDistance(defender) + 0.00008,
         );
-        result[defenderIndex] = { ...defender, targetLine: 'defend', lateralOffset: 0.8 };
+        result[defenderIndex] = { ...defender, targetLine: 'racing', lateralOffset: 0 };
         emit({
           type: 'overtake',
           tick: state.tick,
@@ -560,28 +613,6 @@ export function createRaceEngine(
           position: defender.position,
         });
       }
-    }
-    return result;
-  }
-
-  function compressSafetyCarGaps(cars: CarState[]): CarState[] {
-    if (state.safetyCar !== 'deploying' && state.safetyCar !== 'deployed') return cars;
-    const result = [...cars];
-    const indexByDriver = new Map(result.map((car, index) => [car.driverId, index]));
-    const active = getClassification({ cars: result }).filter(
-      (car): car is RunningCarState => car.status === 'running',
-    );
-    let aheadDistance = active[0] ? completedDistance(active[0]) : 0;
-    for (let index = 1; index < active.length; index += 1) {
-      const car = active[index]!;
-      const carIndex = indexByDriver.get(car.driverId);
-      if (carIndex === undefined) continue;
-      const current = completedDistance(car);
-      const desired = aheadDistance - 0.0024;
-      const compressed = current < desired ? current + (desired - current) * 0.018 : current;
-      const updated = setCompletedDistance(car, Math.min(desired, compressed));
-      result[carIndex] = updated;
-      aheadDistance = completedDistance(updated);
     }
     return result;
   }
@@ -611,7 +642,6 @@ export function createRaceEngine(
     ));
 
     movedCars = applyOvertakes(movedCars);
-    movedCars = compressSafetyCarGaps(movedCars);
     const alreadyFinished = movedCars.filter(
       (car) => car.status === 'finished' && car.finishPosition > 0,
     ).length;

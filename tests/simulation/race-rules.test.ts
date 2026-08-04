@@ -4,7 +4,7 @@ import type { RaceConfig } from '../../src/domain/race-types';
 import { evaluateIncident } from '../../src/simulation/incidents';
 import { evaluateOvertake } from '../../src/simulation/overtakes';
 import { createPrng } from '../../src/simulation/prng';
-import { createRaceEngine } from '../../src/simulation/race-engine';
+import { calculateSafetyCarCatchupFactor, createRaceEngine } from '../../src/simulation/race-engine';
 import { createStrategy } from '../../src/simulation/strategy';
 import { updateTire } from '../../src/simulation/tires';
 import { MONACO_TRACK } from '../../src/track/monaco-track';
@@ -119,7 +119,7 @@ describe('integrated race rules', () => {
   });
 
   it('emits safety-car transitions and compresses active-car gaps', () => {
-    const engine = createRaceEngine(raceConfig('rules-3'), MONACO_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(raceConfig('safety-review-1'), MONACO_TRACK, DRIVERS_2026);
     let gapAtDeployment: number | undefined;
     let compressedGap: number | undefined;
 
@@ -146,6 +146,73 @@ describe('integrated race rules', () => {
     const completedFlags = engine.snapshot().events.filter((event) => event.type === 'flag');
     expect(completedFlags.some((event) => event.flag === 'yellow')).toBe(true);
     expect(completedFlags.some((event) => event.flag === 'green')).toBe(true);
+  });
+
+  it('does not bunch pit cars or skip authoritative timing boundaries under the safety car', () => {
+    expect(calculateSafetyCarCatchupFactor({
+      gapSeconds: 4,
+      hasCarAhead: true,
+      safetyCar: 'deployed',
+      pitState: 'stopped',
+      penaltyTicks: 0,
+    })).toBe(1);
+    expect(calculateSafetyCarCatchupFactor({
+      gapSeconds: 4,
+      hasCarAhead: true,
+      safetyCar: 'deployed',
+      pitState: 'track',
+      penaltyTicks: 10,
+    })).toBe(1);
+
+    const engine = createRaceEngine(raceConfig('review-1'), MONACO_TRACK, DRIVERS_2026);
+    engine.runToFinish();
+    const lapEvents = engine.snapshot().events.filter((event) => event.type === 'lap');
+    for (const car of engine.snapshot().cars) {
+      if (car.status !== 'finished') continue;
+      expect(lapEvents.filter((event) => event.driverId === car.driverId)).toHaveLength(78);
+    }
+  });
+
+  it('updates each battle participant at most once per ordering checkpoint', () => {
+    const engine = createRaceEngine(raceConfig('review-1'), MONACO_TRACK, DRIVERS_2026);
+    engine.runToFinish();
+    const participantsByTick = new Map<number, string[]>();
+
+    for (const event of engine.snapshot().events) {
+      const participants = event.type === 'overtake'
+        ? [event.attackerId, event.defenderId]
+        : event.type === 'incident' && event.driverIds.length === 2 ? event.driverIds : [];
+      if (participants.length === 0) continue;
+      participantsByTick.set(event.tick, [
+        ...(participantsByTick.get(event.tick) ?? []),
+        ...participants,
+      ]);
+    }
+
+    for (const participants of participantsByTick.values()) {
+      expect(new Set(participants).size).toBe(participants.length);
+    }
+  });
+
+  it('restores racing lines outside passing zones and whenever racing is neutralized', () => {
+    const engine = createRaceEngine(raceConfig('review-1'), MONACO_TRACK, DRIVERS_2026);
+    const passingZones = MONACO_TRACK.zones.filter((zone) => zone.kind === 'passing');
+    const isPassingZone = (distance: number) => passingZones.some((zone) => (
+      zone.start <= zone.end
+        ? distance >= zone.start && distance <= zone.end
+        : distance >= zone.start || distance <= zone.end
+    ));
+
+    for (let sample = 0; sample < 4_000 && engine.snapshot().phase !== 'finished'; sample += 1) {
+      engine.advance(0.1);
+      const snapshot = engine.snapshot();
+      for (const car of snapshot.cars) {
+        if (car.status !== 'running' || car.pitState !== 'track') continue;
+        if (snapshot.flag !== 'green' || !isPassingZone(car.distance)) {
+          expect(car.targetLine).toBe('racing');
+        }
+      }
+    }
   });
 
   it('preserves race invariants across 200 seeds', { timeout: 120_000 }, () => {
