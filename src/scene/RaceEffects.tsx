@@ -39,7 +39,9 @@ export function RaceEffects() {
   const debris = useRef<InstancedMesh>(null);
   const snapshot = useRaceStore((state) => state.snapshot);
   const eventFeed = useRaceStore((state) => state.eventFeed);
-  const reducedMotion = useReducedMotion();
+  const effectsEnabled = useRaceStore((state) => state.effectsEnabled);
+  const forceReducedMotion = useRaceStore((state) => state.reducedMotion);
+  const reducedMotion = useReducedMotion() || forceReducedMotion;
   const incident = useMemo(() => [...eventFeed].reverse().find((event) => event.type === 'incident'), [eventFeed]);
 
   useFrame(() => {
@@ -48,7 +50,7 @@ export function RaceEffects() {
       ? snapshot.cars.find((candidate) => candidate.driverId === incident.driverIds[0])
       : undefined;
     const age = incident ? Math.max(0, (snapshot.tick - incident.tick) / 10) : Number.POSITIVE_INFINITY;
-    const active = car && age < 4;
+    const active = effectsEnabled && car && age < 4;
     const origin = active ? TRACK.sample(car.distance, car.lateralOffset).position : new Vector3(0, -100, 0);
     const smokeCount = active ? (reducedMotion ? 8 : EFFECT_POOL_CAPACITY.smoke) : 0;
     const sparkCount = active && !reducedMotion && age < 1.15 ? EFFECT_POOL_CAPACITY.sparks : 0;

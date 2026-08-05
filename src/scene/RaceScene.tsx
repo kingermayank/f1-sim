@@ -107,13 +107,13 @@ export function RaceScene() {
     viewportWidth: typeof window === 'undefined' ? 1280 : window.innerWidth,
     coarsePointer: typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true,
   }).tier);
-  const [qualityOverride, setQualityOverride] = useState<SceneQualityOverride>('auto');
+  const qualityMode = useRaceStore((state) => state.qualityMode);
   const selectedDriverId = useRaceStore((state) => state.selectedDriverId);
   const selectDriver = useRaceStore((state) => state.selectDriver);
   const quality = selectQualityTier({
     viewportWidth: typeof window === 'undefined' ? 1280 : window.innerWidth,
     coarsePointer: detectedQuality === 'mobile',
-    override: qualityOverride === 'auto' ? detectedQuality : qualityOverride,
+    override: qualityMode === 'auto' ? detectedQuality : qualityMode,
   });
   const sceneStatus = getRaceSceneStatus({
     webGLAvailable,
@@ -132,7 +132,6 @@ export function RaceScene() {
       </p>
       {webGLAvailable ? (
         <SceneRenderBoundary
-          key={quality.tier}
           fallback={<div className="race-viewport__fallback" aria-hidden="true" />}
           onError={() => setRenderFailed(true)}
         >
@@ -162,22 +161,6 @@ export function RaceScene() {
           </Canvas>
         </SceneRenderBoundary>
       ) : <div className="race-viewport__fallback" aria-hidden="true" />}
-      <label className="race-quality">
-        <span>Scene detail</span>
-        <select
-          aria-label="Scene detail"
-          value={qualityOverride}
-          onChange={(event) => {
-            setRenderFailed(false);
-            setRendererCreated(false);
-            setQualityOverride(event.target.value as SceneQualityOverride);
-          }}
-        >
-          <option value="auto">Auto ({detectedQuality})</option>
-          <option value="high">High</option>
-          <option value="mobile">Mobile</option>
-        </select>
-      </label>
       <div className="visually-hidden" aria-label={`${quality.tier} scene controls`}>
         {DRIVERS_2026.map((driver) => (
           <button

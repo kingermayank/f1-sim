@@ -13,9 +13,12 @@ export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 export const CAMERA_MODES = ['broadcast', 'chase', 'cockpit', 'overhead', 'free'] as const;
 export type CameraMode = (typeof CAMERA_MODES)[number];
 
+export const QUALITY_MODES = ['auto', 'high', 'mobile'] as const;
+export type QualityMode = (typeof QUALITY_MODES)[number];
+
 const EVENT_FEED_LIMIT = 100;
 
-type ImmutableRaceEvent<T extends RaceEvent = RaceEvent> = T extends { driverIds: string[] }
+export type ImmutableRaceEvent<T extends RaceEvent = RaceEvent> = T extends { driverIds: string[] }
   ? Readonly<Omit<T, 'driverIds'>> & { readonly driverIds: readonly string[] }
   : Readonly<T>;
 
@@ -27,11 +30,21 @@ export interface RaceStoreState {
   speed: PlaybackSpeed;
   selectedDriverId: string | null;
   cameraMode: CameraMode;
+  labelsEnabled: boolean;
+  effectsEnabled: boolean;
+  audioMuted: boolean;
+  reducedMotion: boolean;
+  qualityMode: QualityMode;
   tick(deltaSeconds: number): void;
   togglePause(): void;
   setSpeed(speed: PlaybackSpeed): void;
   selectDriver(driverId: string | null): void;
   setCameraMode(cameraMode: CameraMode): void;
+  toggleLabels(): void;
+  toggleEffects(): void;
+  toggleAudio(): void;
+  toggleReducedMotion(): void;
+  setQualityMode(qualityMode: QualityMode): void;
   restart(seed?: string): void;
   replaySeed(): void;
 }
@@ -89,6 +102,11 @@ export function createRaceStore(initialConfig: RaceConfig = DEFAULT_RACE_CONFIG)
       speed: 1,
       selectedDriverId: null,
       cameraMode: 'broadcast',
+      labelsEnabled: true,
+      effectsEnabled: true,
+      audioMuted: false,
+      reducedMotion: false,
+      qualityMode: 'auto',
       tick(deltaSeconds): void {
         const { isPaused, speed, eventFeed } = get();
         if (isPaused) return;
@@ -108,6 +126,21 @@ export function createRaceStore(initialConfig: RaceConfig = DEFAULT_RACE_CONFIG)
       },
       setCameraMode(cameraMode): void {
         if (isCameraMode(cameraMode)) set({ cameraMode });
+      },
+      toggleLabels(): void {
+        set((state) => ({ labelsEnabled: !state.labelsEnabled }));
+      },
+      toggleEffects(): void {
+        set((state) => ({ effectsEnabled: !state.effectsEnabled }));
+      },
+      toggleAudio(): void {
+        set((state) => ({ audioMuted: !state.audioMuted }));
+      },
+      toggleReducedMotion(): void {
+        set((state) => ({ reducedMotion: !state.reducedMotion }));
+      },
+      setQualityMode(qualityMode): void {
+        if (QUALITY_MODES.includes(qualityMode)) set({ qualityMode });
       },
       restart(seed): void {
         resetRace({ ...get().config, seed: seed ?? createNewSeed() });

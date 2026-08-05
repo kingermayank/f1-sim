@@ -284,7 +284,8 @@ export function RaceCameras() {
   const aspect = useThree((state) => state.size.width / Math.max(1, state.size.height));
   const selectedDriverId = useRaceStore((state) => state.selectedDriverId);
   const cameraMode = useRaceStore((state) => state.cameraMode);
-  const reducedMotion = useReducedMotion();
+  const forceReducedMotion = useRaceStore((state) => state.reducedMotion);
+  const reducedMotion = useReducedMotion() || forceReducedMotion;
   const rig = useRef<CameraRigState | null>(null);
   if (!rig.current) {
     const state = raceStore.getState();

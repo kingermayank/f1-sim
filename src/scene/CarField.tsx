@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useGLTF, useTexture } from '@react-three/drei';
+import { Html, useGLTF, useTexture } from '@react-three/drei';
 import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   Group,
@@ -50,9 +50,10 @@ interface CarProps {
   selected: boolean;
   selectDriver(driverId: string): void;
   model?: Object3D;
+  showLabel?: boolean;
 }
 
-function AnimatedCar({ car, selected, selectDriver, model }: CarProps) {
+function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: CarProps) {
   const group = useRef<Group>(null);
   const driver = DRIVERS_2026.find((candidate) => candidate.id === car.driverId) ?? DRIVERS_2026[0];
   const team = TEAMS_2026.find((candidate) => candidate.id === driver.teamId) ?? TEAMS_2026[0];
@@ -96,6 +97,11 @@ function AnimatedCar({ car, selected, selectDriver, model }: CarProps) {
           <meshBasicMaterial color="#fff3bd" transparent opacity={0.9} depthWrite={false} />
         </mesh>
       )}
+      {showLabel && (
+        <Html center position={[0, 2.7, 0]} distanceFactor={13} className="car-label">
+          <span style={{ '--driver-color': team.color } as React.CSSProperties}>{driver.abbreviation}</span>
+        </Html>
+      )}
       {model ? <primitive object={model} dispose={null} /> : (
         <group>
           <mesh castShadow position={[0, 0.48, 0]}>
@@ -122,7 +128,7 @@ function AnimatedCar({ car, selected, selectDriver, model }: CarProps) {
   );
 }
 
-function LoadedTeamCar({ car, selected, selectDriver }: CarProps) {
+function LoadedTeamCar({ car, selected, selectDriver, showLabel }: CarProps) {
   const driver = DRIVERS_2026.find((candidate) => candidate.id === car.driverId) ?? DRIVERS_2026[0];
   const team = TEAMS_2026.find((candidate) => candidate.id === driver.teamId) ?? TEAMS_2026[0];
   const gltf = useGLTF(ASSETS.car);
@@ -149,7 +155,7 @@ function LoadedTeamCar({ car, selected, selectDriver }: CarProps) {
     });
   }, [cloneResources]);
 
-  return <AnimatedCar car={car} selected={selected} selectDriver={selectDriver} model={cloneResources.scene} />;
+  return <AnimatedCar car={car} selected={selected} selectDriver={selectDriver} model={cloneResources.scene} showLabel={showLabel} />;
 }
 
 class CarAssetBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
@@ -158,10 +164,11 @@ class CarAssetBoundary extends Component<{ children: ReactNode; fallback: ReactN
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 
-function ProceduralCars({ cars, selectedDriverId, selectDriver }: {
+function ProceduralCars({ cars, selectedDriverId, selectDriver, labelsEnabled }: {
   cars: readonly CarState[];
   selectedDriverId: string | null;
   selectDriver(driverId: string): void;
+  labelsEnabled: boolean;
 }) {
   return cars.map((car) => (
     <AnimatedCar
@@ -169,6 +176,7 @@ function ProceduralCars({ cars, selectedDriverId, selectDriver }: {
       car={car}
       selected={car.driverId === selectedDriverId}
       selectDriver={selectDriver}
+      showLabel={labelsEnabled}
     />
   ));
 }
@@ -178,18 +186,19 @@ export function CarField({ quality }: { quality: SceneQualityTier }) {
   const tick = useRaceStore((state) => state.snapshot.tick);
   const selectedDriverId = useRaceStore((state) => state.selectedDriverId);
   const selectDriver = useRaceStore((state) => state.selectDriver);
+  const labelsEnabled = useRaceStore((state) => state.labelsEnabled);
   const visibleCars = cars.filter((car) => shouldPresentCar(car, tick));
 
   if (quality === 'mobile') {
-    return <ProceduralCars cars={visibleCars} selectedDriverId={selectedDriverId} selectDriver={selectDriver} />;
+    return <ProceduralCars cars={visibleCars} selectedDriverId={selectedDriverId} selectDriver={selectDriver} labelsEnabled={labelsEnabled} />;
   }
 
   return (
     <CarAssetBoundary fallback={
-      <ProceduralCars cars={visibleCars} selectedDriverId={selectedDriverId} selectDriver={selectDriver} />
+      <ProceduralCars cars={visibleCars} selectedDriverId={selectedDriverId} selectDriver={selectDriver} labelsEnabled={labelsEnabled} />
     }>
       <Suspense fallback={
-        <ProceduralCars cars={visibleCars} selectedDriverId={selectedDriverId} selectDriver={selectDriver} />
+        <ProceduralCars cars={visibleCars} selectedDriverId={selectedDriverId} selectDriver={selectDriver} labelsEnabled={labelsEnabled} />
       }>
         {visibleCars.map((car) => (
           <LoadedTeamCar
@@ -197,6 +206,7 @@ export function CarField({ quality }: { quality: SceneQualityTier }) {
             car={car}
             selected={car.driverId === selectedDriverId}
             selectDriver={selectDriver}
+            showLabel={labelsEnabled}
           />
         ))}
       </Suspense>
