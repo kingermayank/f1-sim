@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { chromium } from 'playwright';
 
 const manifestPath = resolve(process.env.ASSET_MANIFEST_PATH ?? 'src/assets/credits.json');
 const publicRoot = resolve(process.env.ASSET_PUBLIC_ROOT ?? 'public');
@@ -157,12 +158,55 @@ function parseWebpDimensions(bytes) {
   return dimensions ?? { error: 'missing WebP image chunk' };
 }
 
+async function launchWebpDecoder() {
+  try {
+    return await chromium.launch({ headless: true });
+  } catch (primaryError) {
+    const fallbackPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+      ?? (process.platform === 'darwin' && existsSync('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+        ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        : undefined);
+    if (!fallbackPath) throw primaryError;
+    return chromium.launch({ headless: true, executablePath: fallbackPath });
+  }
+}
+
+async function decodeWebpsInBrowser(files) {
+  if (files.length === 0) return [];
+  let browser;
+  try {
+    browser = await launchWebpDecoder();
+    const page = await browser.newPage();
+    return await page.evaluate(async (images) => Promise.all(images.map(({ runtimeFile, data }) => new Promise((resolveImage) => {
+      const image = new Image();
+      const finish = (result) => {
+        clearTimeout(timeout);
+        resolveImage(result);
+      };
+      const timeout = setTimeout(() => finish({ runtimeFile, error: 'WebP browser decoder rejected file' }), 1_500);
+      image.onload = async () => {
+        try {
+          await image.decode();
+          finish({ runtimeFile, width: image.naturalWidth, height: image.naturalHeight });
+        } catch {
+          finish({ runtimeFile, error: 'WebP browser decoder rejected file' });
+        }
+      };
+      image.onerror = () => finish({ runtimeFile, error: 'WebP browser decoder rejected file' });
+      image.src = `data:image/webp;base64,${data}`;
+    }))), files);
+  } finally {
+    await browser?.close();
+  }
+}
+
 if (!existsSync(manifestPath)) {
   console.error('Asset manifest not found: src/assets/credits.json');
   process.exit(1);
 }
 
 const problems = [];
+const webpFiles = [];
 let manifest;
 
 try {
@@ -233,8 +277,11 @@ if (Array.isArray(manifest)) {
         if (asset.runtimeFile.endsWith('.webp')) {
           const parsed = parseWebpDimensions(bytes);
           if (parsed.error) problems.push(`${label}: ${parsed.error}`);
-          else if (asset.runtimeFile.includes('/textures/teams/') && (parsed.width !== 512 || parsed.height !== 512)) {
-            problems.push(`${label}: livery dimensions must be 512x512; found ${parsed.width}x${parsed.height}`);
+          else {
+            if (asset.runtimeFile.includes('/textures/teams/') && (parsed.width !== 512 || parsed.height !== 512)) {
+              problems.push(`${label}: livery dimensions must be 512x512; found ${parsed.width}x${parsed.height}`);
+            }
+            webpFiles.push({ label, runtimeFile: asset.runtimeFile, data: bytes.toString('base64') });
           }
         }
       }
@@ -243,6 +290,22 @@ if (Array.isArray(manifest)) {
 
   for (const runtimeFile of requiredRuntimeFiles) {
     if (!runtimeFiles.has(runtimeFile)) problems.push(`missing required runtime file: ${runtimeFile}`);
+  }
+}
+
+if (problems.length === 0) {
+  try {
+    const decodedWebps = await decodeWebpsInBrowser(webpFiles);
+    const labels = new Map(webpFiles.map(({ label, runtimeFile }) => [runtimeFile, label]));
+    for (const decoded of decodedWebps) {
+      const label = labels.get(decoded.runtimeFile) ?? decoded.runtimeFile;
+      if (decoded.error) problems.push(`${label}: ${decoded.error}`);
+      else if (decoded.width !== 512 || decoded.height !== 512) {
+        problems.push(`${label}: browser-decoded livery dimensions must be 512x512; found ${decoded.width}x${decoded.height}`);
+      }
+    }
+  } catch (error) {
+    problems.push(`Unable to launch WebP browser decoder: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
