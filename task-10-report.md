@@ -13,6 +13,7 @@
 - Review fix: added an independent monotonic `lastSeenEventTick` watermark so consumed urgent events cannot reappear after routine coverage.
 - Review fix: overhead height now derives from circuit bounds, vertical FOV, live viewport aspect ratio, and a 12% framing margin.
 - Review fix: camera tracking reads an immutable 1,024-step spline cache into reusable numeric scratch state from a store subscription. React no longer subscribes to each race snapshot, and no spline/vector/quaternion sample is allocated per published tick.
+- Final review fix: an allocation-free eligibility scan gates the broadcast director. Routine store publications with no eligible new event and shots younger than 10 seconds do not invoke the selector or allocate hold decisions; evaluated events advance the monotonic watermark once.
 - Integrated `RaceCameras` into `RaceScene`. No HUD work was added.
 
 ## TDD Evidence
@@ -20,11 +21,12 @@
 - Director test was first observed failing because `src/cameras/camera-director.ts` did not exist.
 - Scene pose test was first observed failing because `src/cameras/RaceCameras.tsx` did not exist.
 - Review regressions were first observed failing for stale incident replay, event-watermark ordering, missing overhead-fit helpers, and missing cached sampling.
-- Focused result after review fixes: 2 test files passed, 20 tests passed.
+- Final call-count regressions cover 100 steady-state updates with zero director invocations and deferred evaluation until an event can interrupt.
+- Focused result after review fixes: 2 test files passed, 22 tests passed.
 
 ## Verification
 
-- `npm test -- tests/simulation/camera-director.test.ts tests/ui/race-scene.test.tsx` — passed (20/20).
+- `npm test -- tests/simulation/camera-director.test.ts tests/ui/race-scene.test.tsx` — passed (22/22).
 - `npm run build` — passed (TypeScript and Vite production build).
 - Chrome browser smoke at 1280×800 — passed: one WebGL canvas, accessible race viewport and heading present, no page errors or failed responses.
 - `git diff --check` — passed.

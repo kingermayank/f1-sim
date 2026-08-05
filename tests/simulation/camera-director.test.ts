@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  evaluateBroadcastShotIfDue,
   selectBroadcastShot,
   type BroadcastShot,
   type CameraDirectorCar,
@@ -217,5 +218,34 @@ describe('broadcast camera director', () => {
 
     expect(shot.reason).toBe('overtake');
     expect(shot.eventTick).toBe(301);
+  });
+
+  it('does not invoke or allocate director results during steady-state updates', () => {
+    const director = vi.fn(selectBroadcastShot);
+    const inputs = {
+      now: 11,
+      lastCutAt: 10,
+      lastSeenEventTick: 300,
+      events: [{ type: 'overtake' as const, tick: 300, attackerId: 'norris', defenderId: 'leclerc', position: 1 }],
+      currentShot,
+    };
+
+    for (let index = 0; index < 100; index += 1) {
+      expect(evaluateBroadcastShotIfDue({ ...inputs, now: inputs.now + index / 1000 }, director)).toBeNull();
+    }
+
+    expect(director).not.toHaveBeenCalled();
+  });
+
+  it('waits for interrupt eligibility, then evaluates a newly observed event once', () => {
+    const director = vi.fn(selectBroadcastShot);
+    const event = { type: 'overtake' as const, tick: 301, attackerId: 'norris', defenderId: 'leclerc', position: 1 };
+    const base = { lastCutAt: 10, lastSeenEventTick: 300, events: [event], currentShot };
+
+    expect(evaluateBroadcastShotIfDue({ ...base, now: 12.9 }, director)).toBeNull();
+    expect(director).not.toHaveBeenCalled();
+
+    expect(evaluateBroadcastShotIfDue({ ...base, now: 13 }, director)?.reason).toBe('overtake');
+    expect(director).toHaveBeenCalledOnce();
   });
 });

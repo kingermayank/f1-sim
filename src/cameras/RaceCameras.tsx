@@ -7,7 +7,12 @@ import type { CarState } from '../simulation/events';
 import { MONACO_TRACK } from '../track/monaco-track';
 import { createSplineTrack } from '../track/spline-track';
 import type { CameraAnchor, TrackPoint, TrackTransform } from '../track/track-types';
-import { selectBroadcastShot, type BroadcastShot } from './camera-director';
+import {
+  newestBroadcastEventTick,
+  selectBroadcastShot,
+  shouldEvaluateBroadcastShot,
+  type BroadcastShot,
+} from './camera-director';
 
 type CameraTrackLine = 'center' | 'attack' | 'defend' | 'pit';
 const TRACK_LINES: readonly CameraTrackLine[] = ['center', 'attack', 'defend', 'pit'];
@@ -302,7 +307,13 @@ export function RaceCameras() {
   useEffect(() => {
     const update = (state: RaceStoreState) => {
       const current = rig.current!;
-      if (cameraMode === 'broadcast') {
+      if (cameraMode === 'broadcast' && shouldEvaluateBroadcastShot(
+        state.snapshot.elapsedSeconds,
+        current.lastCutAt,
+        state.eventFeed,
+        current.lastSeenEventTick,
+        reducedMotion,
+      )) {
         const decision = selectBroadcastShot({
           now: state.snapshot.elapsedSeconds,
           lastCutAt: current.lastCutAt,
@@ -315,12 +326,10 @@ export function RaceCameras() {
           anchorCount: MONACO_TRACK.cameraAnchors.length,
           lastSeenEventTick: current.lastSeenEventTick,
         });
+        current.lastSeenEventTick = newestBroadcastEventTick(state.eventFeed, current.lastSeenEventTick);
         if (decision.action === 'cut') {
           current.shot = decision;
           current.lastCutAt = state.snapshot.elapsedSeconds;
-          if (decision.eventTick !== null) {
-            current.lastSeenEventTick = Math.max(current.lastSeenEventTick, decision.eventTick);
-          }
         }
       }
 

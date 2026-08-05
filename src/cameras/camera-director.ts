@@ -64,6 +64,59 @@ interface Candidate {
   urgent: boolean;
 }
 
+export type BroadcastDirector = (input: BroadcastDirectorInput) => BroadcastShot;
+
+export function newestBroadcastEventTick(
+  events: readonly CameraDirectorEvent[],
+  afterTick = -1,
+): number {
+  let newest = afterTick;
+  for (const event of events) newest = Math.max(newest, event.tick);
+  return newest;
+}
+
+export function shouldEvaluateBroadcastShot(
+  now: number,
+  lastCutAt: number,
+  events: readonly CameraDirectorEvent[],
+  lastSeenEventTick = -1,
+  reducedMotion = false,
+): boolean {
+  const elapsed = Math.max(0, now - lastCutAt);
+  if (elapsed >= BROADCAST_SHOT_MAX_SECONDS) return true;
+
+  let hasNewEvent = false;
+  let hasUrgentEvent = false;
+  for (const event of events) {
+    if (event.tick <= lastSeenEventTick) continue;
+    hasNewEvent = true;
+    if (event.type === 'finish' || (event.type === 'incident' && event.severity === 'major')) {
+      hasUrgentEvent = true;
+    }
+  }
+  if (!hasNewEvent) return false;
+  const minimum = hasUrgentEvent
+    ? (reducedMotion ? REDUCED_MOTION_INTERRUPT_SECONDS : URGENT_INTERRUPT_SECONDS)
+    : (reducedMotion ? REDUCED_MOTION_MIN_SECONDS : BROADCAST_SHOT_MIN_SECONDS);
+  return elapsed >= minimum;
+}
+
+/** Returns null without calling the director when no cut can be eligible. */
+export function evaluateBroadcastShotIfDue(
+  input: BroadcastDirectorInput,
+  director: BroadcastDirector = selectBroadcastShot,
+): BroadcastShot | null {
+  if ((input.cameraMode ?? 'broadcast') !== 'broadcast') return null;
+  if (!shouldEvaluateBroadcastShot(
+    input.now,
+    input.lastCutAt,
+    input.events,
+    input.lastSeenEventTick,
+    input.reducedMotion,
+  )) return null;
+  return director(input);
+}
+
 function holdShot(input: BroadcastDirectorInput): BroadcastShot {
   const current = input.currentShot;
   return current ? { ...current, action: 'hold' } : {
