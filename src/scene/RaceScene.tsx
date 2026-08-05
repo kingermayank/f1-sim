@@ -7,6 +7,7 @@ import { useRaceStore } from '../store/race-store';
 import { CarField } from './CarField';
 import { Environment } from './Environment';
 import { RaceEffects } from './RaceEffects';
+import { RaceCameras } from '../cameras/RaceCameras';
 
 export type SceneQualityTier = 'high' | 'mobile';
 export type SceneQualityOverride = SceneQualityTier | 'auto';
@@ -156,6 +157,7 @@ export function RaceScene() {
             <Environment quality={quality.tier} />
             <CarField quality={quality.tier} />
             <RaceEffects />
+            <RaceCameras />
             <SimulationClock />
           </Canvas>
         </SceneRenderBoundary>

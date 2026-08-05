@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three';
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
 import { vi } from 'vitest';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
 import type { ReactNode } from 'react';
@@ -14,6 +14,7 @@ import {
 import { EFFECT_POOL_CAPACITY } from '../../src/scene/RaceEffects';
 import { cloneSceneWithOwnedMaterials } from '../../src/scene/scene-resources';
 import type { CarState } from '../../src/simulation/events';
+import { calculateCameraPose } from '../../src/cameras/RaceCameras';
 
 it('exposes an accessible race viewport and loading status', () => {
   render(<App />);
@@ -130,4 +131,33 @@ it('exposes all 22 cars as driver-selectable controls without WebGL', () => {
 
   fireEvent.click(driverControls[0]);
   expect(driverControls[0]).toHaveAttribute('aria-pressed', 'true');
+});
+
+it('calculates distinct allocation-safe poses for broadcast, chase, cockpit, and overhead cameras', () => {
+  const transform = {
+    position: new Vector3(4, 2, 7),
+    tangent: new Vector3(0, 0, 1),
+    rotation: new Quaternion(),
+  };
+  const anchor = {
+    id: 'camera-test',
+    distance: 0.5,
+    position: { x: 20, y: 12, z: 30 },
+    targetOffset: { x: 0, y: 0.5, z: 0 },
+  };
+
+  const broadcast = calculateCameraPose('broadcast', transform, anchor);
+  const chase = calculateCameraPose('chase', transform, anchor);
+  const cockpit = calculateCameraPose('cockpit', transform, anchor);
+  const overhead = calculateCameraPose('overhead', transform, anchor);
+
+  expect(broadcast?.position.toArray()).toEqual([20, 12, 30]);
+  expect(broadcast?.target.toArray()).toEqual([4, 2.5, 7]);
+  expect(chase!.position.y).toBeGreaterThan(transform.position.y);
+  expect(chase!.position.z).toBeLessThan(transform.position.z);
+  expect(chase!.target.z).toBeGreaterThan(transform.position.z);
+  expect(cockpit!.position.distanceTo(transform.position)).toBeLessThan(chase!.position.distanceTo(transform.position));
+  expect(cockpit!.target.z).toBeGreaterThan(transform.position.z);
+  expect(overhead!.position.y).toBeGreaterThan(100);
+  expect(calculateCameraPose('free', transform, anchor)).toBeNull();
 });
