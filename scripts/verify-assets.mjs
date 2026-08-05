@@ -1,9 +1,87 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const manifestPath = resolve(process.env.ASSET_MANIFEST_PATH ?? 'src/assets/credits.json');
 const publicRoot = resolve(process.env.ASSET_PUBLIC_ROOT ?? 'public');
+
+const COMPONENT_BYTES = new Map([
+  [5120, 1], [5121, 1], [5122, 2], [5123, 2], [5125, 4], [5126, 4],
+]);
+const TYPE_COMPONENTS = new Map([
+  ['SCALAR', 1], ['VEC2', 2], ['VEC3', 3], ['VEC4', 4],
+  ['MAT2', 4], ['MAT3', 9], ['MAT4', 16],
+]);
+
+function isNonNegativeInteger(value) {
+  return Number.isInteger(value) && value >= 0;
+}
+
+function validateGltfSemantics(gltf, binLength) {
+  if (!Array.isArray(gltf.buffers) || gltf.buffers.length !== 1) return 'GLB must contain exactly one embedded buffer';
+  const [buffer] = gltf.buffers;
+  if (!isNonNegativeInteger(buffer?.byteLength) || buffer.byteLength > binLength) return 'invalid GLB buffer byteLength';
+  if (buffer.uri) return 'GLB buffer must not reference an external URI';
+
+  const bufferViews = gltf.bufferViews ?? [];
+  if (!Array.isArray(bufferViews)) return 'invalid GLB bufferViews';
+  for (const [index, view] of bufferViews.entries()) {
+    const offset = view?.byteOffset ?? 0;
+    if (!Number.isInteger(view?.buffer) || view.buffer !== 0) return `bufferView ${index} references an invalid buffer`;
+    if (!isNonNegativeInteger(offset) || !isNonNegativeInteger(view?.byteLength) || offset + view.byteLength > buffer.byteLength) {
+      return `bufferView ${index} exceeds buffer byteLength`;
+    }
+    if (view.byteStride !== undefined && (!Number.isInteger(view.byteStride) || view.byteStride < 4 || view.byteStride > 252 || view.byteStride % 4 !== 0)) {
+      return `bufferView ${index} has invalid byteStride`;
+    }
+  }
+
+  const accessors = gltf.accessors ?? [];
+  if (!Array.isArray(accessors)) return 'invalid GLB accessors';
+  for (const [index, accessor] of accessors.entries()) {
+    const componentBytes = COMPONENT_BYTES.get(accessor?.componentType);
+    const componentCount = TYPE_COMPONENTS.get(accessor?.type);
+    if (!componentBytes) return `accessor ${index} has invalid componentType`;
+    if (!componentCount) return `accessor ${index} has invalid type`;
+    if (!isNonNegativeInteger(accessor?.count)) return `accessor ${index} has invalid count`;
+    if (!Number.isInteger(accessor?.bufferView) || !bufferViews[accessor.bufferView]) return `accessor ${index} references an invalid bufferView`;
+
+    const view = bufferViews[accessor.bufferView];
+    const offset = accessor.byteOffset ?? 0;
+    const elementBytes = componentBytes * componentCount;
+    const stride = view.byteStride ?? elementBytes;
+    if (!isNonNegativeInteger(offset) || offset % componentBytes !== 0) return `accessor ${index} has invalid byteOffset`;
+    if (stride < elementBytes || stride % componentBytes !== 0) return `accessor ${index} has invalid stride`;
+    const requiredBytes = accessor.count === 0 ? 0 : ((accessor.count - 1) * stride) + elementBytes;
+    if (offset + requiredBytes > view.byteLength) return `accessor ${index} exceeds bufferView byteLength`;
+  }
+
+  const meshes = gltf.meshes ?? [];
+  if (!Array.isArray(meshes)) return 'invalid GLB meshes';
+  for (const [meshIndex, mesh] of meshes.entries()) {
+    if (!Array.isArray(mesh?.primitives)) return `mesh ${meshIndex} has invalid primitives`;
+    for (const [primitiveIndex, primitive] of mesh.primitives.entries()) {
+      const attributes = primitive?.attributes;
+      if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes) || Object.keys(attributes).length === 0) {
+        return `mesh ${meshIndex} primitive ${primitiveIndex} has no attributes`;
+      }
+      let attributeCount;
+      for (const accessorIndex of Object.values(attributes)) {
+        if (!Number.isInteger(accessorIndex) || !accessors[accessorIndex]) return `mesh ${meshIndex} primitive ${primitiveIndex} references an invalid attribute accessor`;
+        const count = accessors[accessorIndex].count;
+        if (attributeCount === undefined) attributeCount = count;
+        else if (attributeCount !== count) return `mesh ${meshIndex} primitive ${primitiveIndex} has mismatched attribute counts`;
+      }
+      if (primitive.indices !== undefined) {
+        const accessor = accessors[primitive.indices];
+        if (!Number.isInteger(primitive.indices) || !accessor) return `mesh ${meshIndex} primitive ${primitiveIndex} references an invalid index accessor`;
+        if (accessor.type !== 'SCALAR' || ![5121, 5123, 5125].includes(accessor.componentType)) {
+          return `mesh ${meshIndex} primitive ${primitiveIndex} has invalid index accessor`;
+        }
+      }
+    }
+  }
+  return undefined;
+}
 
 function validateGlb(bytes) {
   if (bytes.length < 20 || bytes.subarray(0, 4).toString() !== 'glTF') return 'invalid GLB header';
@@ -13,6 +91,8 @@ function validateGlb(bytes) {
 
   let offset = 12;
   let chunkCount = 0;
+  let gltf;
+  let binLength = 0;
   while (offset < declaredLength) {
     if (offset + 8 > declaredLength) return 'truncated GLB chunk header';
     const length = bytes.readUInt32LE(offset);
@@ -24,15 +104,19 @@ function validateGlb(bytes) {
     if (chunkCount > 0 && type === 'JSON') return 'invalid GLB JSON chunk order';
     if (type === 'JSON') {
       try {
-        JSON.parse(bytes.subarray(offset + 8, chunkEnd).toString('utf8').replace(/[\0\s]+$/u, ''));
+        gltf = JSON.parse(bytes.subarray(offset + 8, chunkEnd).toString('utf8').replace(/[\0\s]+$/u, ''));
       } catch {
         return 'invalid GLB JSON chunk';
       }
+    } else {
+      if (binLength) return 'multiple GLB BIN chunks';
+      binLength = length;
     }
     offset = chunkEnd;
     chunkCount += 1;
   }
-  return chunkCount === 0 ? 'missing GLB chunks' : undefined;
+  if (chunkCount === 0 || !gltf) return 'missing GLB JSON chunk';
+  return validateGltfSemantics(gltf, binLength);
 }
 
 function parseWebpDimensions(bytes) {
@@ -71,14 +155,6 @@ function parseWebpDimensions(bytes) {
     offset = paddedEnd;
   }
   return dimensions ?? { error: 'missing WebP image chunk' };
-}
-
-function decodeWebp(filePath) {
-  const result = spawnSync('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', filePath], { encoding: 'utf8' });
-  if (result.error || result.status !== 0) return { error: 'WebP decoder rejected file' };
-  const width = Number(result.stdout.match(/pixelWidth:\s*(\d+)/u)?.[1]);
-  const height = Number(result.stdout.match(/pixelHeight:\s*(\d+)/u)?.[1]);
-  return Number.isInteger(width) && Number.isInteger(height) ? { width, height } : { error: 'WebP decoder did not report dimensions' };
 }
 
 if (!existsSync(manifestPath)) {
@@ -156,10 +232,9 @@ if (Array.isArray(manifest)) {
         }
         if (asset.runtimeFile.endsWith('.webp')) {
           const parsed = parseWebpDimensions(bytes);
-          const decoded = parsed.error ? parsed : decodeWebp(runtimePath);
-          if (decoded.error) problems.push(`${label}: ${decoded.error}`);
-          else if (asset.runtimeFile.includes('/textures/teams/') && (decoded.width !== 512 || decoded.height !== 512)) {
-            problems.push(`${label}: livery dimensions must be 512x512; found ${decoded.width}x${decoded.height}`);
+          if (parsed.error) problems.push(`${label}: ${parsed.error}`);
+          else if (asset.runtimeFile.includes('/textures/teams/') && (parsed.width !== 512 || parsed.height !== 512)) {
+            problems.push(`${label}: livery dimensions must be 512x512; found ${parsed.width}x${parsed.height}`);
           }
         }
       }

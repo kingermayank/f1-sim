@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe('asset verifier binary validation', () => {
-  it('rejects malformed GLB and WebP runtime files from an isolated manifest fixture', () => {
+  it('rejects malformed and semantically unloadable GLB/WebP runtime files', () => {
     const fixture = createFixture();
     const valid = verify(fixture.manifestPath, fixture.publicRoot);
     expect(valid.status).toBe(0);
@@ -40,6 +40,16 @@ describe('asset verifier binary validation', () => {
     const invalidGlb = verify(fixture.manifestPath, fixture.publicRoot);
     expect(invalidGlb.status).toBe(1);
     expect(invalidGlb.stderr).toMatch(/invalid GLB version/);
+
+    cpSync('public', fixture.publicRoot, { recursive: true, force: true });
+    const invalidAccessor = readFileSync(glbPath);
+    const countOffset = invalidAccessor.indexOf(Buffer.from('"count":64'));
+    expect(countOffset).toBeGreaterThan(-1);
+    invalidAccessor.write('"count":99', countOffset, 'utf8');
+    writeFileSync(glbPath, invalidAccessor);
+    const invalidCount = verify(fixture.manifestPath, fixture.publicRoot);
+    expect(invalidCount.status).toBe(1);
+    expect(invalidCount.stderr).toMatch(/accessor \d+ exceeds bufferView byteLength/);
 
     cpSync('public', fixture.publicRoot, { recursive: true, force: true });
     const webpPath = join(fixture.publicRoot, 'assets/textures/teams/ferrari.webp');
