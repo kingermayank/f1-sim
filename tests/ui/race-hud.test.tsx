@@ -10,6 +10,7 @@ import { eventKey, EventFeed } from '../../src/ui/EventFeed';
 import { Leaderboard } from '../../src/ui/Leaderboard';
 import { DriverPanel } from '../../src/ui/DriverPanel';
 import type { CarState, RaceState } from '../../src/simulation/events';
+import { raceAudioController } from '../../src/audio/race-audio';
 
 describe('RaceHud', () => {
   beforeEach(() => raceStore.getState().restart(DEFAULT_RACE_CONFIG.seed));
@@ -38,6 +39,7 @@ describe('RaceHud', () => {
 
   it('changes speed, camera, presentation preferences, and mobile drawer state', async () => {
     const user = userEvent.setup();
+    const resumeAudio = vi.spyOn(raceAudioController, 'resume').mockResolvedValue(true);
     render(<RaceHud />);
 
     await user.selectOptions(screen.getByLabelText('Simulation speed'), '4');
@@ -51,17 +53,19 @@ describe('RaceHud', () => {
 
     await user.click(screen.getByRole('button', { name: 'Hide car labels' }));
     await user.click(screen.getByRole('button', { name: 'Disable race effects' }));
-    await user.click(screen.getByRole('button', { name: 'Mute audio' }));
+    await user.click(screen.getByRole('button', { name: 'Unmute audio' }));
     await user.click(screen.getByRole('button', { name: 'Enable reduced motion' }));
     expect(screen.getByRole('button', { name: 'Show car labels' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: 'Enable race effects' })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', { name: 'Unmute audio' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Mute audio' })).toHaveAttribute('aria-pressed', 'false');
+    expect(resumeAudio).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Disable reduced motion' })).toHaveAttribute('aria-pressed', 'true');
 
     const drawer = screen.getByRole('button', { name: 'Toggle timing tower' });
     expect(drawer).toHaveAttribute('aria-expanded', 'false');
     await user.click(drawer);
     expect(drawer).toHaveAttribute('aria-expanded', 'true');
+    resumeAudio.mockRestore();
   });
 
   it('exposes race context, an accessible live feed, track markers, credits, and disclosure', async () => {

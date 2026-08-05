@@ -1,5 +1,6 @@
 import { CAMERA_MODES, PLAYBACK_SPEEDS, useRaceStore, type CameraMode, type QualityMode } from '../store/race-store';
 import { titleCase } from './formatters';
+import { raceAudioController } from '../audio/race-audio';
 
 function ControlIcon({ children }: { children: React.ReactNode }) {
   return <span className="control-icon" aria-hidden="true">{children}</span>;
@@ -48,7 +49,10 @@ export function PlaybackControls({ onOpenCredits }: { onOpenCredits(): void }) {
       <div className="preference-controls" aria-label="Presentation preferences">
         <button type="button" aria-label={labelsEnabled ? 'Hide car labels' : 'Show car labels'} aria-pressed={labelsEnabled} onClick={toggleLabels}>Labels</button>
         <button type="button" aria-label={effectsEnabled ? 'Disable race effects' : 'Enable race effects'} aria-pressed={effectsEnabled} onClick={toggleEffects}>FX</button>
-        <button type="button" aria-label={audioMuted ? 'Unmute audio' : 'Mute audio'} aria-pressed={audioMuted} onClick={toggleAudio}>{audioMuted ? 'Muted' : 'Audio'}</button>
+        <button type="button" aria-label={audioMuted ? 'Unmute audio' : 'Mute audio'} aria-pressed={audioMuted} onClick={() => {
+          if (audioMuted) void raceAudioController.resume();
+          toggleAudio();
+        }}>{audioMuted ? 'Muted' : 'Audio'}</button>
         <button type="button" aria-label={reducedMotion ? 'Disable reduced motion' : 'Enable reduced motion'} aria-pressed={reducedMotion} onClick={toggleReducedMotion}>Motion</button>
         <label className="quality-control"><span>Quality</span><select aria-label="Scene detail" value={qualityMode} onChange={(event) => setQualityMode(event.target.value as QualityMode)}><option value="auto">Auto</option><option value="high">High</option><option value="mobile">Low</option></select></label>
         <button type="button" aria-label="Open credits and disclosure from controls" onClick={onOpenCredits}>Credits</button>

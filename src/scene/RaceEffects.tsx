@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { Color, InstancedMesh, Object3D, Vector3 } from 'three';
 import { useRaceStore } from '../store/race-store';
 import { MONACO_TRACK } from '../track/monaco-track';
@@ -10,19 +10,6 @@ export const EFFECT_POOL_CAPACITY = Object.freeze({ smoke: 32, sparks: 64, debri
 const TRACK = createSplineTrack(MONACO_TRACK);
 const dummy = new Object3D();
 const hiddenScale = new Vector3(0, 0, 0);
-
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    if (!query) return;
-    const update = () => setReduced(query.matches);
-    update();
-    query.addEventListener?.('change', update);
-    return () => query.removeEventListener?.('change', update);
-  }, []);
-  return reduced;
-}
 
 function hideRemainder(mesh: InstancedMesh, start: number, total: number) {
   for (let index = start; index < total; index += 1) {
@@ -40,8 +27,7 @@ export function RaceEffects() {
   const snapshot = useRaceStore((state) => state.snapshot);
   const eventFeed = useRaceStore((state) => state.eventFeed);
   const effectsEnabled = useRaceStore((state) => state.effectsEnabled);
-  const forceReducedMotion = useRaceStore((state) => state.reducedMotion);
-  const reducedMotion = useReducedMotion() || forceReducedMotion;
+  const reducedMotion = useRaceStore((state) => state.reducedMotion);
   const incident = useMemo(() => [...eventFeed].reverse().find((event) => event.type === 'incident'), [eventFeed]);
 
   useFrame(() => {

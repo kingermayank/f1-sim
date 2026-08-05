@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_RACE_CONFIG } from '../../src/domain/race-config';
-import { raceStore } from '../../src/store/race-store';
+import { PREFERENCES_STORAGE_KEY, createRaceStore, raceStore } from '../../src/store/race-store';
 
 describe('raceStore', () => {
   beforeEach(() => {
@@ -64,5 +64,65 @@ describe('raceStore', () => {
 
     expect(raceStore.getState().snapshot.seed).not.toBe(previousSeed);
     expect(raceStore.getState().snapshot.tick).toBe(0);
+  });
+
+  it('hydrates and persists versioned presentation preferences', () => {
+    const values = new Map<string, string>();
+    values.set(PREFERENCES_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      muted: false,
+      reducedMotion: false,
+      labels: false,
+      effects: false,
+      quality: 'mobile',
+      cameraMode: 'cockpit',
+    }));
+    const storage = {
+      getItem: vi.fn((key: string) => values.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+    };
+    const store = createRaceStore(DEFAULT_RACE_CONFIG, { storage, prefersReducedMotion: true });
+
+    expect(store.getState()).toMatchObject({
+      audioMuted: false,
+      reducedMotion: false,
+      labelsEnabled: false,
+      effectsEnabled: false,
+      qualityMode: 'mobile',
+      cameraMode: 'cockpit',
+    });
+
+    store.getState().toggleLabels();
+    store.getState().toggleEffects();
+    store.getState().toggleAudio();
+    store.getState().toggleReducedMotion();
+    store.getState().setQualityMode('high');
+    store.getState().setCameraMode('overhead');
+
+    expect(JSON.parse(values.get(PREFERENCES_STORAGE_KEY)!)).toEqual({
+      version: 1,
+      muted: true,
+      reducedMotion: true,
+      labels: true,
+      effects: true,
+      quality: 'high',
+      cameraMode: 'overhead',
+    });
+  });
+
+  it('uses system reduced motion until explicitly overridden and ignores unsafe storage', () => {
+    const brokenStorage = {
+      getItem: vi.fn(() => { throw new Error('blocked'); }),
+      setItem: vi.fn(() => { throw new Error('blocked'); }),
+    };
+    const store = createRaceStore(DEFAULT_RACE_CONFIG, { storage: brokenStorage, prefersReducedMotion: true });
+
+    expect(store.getState().reducedMotion).toBe(true);
+    expect(() => store.getState().toggleReducedMotion()).not.toThrow();
+    expect(store.getState().reducedMotion).toBe(false);
+
+    const invalidStorage = { getItem: () => '{not-json', setItem: () => undefined };
+    expect(createRaceStore(DEFAULT_RACE_CONFIG, { storage: invalidStorage, prefersReducedMotion: false }).getState())
+      .toMatchObject({ audioMuted: true, labelsEnabled: true, effectsEnabled: true, qualityMode: 'auto', cameraMode: 'broadcast' });
   });
 });
