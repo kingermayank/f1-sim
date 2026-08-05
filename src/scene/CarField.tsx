@@ -29,21 +29,9 @@ export interface CarTrackSample {
   line: TrackLine;
 }
 
-export function getPitSplineProgress(car: CarState): number {
-  const pitSpan = (MONACO_TRACK.pitExit - MONACO_TRACK.pitEntry + 1) % 1;
-  const distanceFromEntry = (car.distance - MONACO_TRACK.pitEntry + 1) % 1;
-  const authoritativeProgress = Math.min(1, Math.max(0, distanceFromEntry / pitSpan));
-  const stateBand = car.pitState === 'entry' ? [0, 0.18]
-    : car.pitState === 'lane' ? [0.18, 0.46]
-      : car.pitState === 'stopped' ? [0.46, 0.58]
-        : car.pitState === 'exit' ? [0.58, 1]
-          : [0, 1];
-  return stateBand[0] + authoritativeProgress * (stateBand[1] - stateBand[0]);
-}
-
 export function getCarTrackSample(car: CarState): CarTrackSample {
   if (car.targetLine === 'pit' || car.pitState !== 'track') {
-    return { distance: getPitSplineProgress(car), lateral: 0, line: 'pit' };
+    return { distance: car.pitProgress, lateral: 0, line: 'pit' };
   }
 
   return {

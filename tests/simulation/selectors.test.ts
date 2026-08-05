@@ -12,6 +12,7 @@ function carBase(driverId: string) {
     fuelFactor: 1,
     damage: 0,
     pitState: 'track' as const,
+    pitProgress: 0,
     position: 1,
     timing: { lastLap: null, bestLap: null, totalTime: 0 },
     targetLine: 'racing' as const,

@@ -4,7 +4,7 @@ import { vi } from 'vitest';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
 import type { ReactNode } from 'react';
 import { App } from '../../src/app/App';
-import { getCarTrackSample, getPitSplineProgress, shouldPresentCar } from '../../src/scene/CarField';
+import { getCarTrackSample, shouldPresentCar } from '../../src/scene/CarField';
 import {
   createWebGLCapabilityDetector,
   getRaceSceneStatus,
@@ -25,19 +25,19 @@ it('exposes an accessible race viewport and loading status', () => {
 const baseCar: CarState = {
   driverId: 'norris', lap: 12, distance: 0.94, lateralOffset: 0.2, speed: 0.003,
   tire: { compound: 'medium', wear: 0.2, temperature: 0.8 }, fuelFactor: 0.8,
-  damage: 0, pitState: 'track', position: 1, timing: { lastLap: 75, bestLap: 74, totalTime: 900 },
+  damage: 0, pitState: 'track', pitProgress: 0, position: 1, timing: { lastLap: 75, bestLap: 74, totalTime: 900 },
   targetLine: 'attack', status: 'running',
 };
 
 it('routes pit cars to the pit spline and retires cars after an incident grace period', () => {
   const pitCars = [
-    { ...baseCar, distance: 0.915, pitState: 'entry' as const, targetLine: 'pit' as const },
-    { ...baseCar, distance: 0.94, pitState: 'entry' as const, targetLine: 'pit' as const },
-    { ...baseCar, distance: 0.98, pitState: 'lane' as const, targetLine: 'pit' as const },
-    { ...baseCar, distance: 0.01, pitState: 'stopped' as const, targetLine: 'pit' as const },
-    { ...baseCar, distance: 0.06, pitState: 'exit' as const, targetLine: 'pit' as const },
+    { ...baseCar, distance: 0.94, pitProgress: 0.05, pitState: 'entry' as const, targetLine: 'pit' as const },
+    { ...baseCar, distance: 0.94, pitProgress: 0.2, pitState: 'lane' as const, targetLine: 'pit' as const },
+    { ...baseCar, distance: 0.94, pitProgress: 0.48, pitState: 'stopped' as const, targetLine: 'pit' as const },
+    { ...baseCar, distance: 0.94, pitProgress: 0.7, pitState: 'stopped' as const, targetLine: 'pit' as const },
+    { ...baseCar, distance: 0.94, pitProgress: 0.9, pitState: 'exit' as const, targetLine: 'pit' as const },
   ];
-  const pitProgress = pitCars.map(getPitSplineProgress);
+  const pitProgress = pitCars.map((car) => car.pitProgress);
   expect(new Set(pitProgress).size).toBe(pitCars.length);
   expect(pitProgress).toEqual([...pitProgress].sort((a, b) => a - b));
   expect(pitCars.map((car) => getCarTrackSample(car).distance)).toEqual(pitProgress);

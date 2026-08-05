@@ -8,6 +8,7 @@ import { calculateSafetyCarCatchupFactor, createRaceEngine } from '../../src/sim
 import { createStrategy } from '../../src/simulation/strategy';
 import { updateTire } from '../../src/simulation/tires';
 import { MONACO_TRACK } from '../../src/track/monaco-track';
+import { createSplineTrack } from '../../src/track/spline-track';
 
 const raceConfig = (seed: string, overrides: Partial<RaceConfig> = {}): RaceConfig => ({
   ...DEFAULT_RACE_CONFIG,
@@ -97,6 +98,35 @@ describe('integrated race rules', () => {
     expect(tireChanges[0]?.compound).not.toBe('medium');
     expect(Math.max(...laps.map((event) => event.lapTime)) - Math.min(...laps.map((event) => event.lapTime)))
       .toBeGreaterThan(12);
+  });
+
+  it('publishes monotonic pit progress that moves the presentation transform during a real stop', () => {
+    const engine = createRaceEngine(
+      raceConfig('pit-stop', { incidents: false, safetyCars: false }),
+      MONACO_TRACK,
+      [DRIVERS_2026[0]!],
+    );
+    const spline = createSplineTrack(MONACO_TRACK);
+    const samples: { progress: number; x: number; z: number }[] = [];
+    let completedStop = false;
+
+    for (let sample = 0; sample < 8_000 && !completedStop; sample += 1) {
+      engine.advance(0.1);
+      const car = engine.snapshot().cars[0]!;
+      if (car.pitState !== 'track') {
+        const transform = spline.sample(car.pitProgress, 0, 'pit');
+        samples.push({ progress: car.pitProgress, x: transform.position.x, z: transform.position.z });
+      } else if (samples.length > 0) {
+        completedStop = true;
+        expect(car.pitProgress).toBe(0);
+      }
+    }
+
+    expect(completedStop).toBe(true);
+    expect(samples.length).toBeGreaterThan(5);
+    expect(samples.every(({ progress }) => progress > 0 && progress < 1)).toBe(true);
+    expect(samples.every((sample, index) => index === 0 || sample.progress > samples[index - 1]!.progress)).toBe(true);
+    expect(new Set(samples.map(({ x, z }) => `${x.toFixed(4)}:${z.toFixed(4)}`)).size).toBe(samples.length);
   });
 
   it('keeps a retired car terminal for the remainder of the race', () => {

@@ -27,6 +27,8 @@ export interface BaseCarState {
   fuelFactor: number;
   damage: number;
   pitState: PitState;
+  /** Presentation-safe progress through the pit lane: 0 on track, otherwise in (0, 1). */
+  pitProgress: number;
   position: number;
   timing: CarTiming;
   targetLine: TargetLine;

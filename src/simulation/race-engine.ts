@@ -153,6 +153,7 @@ function initialCar(
     fuelFactor: 1,
     damage: 0,
     pitState: 'track',
+    pitProgress: 0,
     position: gridPosition + 1,
     timing: { lastLap: null, bestLap: null, totalTime: 0 },
     status: 'running',
@@ -283,7 +284,7 @@ export function createRaceEngine(
     const totalTicks = Math.round((19 + (1 - driver.ratings.pitExecution) * 5 + prng.range(-0.7, 0.7)) / TICK_SECONDS);
     runtime.pit = { totalTicks, remainingTicks: totalTicks, compound, changed: false };
     emit({ type: 'pit-entry', tick: state.tick, driverId: car.driverId });
-    return { ...car, pitState: 'entry', targetLine: 'pit' };
+    return { ...car, pitState: 'entry', pitProgress: 0, targetLine: 'pit' };
   }
 
   function movePitCar(car: RunningCarState, runtime: DriverRuntime, tickEndedAt: number): RunningCarState {
@@ -308,6 +309,7 @@ export function createRaceEngine(
         speed: 0,
         tire,
         pitState: 'track',
+        pitProgress: 0,
         targetLine: 'racing',
         timing: { ...car.timing, totalTime: tickEndedAt },
       };
@@ -319,6 +321,7 @@ export function createRaceEngine(
       speed: 0,
       tire,
       pitState,
+      pitProgress: Math.min(1, Math.max(0, progress)),
       targetLine: 'pit',
       timing: { ...car.timing, totalTime: tickEndedAt },
     };
@@ -361,6 +364,7 @@ export function createRaceEngine(
         retirementTick: state.tick,
         targetLine: 'racing',
         pitState: 'track',
+        pitProgress: 0,
       };
     }
 
@@ -505,6 +509,8 @@ export function createRaceEngine(
         finishPosition: 0,
         targetLine: 'racing',
         lateralOffset: 0,
+        pitState: 'track',
+        pitProgress: 0,
       };
       finishCandidates.push({
         carIndex,
