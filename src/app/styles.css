@@ -29,7 +29,8 @@
   background: #05080d;
   color: #f6f7f9;
   font-synthesis: none;
-  --font-display: 'Formula1 Wide', 'Formula1 Display', 'Arial Narrow', ui-sans-serif, sans-serif;
+  --font-display: 'Formula1 Display', 'Arial Narrow', ui-sans-serif, sans-serif;
+  --font-wide: 'Formula1 Wide', 'Formula1 Display', ui-sans-serif, sans-serif;
   --font-body: 'Formula1 Display', Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'MonoSpec', ui-monospace, SFMono-Regular, Menlo, monospace;
   --ink: #05080d;
@@ -70,9 +71,9 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .race-hud button, .race-hud select, .race-hud a, .race-hud__left, .race-hud__right, .race-header, .playback-controls, .finish-screen, .credits-panel, .more-panel { pointer-events: auto; }
 .race-header { position: absolute; top: .75rem; left: .75rem; right: .75rem; min-height: 4rem; display: grid; grid-template-columns: minmax(15rem, 1fr) auto minmax(15rem, 1fr); align-items: center; gap: 1rem; border: 1px solid var(--line); border-radius: .45rem; padding: .45rem .7rem; background: linear-gradient(115deg, rgb(5 9 15 / 94%), rgb(13 21 33 / 82%)); box-shadow: 0 1rem 3rem rgb(0 0 0 / 28%); backdrop-filter: blur(16px) saturate(130%); }
 .race-header__brand { display: flex; align-items: center; gap: .65rem; min-width: 0; }
-.race-header__mark { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; flex: none; border-radius: .25rem; background: var(--signal); color: #07100d; font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; letter-spacing: -.05em; transform: skew(-6deg); }
+.race-header__mark { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; flex: none; border-radius: .25rem; background: var(--signal); color: #07100d; font-family: var(--font-wide); font-size: 1.2rem; font-weight: 800; letter-spacing: -.05em; transform: skew(-6deg); }
 .race-header__brand p, .race-meta span { margin: 0 0 .12rem; color: var(--muted); font-size: .6875rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
-.race-header__brand strong { display: block; overflow: hidden; font-family: var(--font-display); font-size: 1.12rem; letter-spacing: .03em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.race-header__brand strong { display: block; overflow: hidden; font-family: var(--font-wide); font-size: 1.12rem; letter-spacing: .03em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .race-state { display: flex; align-items: center; justify-content: center; gap: .65rem; }
 .race-state > strong { font-family: var(--font-display); font-size: 1.3rem; letter-spacing: .04em; text-transform: uppercase; }
 .race-state__stat { min-width: 3.2rem; display: grid; color: #f1f4f7; font-size: .75rem; font-weight: 750; line-height: 1.1; white-space: nowrap; }
@@ -96,9 +97,9 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .timing-row::after { position: absolute; inset: 0; content: ''; opacity: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--team-color) 25%, transparent), transparent 65%); transition: opacity 140ms ease; }
 .timing-row:hover::after, .timing-row[aria-current='true']::after { opacity: 1; }
 .timing-row > * { position: relative; z-index: 1; }
-.timing-row__position { color: #d6dde6; font-family: var(--font-display); font-size: .92rem; font-weight: 700; }
+.timing-row__position { color: #d6dde6; font-family: var(--font-mono); font-size: .88rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .timing-row__driver { min-width: 0; display: grid; }
-.timing-row__driver strong { font-family: var(--font-display); font-size: .92rem; letter-spacing: .06em; }
+.timing-row__driver strong { font-family: var(--font-display); font-size: .88rem; letter-spacing: .02em; }
 .timing-row__driver small { overflow: hidden; color: var(--muted); font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
 .fastest-lap { display: inline-grid; place-items: center; min-width: 1.2rem; min-height: 1.2rem; margin-left: .22rem; border-radius: 50%; background: #b966ff; color: #0a0610; font-family: var(--font-body); font-size: .6875rem; font-weight: 900; letter-spacing: -.04em; vertical-align: middle; }
 .timing-row__gap { justify-self: end; color: #f2f5f8; font-size: .72rem; font-weight: 700; }

@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useProgress } from '@react-three/drei';
-import { Component, useState, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Vector3 } from 'three';
 import { DRIVERS_2026 } from '../domain/grid-2026';
 import { useRaceStore } from '../store/race-store';
@@ -120,17 +120,28 @@ export function RaceScene() {
   const [rendererCreated, setRendererCreated] = useState(false);
   const [renderFailed, setRenderFailed] = useState(false);
   const { active: assetsActive, loaded: assetsLoaded, total: assetsTotal, errors: assetErrors } = useProgress();
-  const [detectedQuality] = useState<SceneQualityTier>(() => selectQualityTier({
-    viewportWidth: typeof window === 'undefined' ? 1280 : window.innerWidth,
-    coarsePointer: typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true,
-  }).tier);
+  // Re-measure on resize. Detecting once at first render latched the tier to
+  // whatever the window happened to be during mount, so a desktop window that
+  // started narrow stayed on the mobile tier — and never loaded the real cars.
+  const [viewportWidth, setViewportWidth] = useState(
+    () => (typeof window === 'undefined' ? 1280 : window.innerWidth),
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const measure = () => setViewportWidth(window.innerWidth);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+  const coarsePointer = typeof window !== 'undefined'
+    && window.matchMedia?.('(pointer: coarse)').matches === true;
   const qualityMode = useRaceStore((state) => state.qualityMode);
   const selectedDriverId = useRaceStore((state) => state.selectedDriverId);
   const selectDriver = useRaceStore((state) => state.selectDriver);
   const quality = selectQualityTier({
-    viewportWidth: typeof window === 'undefined' ? 1280 : window.innerWidth,
-    coarsePointer: detectedQuality === 'mobile',
-    override: qualityMode === 'auto' ? detectedQuality : qualityMode,
+    viewportWidth,
+    coarsePointer,
+    override: qualityMode === 'auto' ? undefined : qualityMode,
   });
   const sceneStatus = getRaceSceneStatus({
     webGLAvailable,
@@ -158,7 +169,7 @@ export function RaceScene() {
             fallback={<div className="race-viewport__fallback" aria-hidden="true" />}
             dpr={quality.dpr}
             shadows={quality.tier === 'high'}
-            camera={{ position: [116, 88, 138], fov: 38, near: 0.2, far: 520 }}
+            camera={{ position: [-260, 150, 520], fov: 38, near: 0.5, far: 9000 }}
             gl={{
               antialias: quality.tier === 'high',
               alpha: false,

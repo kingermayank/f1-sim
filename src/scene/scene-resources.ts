@@ -26,8 +26,14 @@ export function cloneSceneWithOwnedMaterials(
 
   return {
     scene,
+    /**
+     * Frees the materials this clone owns. It deliberately does NOT detach the
+     * object: `<primitive>` owns attachment, and React StrictMode runs effects
+     * mount -> cleanup -> mount. Detaching here left the clone orphaned after
+     * the second mount, so the model stayed in memory with correct transforms
+     * but was never rendered.
+     */
     dispose() {
-      scene.removeFromParent();
       for (const material of ownedMaterials) material.dispose();
       ownedMaterials.clear();
     },

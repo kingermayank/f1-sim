@@ -63,7 +63,7 @@ it('keeps lightweight incident pools bounded', () => {
   expect(EFFECT_POOL_CAPACITY).toEqual({ smoke: 32, sparks: 64, debris: 24 });
 });
 
-it('disposes cloned materials without disposing shared asset geometry or source materials', () => {
+it('disposes cloned materials but leaves attachment to the renderer', () => {
   const geometry = new BoxGeometry();
   const sourceMaterial = new MeshStandardMaterial();
   const source = new Group();
@@ -80,7 +80,10 @@ it('disposes cloned materials without disposing shared asset geometry or source 
 
   resources.dispose();
 
-  expect(resources.scene.parent).toBeNull();
+  // Disposal must NOT detach the object. `<primitive>` owns attachment, and
+  // React StrictMode runs effects mount -> cleanup -> mount; detaching here
+  // orphaned the model after the second mount so it never rendered.
+  expect(resources.scene.parent).toBe(parent);
   expect(clonedMaterialDispose).toHaveBeenCalledOnce();
   expect(sourceMaterialDispose).not.toHaveBeenCalled();
   expect(geometryDispose).not.toHaveBeenCalled();
