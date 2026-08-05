@@ -75,6 +75,7 @@ export interface RaceStoreState {
   toggleEffects(): void;
   toggleAudio(): void;
   toggleReducedMotion(): void;
+  updateSystemReducedMotion(reducedMotion: boolean): void;
   setQualityMode(qualityMode: QualityMode): void;
   restart(seed?: string): void;
   replaySeed(): void;
@@ -219,6 +220,9 @@ export function createRaceStore(initialConfig: RaceConfig = DEFAULT_RACE_CONFIG,
           return { reducedMotion: reducedMotionPreference };
         });
         persistPreferences();
+      },
+      updateSystemReducedMotion(reducedMotion): void {
+        if (reducedMotionPreference === null) set({ reducedMotion });
       },
       setQualityMode(qualityMode): void {
         if (QUALITY_MODES.includes(qualityMode)) { set({ qualityMode }); persistPreferences(); }

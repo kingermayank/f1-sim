@@ -56,6 +56,7 @@ export function createRaceAudioController(
   let disposed = false;
   const ownedNodes = new Set<AudioNode>();
   const ownedSources = new Set<AudioScheduledSourceNode>();
+  const transientCleanups = new Map<AudioScheduledSourceNode, () => void>();
 
   const own = <Node extends AudioNode>(node: Node): Node => {
     ownedNodes.add(node);
@@ -75,6 +76,23 @@ export function createRaceAudioController(
     const source = ownSource(audioContext.createBufferSource());
     source.buffer = buffer;
     return source;
+  };
+
+  const releaseOnEnded = (source: AudioScheduledSourceNode, nodes: readonly AudioNode[]): void => {
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      source.onended = null;
+      transientCleanups.delete(source);
+      ownedSources.delete(source);
+      for (const node of nodes) {
+        try { node.disconnect(); } catch { /* A disconnected node is already safe. */ }
+        ownedNodes.delete(node);
+      }
+    };
+    transientCleanups.set(source, release);
+    source.onended = release;
   };
 
   const initializeGraph = (audioContext: AudioContext): void => {
@@ -140,6 +158,7 @@ export function createRaceAudioController(
     oscillator.frequency.exponentialRampToValueAtTime(690, now + 0.12);
     oscillator.connect(gain);
     gain.connect(masterGain);
+    releaseOnEnded(oscillator, [oscillator, gain]);
     oscillator.start(now);
     oscillator.stop(now + 0.2);
   };
@@ -159,6 +178,7 @@ export function createRaceAudioController(
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(masterGain);
+    releaseOnEnded(noise, [noise, filter, gain]);
     noise.start(now);
     noise.stop(now + 0.3);
   };
@@ -186,6 +206,7 @@ export function createRaceAudioController(
         tireGain = null;
         ownedNodes.clear();
         ownedSources.clear();
+        transientCleanups.clear();
         return false;
       }
     },
@@ -226,11 +247,13 @@ export function createRaceAudioController(
       for (const source of ownedSources) {
         try { source.stop(); } catch { /* A stopped source is already safe. */ }
       }
+      for (const release of [...transientCleanups.values()]) release();
       for (const node of ownedNodes) {
         try { node.disconnect(); } catch { /* A disconnected node is already safe. */ }
       }
       ownedSources.clear();
       ownedNodes.clear();
+      transientCleanups.clear();
       const currentContext = context;
       context = null;
       masterGain = null;

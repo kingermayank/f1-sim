@@ -2,6 +2,7 @@ import './styles.css';
 import { RaceScene } from '../scene/RaceScene';
 import { RaceHud } from '../ui/RaceHud';
 import { RaceAudioBridge } from '../audio/RaceAudioBridge';
+import { RacePreferenceBridge } from '../store/RacePreferenceBridge';
 
 export function App() {
   return (
@@ -10,6 +11,7 @@ export function App() {
       <RaceScene />
       <RaceHud />
       <RaceAudioBridge />
+      <RacePreferenceBridge />
     </main>
   );
 }

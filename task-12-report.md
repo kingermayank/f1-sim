@@ -24,3 +24,10 @@ The new audio and store tests were run before implementation and failed for the 
 Playwright's bundled browser was not installed, so the smoke used the locally installed Google Chrome executable through Playwright. Existing Three.js deprecation warnings were observed from the development server and are unrelated to Task 12.
 
 Task 13 was not started.
+
+## Review follow-up
+
+- Removed the camera's independent media-query override. `reducedMotion` in the race store is now the single resolved value used by both cameras and effects.
+- Added live system preference synchronization: system changes update the store while the persisted override is `null`; after an explicit user choice, later system changes are ignored, including when that choice is `false`.
+- Added idempotent `ended` cleanup for pit and impact envelope subgraphs. Transient sources, filters, and gains disconnect and leave the controller ownership sets when playback ends, while disposal remains safe if it races with `ended`.
+- Added regression coverage for dynamic reduced-motion resolution and repeated one-shot events returning live audio-node counts to the persistent graph baseline.

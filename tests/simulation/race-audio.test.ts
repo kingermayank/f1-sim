@@ -26,6 +26,7 @@ class FakeOscillatorNode extends FakeAudioNode {
   type: OscillatorType = 'sine';
   start = vi.fn();
   stop = vi.fn();
+  onended: (() => void) | null = null;
 }
 
 class FakeBiquadFilterNode extends FakeAudioNode {
@@ -40,6 +41,7 @@ class FakeBufferSourceNode extends FakeAudioNode {
   playbackRate = new FakeAudioParam();
   start = vi.fn();
   stop = vi.fn();
+  onended: (() => void) | null = null;
 }
 
 class FakeAudioContext {
@@ -161,6 +163,34 @@ describe('RaceAudioController', () => {
     expect([...context.oscillators, ...context.sources, ...context.gains, ...context.filters]
       .every((node) => node.disconnect.mock.calls.length === 1)).toBe(true);
     expect(context.close).toHaveBeenCalledOnce();
+  });
+
+  it('releases every one-shot envelope node after repeated events end', async () => {
+    const { context, controller } = setupController();
+    controller.setMuted(false);
+    await controller.resume();
+    const liveNodeCount = () => [
+      ...context.oscillators,
+      ...context.sources,
+      ...context.gains,
+      ...context.filters,
+    ].filter((node) => node.disconnect.mock.calls.length === 0).length;
+    const baseline = liveNodeCount();
+
+    for (let index = 0; index < 12; index += 1) {
+      if (index % 2 === 0) {
+        controller.handleEvents([{ type: 'pit-entry', tick: index, driverId: 'norris' }]);
+        context.oscillators.at(-1)?.onended?.();
+      } else {
+        controller.handleEvents([{ type: 'incident', tick: index, driverIds: ['norris'], severity: 'minor' }]);
+        context.sources.at(-1)?.onended?.();
+      }
+      expect(liveNodeCount()).toBe(baseline);
+    }
+
+    await expect(controller.dispose()).resolves.toBeUndefined();
+    expect(() => context.oscillators.at(-1)?.onended?.()).not.toThrow();
+    expect(() => context.sources.at(-1)?.onended?.()).not.toThrow();
   });
 
   it('fails closed when Web Audio is unavailable', async () => {

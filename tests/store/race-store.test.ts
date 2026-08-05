@@ -125,4 +125,21 @@ describe('raceStore', () => {
     expect(createRaceStore(DEFAULT_RACE_CONFIG, { storage: invalidStorage, prefersReducedMotion: false }).getState())
       .toMatchObject({ audioMuted: true, labelsEnabled: true, effectsEnabled: true, qualityMode: 'auto', cameraMode: 'broadcast' });
   });
+
+  it('follows system motion changes only while the user preference is unset', () => {
+    const store = createRaceStore(DEFAULT_RACE_CONFIG, { storage: null, prefersReducedMotion: false });
+
+    store.getState().updateSystemReducedMotion(true);
+    expect(store.getState().reducedMotion).toBe(true);
+    store.getState().updateSystemReducedMotion(false);
+    expect(store.getState().reducedMotion).toBe(false);
+
+    store.getState().updateSystemReducedMotion(true);
+    store.getState().toggleReducedMotion();
+    expect(store.getState().reducedMotion).toBe(false);
+    store.getState().updateSystemReducedMotion(true);
+    expect(store.getState().reducedMotion).toBe(false);
+    store.getState().updateSystemReducedMotion(false);
+    expect(store.getState().reducedMotion).toBe(false);
+  });
 });

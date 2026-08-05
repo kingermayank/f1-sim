@@ -1,6 +1,6 @@
 import { OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { raceStore, useRaceStore, type CameraMode, type RaceStoreState } from '../store/race-store';
 import type { CarState } from '../simulation/events';
@@ -245,20 +245,6 @@ export function calculateCameraPose(
   return calculateCameraPoseInto(mode, sample, anchor, aspect, output) ? output : null;
 }
 
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    if (!query) return;
-    const update = () => setReduced(query.matches);
-    update();
-    query.addEventListener?.('change', update);
-    return () => query.removeEventListener?.('change', update);
-  }, []);
-  return reduced;
-}
-
 function trackedCar(cars: readonly CarState[], preferredId: string | null): CarState | undefined {
   let leader: CarState | undefined;
   for (const car of cars) {
@@ -284,8 +270,7 @@ export function RaceCameras() {
   const aspect = useThree((state) => state.size.width / Math.max(1, state.size.height));
   const selectedDriverId = useRaceStore((state) => state.selectedDriverId);
   const cameraMode = useRaceStore((state) => state.cameraMode);
-  const forceReducedMotion = useRaceStore((state) => state.reducedMotion);
-  const reducedMotion = useReducedMotion() || forceReducedMotion;
+  const reducedMotion = useRaceStore((state) => state.reducedMotion);
   const rig = useRef<CameraRigState | null>(null);
   if (!rig.current) {
     const state = raceStore.getState();
