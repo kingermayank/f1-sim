@@ -179,4 +179,43 @@ describe('broadcast camera director', () => {
       });
     }
   });
+
+  it('does not replay a consumed incident after returning to routine coverage', () => {
+    const incident = { type: 'incident' as const, tick: 201, driverIds: ['leclerc'], severity: 'major' as const };
+    const incidentShot = selectBroadcastShot({ now: 20, lastCutAt: 10, events: [incident], lastSeenEventTick: -1 });
+    expect(incidentShot.reason).toBe('incident');
+
+    const routineShot = selectBroadcastShot({
+      now: 30,
+      lastCutAt: 20,
+      events: [incident],
+      currentShot: incidentShot,
+      lastSeenEventTick: incidentShot.eventTick!,
+    });
+    expect(routineShot.reason).toBe('running');
+
+    const nextShot = selectBroadcastShot({
+      now: 40,
+      lastCutAt: 30,
+      events: [incident],
+      currentShot: routineShot,
+      lastSeenEventTick: incidentShot.eventTick!,
+    });
+    expect(nextShot.reason).toBe('running');
+  });
+
+  it('ignores an older urgent event when a newer event follows the monotonic watermark', () => {
+    const shot = selectBroadcastShot({
+      now: 20,
+      lastCutAt: 10,
+      lastSeenEventTick: 300,
+      events: [
+        { type: 'incident', tick: 299, driverIds: ['leclerc'], severity: 'major' },
+        { type: 'overtake', tick: 301, attackerId: 'norris', defenderId: 'hamilton', position: 2 },
+      ],
+    });
+
+    expect(shot.reason).toBe('overtake');
+    expect(shot.eventTick).toBe(301);
+  });
 });

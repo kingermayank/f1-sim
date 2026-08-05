@@ -51,6 +51,8 @@ export interface BroadcastDirectorInput {
   cameraMode?: CameraDirectorMode;
   reducedMotion?: boolean;
   anchorCount?: number;
+  /** Highest event tick already committed to coverage; never decreases. */
+  lastSeenEventTick?: number;
 }
 
 interface Candidate {
@@ -171,8 +173,9 @@ function selectCandidate(input: BroadcastDirectorInput): Candidate {
   };
 
   const fastestLapTick = findFastestLapTick(input.events);
+  const lastSeenEventTick = input.lastSeenEventTick ?? -1;
   for (const event of input.events) {
-    if (input.currentShot?.eventTick !== null && input.currentShot?.eventTick !== undefined && event.tick <= input.currentShot.eventTick) continue;
+    if (event.tick <= lastSeenEventTick) continue;
     const candidate = candidateFromEvent(event, fastestLapTick);
     if (candidate && isBetterCandidate(candidate, best)) best = candidate;
   }

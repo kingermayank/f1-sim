@@ -14,7 +14,13 @@ import {
 import { EFFECT_POOL_CAPACITY } from '../../src/scene/RaceEffects';
 import { cloneSceneWithOwnedMaterials } from '../../src/scene/scene-resources';
 import type { CarState } from '../../src/simulation/events';
-import { calculateCameraPose } from '../../src/cameras/RaceCameras';
+import {
+  calculateCameraPose,
+  calculateOverheadCameraPose,
+  calculateTrackBounds,
+  createCameraTrackSampleCache,
+  sampleCameraTrackInto,
+} from '../../src/cameras/RaceCameras';
 
 it('exposes an accessible race viewport and loading status', () => {
   render(<App />);
@@ -160,4 +166,45 @@ it('calculates distinct allocation-safe poses for broadcast, chase, cockpit, and
   expect(cockpit!.target.z).toBeGreaterThan(transform.position.z);
   expect(overhead!.position.y).toBeGreaterThan(100);
   expect(calculateCameraPose('free', transform, anchor)).toBeNull();
+});
+
+it('fits complete track bounds with margin in landscape and portrait overhead views', () => {
+  const bounds = calculateTrackBounds([
+    { x: -50, y: -2, z: -20 },
+    { x: 70, y: 20, z: 80 },
+    { x: 10, y: 4, z: 40 },
+  ]);
+  expect(bounds).toEqual({ minX: -50, maxX: 70, minY: -2, maxY: 20, minZ: -20, maxZ: 80 });
+
+  for (const aspect of [16 / 9, 9 / 16]) {
+    const fov = 42;
+    const margin = 1.12;
+    const pose = calculateOverheadCameraPose(bounds, aspect, fov, margin);
+    const verticalHalfAngle = (fov * Math.PI) / 360;
+    const horizontalHalfAngle = Math.atan(Math.tan(verticalHalfAngle) * aspect);
+    const clearance = pose.position.y - bounds.maxY;
+    expect(clearance).toBeGreaterThanOrEqual(((bounds.maxZ - bounds.minZ) / 2 / Math.tan(verticalHalfAngle)) * margin);
+    expect(clearance).toBeGreaterThanOrEqual(((bounds.maxX - bounds.minX) / 2 / Math.tan(horizontalHalfAngle)) * margin);
+    expect(pose.target.x).toBe(10);
+    expect(pose.target.z).toBe(30);
+  }
+});
+
+it('serves changing car positions from an immutable spline cache without resampling', () => {
+  const transform = {
+    position: new Vector3(4, 2, 7),
+    tangent: new Vector3(0, 0, 1),
+    rotation: new Quaternion(),
+  };
+  const sample = vi.fn(() => transform);
+  const cache = createCameraTrackSampleCache({ sample }, 8);
+  const callsAfterWarmup = sample.mock.calls.length;
+  const output = { x: 0, y: 0, z: 0, tangentX: 0, tangentY: 0, tangentZ: 0 };
+
+  for (let index = 0; index < 100; index += 1) {
+    expect(sampleCameraTrackInto(cache, index / 100, 0.2, 'center', output)).toBe(output);
+  }
+
+  expect(sample).toHaveBeenCalledTimes(callsAfterWarmup);
+  expect(output).toMatchObject({ x: 3.8, y: 2, z: 7, tangentX: 0, tangentY: 0, tangentZ: 1 });
 });
