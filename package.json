@@ -8,7 +8,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "verify:assets": "node scripts/verify-assets.mjs"
+    "verify:assets": "node scripts/verify-assets.mjs",
+    "generate:assets": "node scripts/generate-race-assets.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

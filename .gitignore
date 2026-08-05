@@ -4,4 +4,6 @@ dist/
 test-results/
 playwright-report/
 .superpowers/
-work/
+work/*
+!work/assets-source/
+!work/assets-source/**
