@@ -7,6 +7,9 @@ import { raceStore } from '../../src/store/race-store';
 import { RaceHud } from '../../src/ui/RaceHud';
 import { driverSpeedKph } from '../../src/ui/DriverPanel';
 import { eventKey, EventFeed } from '../../src/ui/EventFeed';
+import { Leaderboard } from '../../src/ui/Leaderboard';
+import { DriverPanel } from '../../src/ui/DriverPanel';
+import type { CarState, RaceState } from '../../src/simulation/events';
 
 describe('RaceHud', () => {
   beforeEach(() => raceStore.getState().restart(DEFAULT_RACE_CONFIG.seed));
@@ -113,7 +116,9 @@ describe('RaceHud', () => {
     expect(screen.queryByRole('region', { name: 'Race classification' })).not.toBeInTheDocument();
     expect(screen.queryAllByRole('button', { name: /follow /i })).toHaveLength(0);
     expect(screen.getByRole('list', { name: 'Driver track positions' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Toggle timing tower' })).not.toHaveAttribute('aria-controls');
     await user.click(screen.getByRole('button', { name: 'Toggle timing tower' }));
+    expect(screen.getByRole('button', { name: 'Toggle timing tower' })).toHaveAttribute('aria-controls', 'timing-drawer');
     expect(screen.getByRole('region', { name: 'Race classification' })).toBeVisible();
     expect(screen.getAllByRole('button', { name: /follow /i })).toHaveLength(22);
   });
@@ -133,5 +138,41 @@ describe('RaceHud', () => {
     expect(eventKey(routine)).toBe(eventKey({ ...routine }));
     expect(eventKey(routine)).not.toBe(eventKey(later));
     expect(screen.getByRole('log', { name: 'Race events' })).toHaveAttribute('aria-live', 'off');
+  });
+
+  it('resets the live announcement when a race is replayed or restarted', () => {
+    const late = { type: 'sector' as const, tick: 90, driverId: 'russell', lap: 7, sector: 2 as const, sectorTime: 24 };
+    const start = { type: 'start' as const, tick: 1 };
+    const view = render(<EventFeed raceId="seed-a" events={[late]} />);
+    expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveTextContent(/sector 2/i);
+
+    view.rerender(<EventFeed raceId="seed-a" events={[]} />);
+    expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveTextContent(/awaiting race start/i);
+    view.rerender(<EventFeed raceId="seed-a" events={[start]} />);
+    expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveTextContent(/underway/i);
+
+    view.rerender(<EventFeed raceId="seed-b" events={[late]} />);
+    expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveTextContent(/sector 2/i);
+  });
+
+  it('uses terminal timing labels in the leaderboard and selected-driver panel', () => {
+    const base = raceStore.getState().snapshot.cars[0];
+    const snapshot: RaceState = {
+      seed: 'terminal-display', tick: 900, elapsedSeconds: 5406, phase: 'finished', flag: 'green', weather: 'sunny', safetyCar: 'none',
+      cars: [
+        { ...base, driverId: 'russell', lap: 78, distance: 1, speed: 0, position: 1, status: 'finished', finishPosition: 1, timing: { ...base.timing, totalTime: 5400 } } as CarState,
+        { ...base, driverId: 'antonelli', lap: 78, distance: 1, speed: 0, position: 2, status: 'finished', finishPosition: 2, timing: { ...base.timing, totalTime: 5406.25 } } as CarState,
+        { ...base, driverId: 'leclerc', lap: 75, distance: .6, speed: 0, position: 3, status: 'retired', retirementTick: 880, timing: { ...base.timing, totalTime: 5200 } } as CarState,
+      ],
+      events: [{ type: 'retirement', tick: 880, driverId: 'leclerc', reason: 'mechanical' }],
+    };
+    const view = render(<Leaderboard snapshot={snapshot} selectedDriverId="leclerc" onSelect={() => undefined} />);
+    const tower = screen.getByRole('region', { name: 'Race classification' });
+    expect(within(tower).getByText('+6.250')).toBeVisible();
+    expect(within(tower).getByText(/DNF · Mechanical/i)).toBeVisible();
+    expect(within(tower).queryByText('+0.000')).not.toBeInTheDocument();
+
+    view.rerender(<DriverPanel snapshot={snapshot} selectedDriverId="leclerc" />);
+    expect(screen.getByText('DNF · Mechanical')).toBeVisible();
   });
 });

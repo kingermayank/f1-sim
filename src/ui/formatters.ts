@@ -1,5 +1,5 @@
 import { DRIVERS_2026 } from '../domain/grid-2026';
-import type { RaceEvent } from '../simulation/events';
+import type { CarState, RaceEvent } from '../simulation/events';
 import type { ImmutableRaceEvent } from '../store/race-store';
 
 export const driverById = new Map(DRIVERS_2026.map((driver) => [driver.id, driver]));
@@ -15,6 +15,27 @@ export function formatDuration(seconds: number | null): string {
 
 export function formatInterval(seconds: number, leader: boolean): string {
   return leader ? 'LEADER' : `+${seconds.toFixed(3)}`;
+}
+
+export function formatRaceGap(
+  car: CarState,
+  leader: CarState | undefined,
+  events: readonly (RaceEvent | ImmutableRaceEvent)[],
+  options: { intervalSeconds?: number; leaderLabel?: string; retiredLabel?: 'reason' | 'laps' } = {},
+): string {
+  if (!leader || car.driverId === leader.driverId) return options.leaderLabel ?? 'LEADER';
+  if (car.status === 'finished') {
+    return leader.status === 'finished'
+      ? `+${Math.max(0, car.timing.totalTime - leader.timing.totalTime).toFixed(3)}`
+      : 'FINISHED';
+  }
+  if (car.status === 'retired') {
+    const retirement = [...events].reverse().find((event) => event.type === 'retirement' && event.driverId === car.driverId);
+    if (options.retiredLabel !== 'laps' && retirement?.type === 'retirement') return `DNF · ${titleCase(retirement.reason)}`;
+    const lapsBehind = Math.max(1, leader.lap - car.lap);
+    return `+${lapsBehind} ${lapsBehind === 1 ? 'lap' : 'laps'}`;
+  }
+  return formatInterval(options.intervalSeconds ?? 0, false);
 }
 
 export function titleCase(value: string): string {

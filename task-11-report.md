@@ -28,6 +28,10 @@
 - Increased timing-tower name, interval, lap, tire, and warning type sizes while retaining the scrollable 22-driver classification.
 - Added safe-area-aware mobile control positioning and retained the ordered driver-position map alternative in the mobile accessibility tree.
 - Source fields now render as links whenever the manifest value is an HTTP(S) URL.
+- Final review follow-up resets the live-announcement watermark and message when a seed changes, event ticks regress, or a replay clears the feed; replayed start events are announced again.
+- Leaderboard, driver telemetry, and finish classification now share one terminal-aware gap formatter, preventing zero-speed finishers or retirees from displaying `+0.000`.
+- The compact drawer disclosure omits `aria-controls` while its controlled region is unmounted.
+- Remaining telemetry, control, status, credit, and micro-label text was raised to at least 0.65rem.
 
 ## TDD Evidence
 
@@ -36,7 +40,7 @@
 
 ## Verification
 
-- `npm test -- tests/ui` — passed: 4 files, 22 tests.
+- `npm test -- tests/ui` — passed: 4 files, 24 tests.
 - `npm run build` — passed: TypeScript and Vite production build.
 - Headless installed-Chrome smoke at 1440×900 — passed: 1 persistent canvas, 22 follow controls, 5 camera controls, and a reported 156 km/h.
 - Headless installed-Chrome smoke at 900×900 — passed: settings/credits reachable through the compact dock, modal background inert, Escape closes, focus restores, and speed reports 156 km/h.

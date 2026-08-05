@@ -1,7 +1,7 @@
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import type { RaceState } from '../simulation/events';
 import { getClassification, getIntervals } from '../simulation/selectors';
-import { formatDuration, titleCase } from './formatters';
+import { formatDuration, formatRaceGap, titleCase } from './formatters';
 import { MONACO_TRACK } from '../track/monaco-track';
 
 export function driverSpeedKph(normalizedLapsPerSecond: number): number {
@@ -19,6 +19,10 @@ export function DriverPanel({ snapshot, selectedDriverId }: {
   const team = TEAMS_2026.find((item) => item.id === driver.teamId)!;
   const intervals = getIntervals(snapshot);
   const position = classification.indexOf(car) + 1;
+  const gap = formatRaceGap(car, classification[0], snapshot.events, {
+    intervalSeconds: intervals.get(driver.id),
+    leaderLabel: 'Leader',
+  });
   return (
     <article className="driver-panel" style={{ '--team-color': team.color } as React.CSSProperties}>
       <div className="driver-panel__identity">
@@ -27,7 +31,7 @@ export function DriverPanel({ snapshot, selectedDriverId }: {
         <strong>{driver.abbreviation}</strong>
       </div>
       <dl className="telemetry-grid">
-        <div><dt>Interval</dt><dd>{position === 1 ? 'Leader' : `+${(intervals.get(driver.id) ?? 0).toFixed(3)}`}</dd></div>
+        <div><dt>Interval</dt><dd>{gap}</dd></div>
         <div><dt>Speed</dt><dd>{Math.round(driverSpeedKph(car.speed))} <small>km/h</small></dd></div>
         <div><dt>Last lap</dt><dd>{formatDuration(car.timing.lastLap)}</dd></div>
         <div><dt>Best lap</dt><dd>{formatDuration(car.timing.bestLap)}</dd></div>

@@ -37,7 +37,7 @@ export function RaceHud() {
         <div className="race-meta"><span>Simulation seed</span><code>{snapshot.seed}</code><button type="button" onClick={() => setCreditsOpen(true)} aria-label="Open credits and disclosure">Credits</button></div>
       </header>
 
-      <button type="button" className="timing-drawer-toggle" aria-label="Toggle timing tower" aria-expanded={timingOpen} aria-controls="timing-drawer" onClick={() => setTimingOpen((value) => !value)}><span>Classification</span><strong>{timingOpen ? 'Close' : 'P1–P22'}</strong></button>
+      <button type="button" className="timing-drawer-toggle" aria-label="Toggle timing tower" aria-expanded={timingOpen} aria-controls={!compactLayout || timingOpen ? 'timing-drawer' : undefined} onClick={() => setTimingOpen((value) => !value)}><span>Classification</span><strong>{timingOpen ? 'Close' : 'P1–P22'}</strong></button>
       {(!compactLayout || timingOpen) && (
         <aside id="timing-drawer" className="race-hud__left" data-open={timingOpen}>
           <Leaderboard snapshot={snapshot} selectedDriverId={selectedDriverId} onSelect={(id) => { selectDriver(id); setTimingOpen(false); }} />
@@ -47,7 +47,7 @@ export function RaceHud() {
       <aside className="race-hud__right">
         <DriverPanel snapshot={snapshot} selectedDriverId={selectedDriverId} />
         <TrackMap snapshot={snapshot} selectedDriverId={selectedDriverId} />
-        <EventFeed events={eventFeed} />
+        <EventFeed events={eventFeed} raceId={snapshot.seed} />
       </aside>
 
       <PlaybackControls onOpenCredits={() => setCreditsOpen(true)} />

@@ -22,18 +22,26 @@ function eventClock(tick: number): string {
   return `T+${(tick * 0.1).toFixed(1)}s`;
 }
 
-export function EventFeed({ events }: { events: readonly ImmutableRaceEvent[] }) {
+export function EventFeed({ events, raceId = 'race' }: { events: readonly ImmutableRaceEvent[]; raceId?: string }) {
   const recent = events.slice(-5).reverse();
   const latest = events.at(-1);
   const [announcement, setAnnouncement] = useState(() => latest ? formatRaceEvent(latest) : 'Awaiting race start');
   const lastAnnouncedTick = useRef(latest?.tick ?? Number.NEGATIVE_INFINITY);
+  const lastRaceId = useRef(raceId);
   useEffect(() => {
-    if (!latest || latest.tick <= lastAnnouncedTick.current) return;
+    const reset = lastRaceId.current !== raceId || !latest || latest.tick < lastAnnouncedTick.current;
+    if (reset) {
+      lastRaceId.current = raceId;
+      lastAnnouncedTick.current = latest?.tick ?? Number.NEGATIVE_INFINITY;
+      setAnnouncement(latest ? formatRaceEvent(latest) : 'Awaiting race start');
+      return;
+    }
+    if (latest.tick <= lastAnnouncedTick.current) return;
     const urgent = ['incident', 'retirement', 'flag', 'weather', 'finish'].includes(latest.type);
     if (!urgent && latest.tick - lastAnnouncedTick.current < 30) return;
     lastAnnouncedTick.current = latest.tick;
     setAnnouncement(formatRaceEvent(latest));
-  }, [latest]);
+  }, [latest, raceId]);
   return (
     <section className="event-feed" role="log" aria-label="Race events" aria-live="off">
       <header className="panel-kicker"><span>Race control</span><span aria-hidden="true">● LIVE</span></header>
