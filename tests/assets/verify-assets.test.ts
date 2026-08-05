@@ -1,0 +1,53 @@
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { afterEach, describe, expect, it } from 'vitest';
+
+const temporaryRoots: string[] = [];
+
+function createFixture() {
+  const root = mkdtempSync(join(tmpdir(), 'race-assets-'));
+  temporaryRoots.push(root);
+  const publicRoot = join(root, 'public');
+  cpSync('public', publicRoot, { recursive: true });
+  const manifestPath = join(root, 'credits.json');
+  writeFileSync(manifestPath, readFileSync('src/assets/credits.json'));
+  return { manifestPath, publicRoot };
+}
+
+function verify(manifestPath: string, publicRoot: string) {
+  return spawnSync('node', ['scripts/verify-assets.mjs'], {
+    encoding: 'utf8',
+    env: { ...process.env, ASSET_MANIFEST_PATH: manifestPath, ASSET_PUBLIC_ROOT: publicRoot },
+  });
+}
+
+afterEach(() => {
+  while (temporaryRoots.length) rmSync(temporaryRoots.pop()!, { recursive: true, force: true });
+});
+
+describe('asset verifier binary validation', () => {
+  it('rejects malformed GLB and WebP runtime files from an isolated manifest fixture', () => {
+    const fixture = createFixture();
+    const valid = verify(fixture.manifestPath, fixture.publicRoot);
+    expect(valid.status).toBe(0);
+
+    const glbPath = join(fixture.publicRoot, 'assets/models/monaco-track.glb');
+    const glb = readFileSync(glbPath);
+    glb.writeUInt32LE(1, 4);
+    writeFileSync(glbPath, glb);
+    const invalidGlb = verify(fixture.manifestPath, fixture.publicRoot);
+    expect(invalidGlb.status).toBe(1);
+    expect(invalidGlb.stderr).toMatch(/invalid GLB version/);
+
+    cpSync('public', fixture.publicRoot, { recursive: true, force: true });
+    const webpPath = join(fixture.publicRoot, 'assets/textures/teams/ferrari.webp');
+    const webp = readFileSync(webpPath);
+    webp.writeUInt32LE(1, 4);
+    writeFileSync(webpPath, webp);
+    const invalidWebp = verify(fixture.manifestPath, fixture.publicRoot);
+    expect(invalidWebp.status).toBe(1);
+    expect(invalidWebp.stderr).toMatch(/invalid WebP RIFF length/);
+  });
+});
