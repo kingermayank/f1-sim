@@ -51,6 +51,7 @@ it('validates the 78-lap compressed default race', () => {
     presentationMinutes: 6,
     weather: 'sunny',
   });
+  expect(parseRaceConfig({ ...DEFAULT_RACE_CONFIG, dynamicWeather: true }).dynamicWeather).toBe(true);
 });
 
 it.each([

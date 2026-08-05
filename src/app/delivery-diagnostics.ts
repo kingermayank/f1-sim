@@ -18,12 +18,20 @@ export interface DeliveryDiagnosticsSnapshot {
     active: number;
   };
   audio: RaceAudioDiagnostics;
+  scenario: {
+    activePitCars: number;
+    incidentCount: number;
+    pitEntryCount: number;
+    safetyCarCount: number;
+    safetyCarState: RaceStoreState['snapshot']['safetyCar'];
+  };
 }
 
 export interface DeliveryDiagnostics {
   snapshot(): DeliveryDiagnosticsSnapshot;
   advanceRace(presentationSeconds: number): void;
   finishRace(): void;
+  restartRace(seed: string): void;
 }
 
 declare global {
@@ -52,6 +60,7 @@ export function createDeliveryDiagnostics(
   return {
     snapshot() {
       const state = store.getState();
+      const events = state.snapshot.events;
       return Object.freeze({
         seed: state.snapshot.seed,
         phase: state.snapshot.phase,
@@ -60,6 +69,13 @@ export function createDeliveryDiagnostics(
         canvasCount: document.querySelectorAll('.race-viewport canvas').length,
         effects: Object.freeze({ capacity: EFFECT_POOL_CAPACITY, active: activeEffectCount(state) }),
         audio: Object.freeze(audio.getDiagnostics()),
+        scenario: Object.freeze({
+          activePitCars: state.snapshot.cars.filter((car) => car.pitState !== 'track').length,
+          incidentCount: events.filter((event) => event.type === 'incident').length,
+          pitEntryCount: events.filter((event) => event.type === 'pit-entry').length,
+          safetyCarCount: events.filter((event) => event.type === 'flag' && event.flag === 'safety-car').length,
+          safetyCarState: state.snapshot.safetyCar,
+        }),
       });
     },
     advanceRace(presentationSeconds) {
@@ -74,6 +90,10 @@ export function createDeliveryDiagnostics(
       const state = store.getState();
       if (state.isPaused) state.togglePause();
       store.getState().tick(3_600);
+    },
+    restartRace(seed) {
+      if (!seed.trim()) throw new RangeError('Diagnostic seed must not be empty');
+      store.getState().restart(seed);
     },
   };
 }

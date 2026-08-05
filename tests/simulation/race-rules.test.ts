@@ -5,7 +5,7 @@ import { evaluateIncident } from '../../src/simulation/incidents';
 import { evaluateOvertake } from '../../src/simulation/overtakes';
 import { createPrng } from '../../src/simulation/prng';
 import { calculateSafetyCarCatchupFactor, createRaceEngine } from '../../src/simulation/race-engine';
-import { createStrategy } from '../../src/simulation/strategy';
+import { createStrategy, shouldPit } from '../../src/simulation/strategy';
 import { updateTire } from '../../src/simulation/tires';
 import { MONACO_TRACK } from '../../src/track/monaco-track';
 import { createSplineTrack } from '../../src/track/spline-track';
@@ -47,6 +47,40 @@ describe('race rule primitives', () => {
     expect(first.stops.every((stop) => stop.window[0] > 0 && stop.window[1] < 78)).toBe(true);
   });
 
+  it('brings a stop forward when tire wear reaches the cliff', () => {
+    const stop = { window: [30, 40] as const, targetLap: 35, compound: 'hard' as const };
+
+    expect(shouldPit(stop, {
+      lap: 25,
+      safetyCar: false,
+      trafficSeconds: 2,
+      tireWear: 0.85,
+      tireGrip: 0.82,
+      damage: 0,
+    })).toBe(true);
+    expect(shouldPit(stop, {
+      lap: 25,
+      safetyCar: false,
+      trafficSeconds: 2,
+      tireWear: 0.2,
+      tireGrip: 1,
+      damage: 0,
+    })).toBe(false);
+  });
+
+  it('adapts a planned stop after incident damage', () => {
+    const stop = { window: [30, 40] as const, targetLap: 35, compound: 'hard' as const };
+
+    expect(shouldPit(stop, {
+      lap: 26,
+      safetyCar: false,
+      trafficSeconds: 2,
+      tireWear: 0.2,
+      tireGrip: 1,
+      damage: 0.3,
+    })).toBe(true);
+  });
+
   it('replays the same overtake decision from the same seed', () => {
     const input = {
       paceAdvantage: 0.08,
@@ -80,6 +114,58 @@ describe('race rule primitives', () => {
 });
 
 describe('integrated race rules', () => {
+  it('keeps the default sunny race stable without weather events', () => {
+    const engine = createRaceEngine(
+      raceConfig('sunny-stable', { incidents: false, safetyCars: false }),
+      MONACO_TRACK,
+      [DRIVERS_2026[0]!],
+    );
+
+    engine.runToFinish();
+
+    expect(engine.snapshot().weather).toBe('sunny');
+    expect(engine.snapshot().events.filter((event) => event.type === 'weather')).toEqual([]);
+  });
+
+  it('replays seeded weather transitions for configurable non-sunny races', () => {
+    const first = createRaceEngine(
+      raceConfig('dynamic-weather', { weather: 'rain', incidents: false, safetyCars: false }),
+      MONACO_TRACK,
+      [DRIVERS_2026[0]!],
+    );
+    const replay = createRaceEngine(
+      raceConfig('dynamic-weather', { weather: 'rain', incidents: false, safetyCars: false }),
+      MONACO_TRACK,
+      [DRIVERS_2026[0]!],
+    );
+
+    first.runToFinish();
+    replay.runToFinish();
+    const firstWeather = first.snapshot().events.filter((event) => event.type === 'weather');
+    const replayWeather = replay.snapshot().events.filter((event) => event.type === 'weather');
+
+    expect(firstWeather.length).toBeGreaterThan(0);
+    expect(firstWeather).toEqual(replayWeather);
+    expect(first.snapshot().weather).toBe(firstWeather.at(-1)?.weather);
+  });
+
+  it('permits a sunny race to opt into seeded weather changes', () => {
+    const engine = createRaceEngine(
+      raceConfig('sunny-dynamic', {
+        weather: 'sunny',
+        dynamicWeather: true,
+        incidents: false,
+        safetyCars: false,
+      }),
+      MONACO_TRACK,
+      [DRIVERS_2026[0]!],
+    );
+
+    engine.runToFinish();
+
+    expect(engine.snapshot().events.some((event) => event.type === 'weather')).toBe(true);
+  });
+
   it('changes compound during a pit stop and charges meaningful time', () => {
     const engine = createRaceEngine(
       raceConfig('pit-stop', { incidents: false, safetyCars: false }),
@@ -131,7 +217,7 @@ describe('integrated race rules', () => {
 
   it('keeps a retired car terminal for the remainder of the race', () => {
     const engine = createRaceEngine(
-      raceConfig('rules-0'),
+      raceConfig('scenario-0'),
       MONACO_TRACK,
       DRIVERS_2026,
     );
@@ -149,7 +235,7 @@ describe('integrated race rules', () => {
   });
 
   it('emits safety-car transitions and compresses active-car gaps', () => {
-    const engine = createRaceEngine(raceConfig('safety-review-1'), MONACO_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(raceConfig('scenario-0'), MONACO_TRACK, DRIVERS_2026);
     let gapAtDeployment: number | undefined;
     let compressedGap: number | undefined;
 
@@ -245,14 +331,11 @@ describe('integrated race rules', () => {
     }
   });
 
-  it('preserves race invariants across 200 seeds', { timeout: 120_000 }, () => {
+  it('preserves race invariants across 200 full-grid seeds', { timeout: 180_000 }, () => {
     const winners = new Set<string>();
-    // A representative front-to-midfield pack retains the full 78-lap rules
-    // while keeping this 200-race stress test bounded for local and CI runs.
-    const invariantDrivers = DRIVERS_2026.slice(0, 8);
 
     for (let seed = 0; seed < 200; seed += 1) {
-      const engine = createRaceEngine(raceConfig(`invariant-${seed}`), MONACO_TRACK, invariantDrivers);
+      const engine = createRaceEngine(raceConfig(`invariant-${seed}`), MONACO_TRACK, DRIVERS_2026);
       engine.runToFinish();
       const snapshot = engine.snapshot();
       const events = engine.drainEvents();

@@ -6,6 +6,7 @@ const raceConfigSchema = z.object({
   laps: z.literal(78),
   presentationMinutes: z.number().min(5).max(8),
   weather: z.enum(['sunny', 'cloudy', 'rain']),
+  dynamicWeather: z.boolean().optional(),
   safetyCars: z.boolean(),
   incidents: z.boolean(),
 });

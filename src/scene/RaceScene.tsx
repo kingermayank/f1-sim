@@ -65,20 +65,37 @@ export interface SceneStatusInput {
   assetsActive: boolean;
   assetsLoaded: number;
   assetsTotal: number;
-  assetErrors: number;
+  assetErrors: readonly string[];
+}
+
+export function isRaceSceneReady(input: SceneStatusInput): boolean {
+  return input.webGLAvailable
+    && !input.renderFailed
+    && input.rendererCreated
+    && !input.assetsActive
+    && input.assetsTotal > 0
+    && input.assetsLoaded >= input.assetsTotal
+    && input.assetErrors.length === 0;
+}
+
+function assetName(path: string): string {
+  const cleanPath = path.split(/[?#]/, 1)[0];
+  return cleanPath.slice(cleanPath.lastIndexOf('/') + 1) || 'scene asset';
 }
 
 export function getRaceSceneStatus(input: SceneStatusInput): string {
   if (!input.webGLAvailable) return 'Preparing the grid · accessible race view';
   if (input.renderFailed) return '3D renderer unavailable · accessible race view';
-  if (input.assetErrors > 0 && !input.assetsActive) return 'Rendering with procedural asset fallback';
+  if (input.assetErrors.length > 0 && !input.assetsActive) {
+    return `Asset load failed · ${assetName(input.assetErrors[0])} · procedural fallback`;
+  }
   if (
     !input.rendererCreated
     || input.assetsActive
     || input.assetsTotal === 0
     || input.assetsLoaded < input.assetsTotal
   ) return 'Rendering Monaco race scene';
-  return 'Ready · 22 cars on the Monaco circuit';
+  return isRaceSceneReady(input) ? 'Ready · 22 cars on the Monaco circuit' : 'Rendering Monaco race scene';
 }
 
 export class SceneRenderBoundary extends Component<{
@@ -122,7 +139,7 @@ export function RaceScene() {
     assetsActive,
     assetsLoaded,
     assetsTotal,
-    assetErrors: assetErrors.length,
+    assetErrors,
   });
 
   return (

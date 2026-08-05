@@ -28,12 +28,26 @@ it('exposes stable race, canvas, effects, and audio delivery diagnostics', () =>
     canvasCount: 1,
     effects: { capacity: { smoke: 32, sparks: 64, debris: 24 }, active: 0 },
     audio: { contextState: 'uninitialized', ownedNodeCount: 0 },
+    scenario: {
+      activePitCars: 0,
+      incidentCount: 0,
+      pitEntryCount: 0,
+      safetyCarCount: 0,
+      safetyCarState: 'none',
+    },
   });
 
   diagnostics.advanceRace(2);
   expect(diagnostics.snapshot().tick).toBeGreaterThan(0);
+  diagnostics.restartRace('scenario-0');
+  expect(diagnostics.snapshot()).toMatchObject({ seed: 'scenario-0', phase: 'grid', tick: 0 });
   diagnostics.finishRace();
   expect(diagnostics.snapshot()).toMatchObject({ phase: 'finished', carCount: 22 });
+  expect(diagnostics.snapshot().scenario).toMatchObject({
+    incidentCount: expect.any(Number),
+    pitEntryCount: expect.any(Number),
+    safetyCarCount: expect.any(Number),
+  });
 });
 
 it('installs diagnostics only with an explicit development query opt-in', () => {

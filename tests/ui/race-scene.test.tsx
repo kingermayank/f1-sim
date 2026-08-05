@@ -1,13 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
+import { Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { vi } from 'vitest';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
 import type { ReactNode } from 'react';
 import { App } from '../../src/app/App';
-import { getCarTrackSample, shouldPresentCar } from '../../src/scene/CarField';
+import { getCarTrackSample, shouldPresentCar, shouldShowCarLabel } from '../../src/scene/CarField';
 import {
   createWebGLCapabilityDetector,
   getRaceSceneStatus,
+  isRaceSceneReady,
   SceneRenderBoundary,
   selectQualityTier,
 } from '../../src/scene/RaceScene';
@@ -18,7 +19,9 @@ import {
   calculateCameraPose,
   calculateOverheadCameraPose,
   calculateTrackBounds,
+  cameraBlendFactor,
   createCameraTrackSampleCache,
+  measureProjectedBox,
   sampleCameraTrackInto,
 } from '../../src/cameras/RaceCameras';
 
@@ -107,12 +110,36 @@ it('probes WebGL capability once and keeps loading status truthful until assets 
 
   expect(getRaceSceneStatus({
     webGLAvailable: true, renderFailed: false, rendererCreated: true,
-    assetsActive: false, assetsLoaded: 0, assetsTotal: 0, assetErrors: 0,
+    assetsActive: false, assetsLoaded: 0, assetsTotal: 0, assetErrors: [],
   })).toMatch(/rendering|loading/i);
   expect(getRaceSceneStatus({
     webGLAvailable: true, renderFailed: false, rendererCreated: true,
-    assetsActive: false, assetsLoaded: 13, assetsTotal: 13, assetErrors: 0,
+    assetsActive: false, assetsLoaded: 13, assetsTotal: 13, assetErrors: [],
   })).toMatch(/^ready/i);
+
+  const failed = {
+    webGLAvailable: true, renderFailed: false, rendererCreated: true,
+    assetsActive: false, assetsLoaded: 12, assetsTotal: 13,
+    assetErrors: ['/assets/models/f1-car.glb'],
+  };
+  expect(isRaceSceneReady(failed)).toBe(false);
+  expect(getRaceSceneStatus(failed)).toBe('Asset load failed · f1-car.glb · procedural fallback');
+  expect(isRaceSceneReady({
+    ...failed, assetsLoaded: 13, assetErrors: [],
+  })).toBe(true);
+});
+
+it('shows car labels only for the selected driver or a close on-track battle', () => {
+  const leader = { ...baseCar, driverId: 'norris', lap: 4, distance: 0.52, position: 1 };
+  const closeFollower = { ...baseCar, driverId: 'leclerc', lap: 4, distance: 0.511, position: 2 };
+  const distantCar = { ...baseCar, driverId: 'hamilton', lap: 4, distance: 0.43, position: 3 };
+  const cars = [leader, closeFollower, distantCar];
+
+  expect(shouldShowCarLabel(distantCar, cars, 'hamilton')).toBe(true);
+  expect(shouldShowCarLabel(leader, cars, null)).toBe(true);
+  expect(shouldShowCarLabel(closeFollower, cars, null)).toBe(true);
+  expect(shouldShowCarLabel(distantCar, cars, null)).toBe(false);
+  expect(shouldShowCarLabel({ ...closeFollower, pitState: 'lane' }, cars, null)).toBe(false);
 });
 
 it('replaces render-tree crashes with the accessible procedural fallback', () => {
@@ -157,8 +184,13 @@ it('calculates distinct allocation-safe poses for broadcast, chase, cockpit, and
   const cockpit = calculateCameraPose('cockpit', transform, anchor);
   const overhead = calculateCameraPose('overhead', transform, anchor);
 
-  expect(broadcast?.position.toArray()).toEqual([20, 12, 30]);
-  expect(broadcast?.target.toArray()).toEqual([4, 2.5, 7]);
+  expect(broadcast!.position.distanceTo(transform.position)).toBeGreaterThanOrEqual(31);
+  expect(broadcast!.position.distanceTo(transform.position)).toBeLessThanOrEqual(36);
+  expect(broadcast!.position.z).toBeLessThan(transform.position.z);
+  expect(Math.abs(broadcast!.position.x - transform.position.x)).toBeGreaterThanOrEqual(10);
+  expect(broadcast!.position.y - transform.position.y).toBeGreaterThanOrEqual(20);
+  expect(broadcast!.target.z).toBeGreaterThan(transform.position.z);
+  expect(broadcast!.fov).toBe(44);
   expect(chase!.position.y).toBeGreaterThan(transform.position.y);
   expect(chase!.position.z).toBeLessThan(transform.position.z);
   expect(chase!.target.z).toBeGreaterThan(transform.position.z);
@@ -166,6 +198,31 @@ it('calculates distinct allocation-safe poses for broadcast, chase, cockpit, and
   expect(cockpit!.target.z).toBeGreaterThan(transform.position.z);
   expect(overhead!.position.y).toBeGreaterThan(100);
   expect(calculateCameraPose('free', transform, anchor)).toBeNull();
+});
+
+it('measures projected target bounds for browser framing diagnostics', () => {
+  const camera = new PerspectiveCamera(40, 16 / 9, 0.1, 100);
+  camera.position.set(0, 0, 10);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld();
+  camera.updateProjectionMatrix();
+  const measurement = measureProjectedBox(
+    new Box3(new Vector3(-1, -0.5, -2), new Vector3(1, 0.5, 2)),
+    camera,
+  );
+
+  expect(measurement.inFrustum).toBe(true);
+  expect(measurement.centerX).toBeCloseTo(0, 5);
+  expect(measurement.centerY).toBeCloseTo(0, 5);
+  expect(measurement.height).toBeGreaterThan(0.1);
+  expect(measurement.height).toBeLessThan(0.3);
+});
+
+it('snaps broadcast cuts while keeping chase and cockpit camera movement damped', () => {
+  expect(cameraBlendFactor('broadcast', false, 1 / 60, true)).toBe(1);
+  expect(cameraBlendFactor('broadcast', false, 1 / 60, false)).toBe(1);
+  expect(cameraBlendFactor('chase', false, 1 / 60, true)).toBeLessThan(1);
+  expect(cameraBlendFactor('cockpit', true, 1 / 60, true)).toBeLessThan(1);
 });
 
 it('fits complete track bounds with margin in landscape and portrait overhead views', () => {

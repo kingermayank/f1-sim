@@ -4,6 +4,7 @@ import { chromium, defineConfig } from '@playwright/test';
 const bundledChromium = chromium.executablePath();
 const systemChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const requestedExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
+const e2ePort = 5189;
 const executablePath = existsSync(bundledChromium)
   ? undefined
   : requestedExecutable && existsSync(requestedExecutable) ? requestedExecutable
@@ -16,14 +17,14 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: `http://127.0.0.1:${e2ePort}`,
     launchOptions: { executablePath },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: {
     command: 'node scripts/e2e-server.mjs',
-    url: 'http://127.0.0.1:5173',
+    url: `http://127.0.0.1:${e2ePort}`,
     reuseExistingServer: false,
     timeout: 120_000,
   },

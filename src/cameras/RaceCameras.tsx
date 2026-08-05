@@ -1,7 +1,7 @@
 import { OrbitControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { PerspectiveCamera, Vector3 } from 'three';
+import { Box3, type Camera, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { raceStore, useRaceStore, type CameraMode, type RaceStoreState } from '../store/race-store';
 import type { CarState } from '../simulation/events';
 import { MONACO_TRACK } from '../track/monaco-track';
@@ -51,6 +51,65 @@ export interface CameraPose {
   position: Vector3;
   target: Vector3;
   fov: number;
+}
+
+export interface ProjectedBoxMeasurement {
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+  inFrustum: boolean;
+}
+
+export function measureProjectedBox(box: Box3, camera: Camera): ProjectedBoxMeasurement {
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  for (const x of [box.min.x, box.max.x]) {
+    for (const y of [box.min.y, box.max.y]) {
+      for (const z of [box.min.z, box.max.z]) {
+        const projected = new Vector3(x, y, z).project(camera);
+        minX = Math.min(minX, projected.x);
+        maxX = Math.max(maxX, projected.x);
+        minY = Math.min(minY, projected.y);
+        maxY = Math.max(maxY, projected.y);
+        minZ = Math.min(minZ, projected.z);
+        maxZ = Math.max(maxZ, projected.z);
+      }
+    }
+  }
+  return {
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+    width: (maxX - minX) / 2,
+    height: (maxY - minY) / 2,
+    inFrustum: maxX >= -1 && minX <= 1 && maxY >= -1 && minY <= 1 && maxZ >= -1 && minZ <= 1,
+  };
+}
+
+declare global {
+  interface Window {
+    __MONACO_SCENE_DIAGNOSTICS__?: {
+      cameraMode: CameraMode;
+      targetDriverId: string | null;
+      targetDistance: number;
+      projected: ProjectedBoxMeasurement | null;
+    };
+  }
+}
+
+export function cameraBlendFactor(
+  mode: CameraMode,
+  reducedMotion: boolean,
+  delta: number,
+  _broadcastCut: boolean,
+): number {
+  if (mode === 'broadcast') return 1;
+  const rate = mode === 'cockpit' ? 9 : mode === 'chase' ? 7.5 : reducedMotion ? 4.5 : 6;
+  return 1 - Math.exp(-Math.min(delta, 0.1) * rate);
 }
 
 export function calculateTrackBounds(points: readonly TrackPoint[]): TrackBounds {
@@ -188,13 +247,21 @@ function calculateCameraPoseInto(
     return true;
   }
   if (mode === 'broadcast') {
-    output.position.set(anchor.position.x, anchor.position.y, anchor.position.z);
-    output.target.set(
-      sample.x + anchor.targetOffset.x,
-      sample.y + anchor.targetOffset.y,
-      sample.z + anchor.targetOffset.z,
+    const portrait = aspect < 0.8;
+    const side = Math.round(anchor.distance * 100) % 2 === 0 ? -1 : 1;
+    const lateralX = -sample.tangentZ * side;
+    const lateralZ = sample.tangentX * side;
+    output.position.set(
+      sample.x - sample.tangentX * 22 + lateralX * 10,
+      sample.y + (portrait ? 21 : 22),
+      sample.z - sample.tangentZ * 22 + lateralZ * 10,
     );
-    output.fov = 38;
+    output.target.set(
+      sample.x + sample.tangentX * 0.5 + anchor.targetOffset.x,
+      sample.y + 0.55 + anchor.targetOffset.y,
+      sample.z + sample.tangentZ * 0.5 + anchor.targetOffset.z,
+    );
+    output.fov = portrait ? 46 : 44;
     return true;
   }
   if (mode === 'cockpit') {
@@ -263,10 +330,18 @@ interface CameraRigState {
   desiredPosition: Vector3;
   lookTarget: Vector3;
   hasPose: boolean;
+  snapPending: boolean;
+  targetDriverId: string | null;
+  lastDiagnosticAt: number;
+  visualSample: MutableCameraTrackSample;
+  targetPosition: Vector3;
+  targetQuaternion: Quaternion;
+  targetTangent: Vector3;
 }
 
 export function RaceCameras() {
   const camera = useThree((state) => state.camera);
+  const scene = useThree((state) => state.scene);
   const aspect = useThree((state) => state.size.width / Math.max(1, state.size.height));
   const selectedDriverId = useRaceStore((state) => state.selectedDriverId);
   const cameraMode = useRaceStore((state) => state.cameraMode);
@@ -287,10 +362,18 @@ export function RaceCameras() {
       desiredPosition: new Vector3(),
       lookTarget: new Vector3(),
       hasPose: false,
+      snapPending: true,
+      targetDriverId: null,
+      lastDiagnosticAt: Number.NEGATIVE_INFINITY,
+      visualSample: { x: 0, y: 0, z: 0, tangentX: 0, tangentY: 0, tangentZ: 1 },
+      targetPosition: new Vector3(),
+      targetQuaternion: new Quaternion(),
+      targetTangent: new Vector3(0, 0, 1),
     };
   }
 
   useEffect(() => {
+    rig.current!.snapPending = cameraMode === 'broadcast' || cameraMode === 'overhead';
     const update = (state: RaceStoreState) => {
       const current = rig.current!;
       if (cameraMode === 'broadcast' && shouldEvaluateBroadcastShot(
@@ -316,11 +399,13 @@ export function RaceCameras() {
         if (decision.action === 'cut') {
           current.shot = decision;
           current.lastCutAt = state.snapshot.elapsedSeconds;
+          current.snapPending = true;
         }
       }
 
       const targetId = cameraMode === 'broadcast' ? current.shot.targetDriverId : selectedDriverId;
       const car = trackedCar(state.snapshot.cars, targetId) ?? state.snapshot.cars[0];
+      current.targetDriverId = car.driverId;
       const line: CameraTrackLine = car.targetLine === 'pit' || car.pitState !== 'track'
         ? 'pit'
         : car.targetLine === 'racing' ? 'center' : car.targetLine;
@@ -342,7 +427,21 @@ export function RaceCameras() {
   useFrame(({ clock }, delta) => {
     const current = rig.current!;
     if (!current.hasPose || cameraMode === 'free') return;
-    const damping = 1 - Math.exp(-Math.min(delta, 0.1) * (reducedMotion ? 4.5 : 7.5));
+    const targetObject = current.targetDriverId ? scene.getObjectByName(`car-${current.targetDriverId}`) : undefined;
+    if (cameraMode === 'broadcast' && targetObject) {
+      targetObject.getWorldPosition(current.targetPosition);
+      targetObject.getWorldQuaternion(current.targetQuaternion);
+      current.targetTangent.set(0, 0, 1).applyQuaternion(current.targetQuaternion).normalize();
+      current.visualSample.x = current.targetPosition.x;
+      current.visualSample.y = current.targetPosition.y;
+      current.visualSample.z = current.targetPosition.z;
+      current.visualSample.tangentX = current.targetTangent.x;
+      current.visualSample.tangentY = current.targetTangent.y;
+      current.visualSample.tangentZ = current.targetTangent.z;
+      const anchor = MONACO_TRACK.cameraAnchors[current.shot.anchorIndex % MONACO_TRACK.cameraAnchors.length];
+      calculateCameraPoseInto('broadcast', current.visualSample, anchor, aspect, current.pose);
+    }
+    const damping = cameraBlendFactor(cameraMode, reducedMotion, delta, current.snapPending);
     current.desiredPosition.copy(current.pose.position);
     if (cameraMode === 'broadcast') {
       const shake = reducedMotion ? 0.012 : 0.065;
@@ -355,6 +454,25 @@ export function RaceCameras() {
     if (camera instanceof PerspectiveCamera && Math.abs(camera.fov - current.pose.fov) > 0.01) {
       camera.fov += (current.pose.fov - camera.fov) * damping;
       camera.updateProjectionMatrix();
+    }
+    current.snapPending = false;
+    if (clock.elapsedTime - current.lastDiagnosticAt >= 0.2) {
+      let projected: ProjectedBoxMeasurement | null = null;
+      let targetDistance = Number.POSITIVE_INFINITY;
+      if (targetObject) {
+        const box = new Box3().setFromObject(targetObject);
+        if (!box.isEmpty()) {
+          projected = measureProjectedBox(box, camera);
+          targetDistance = camera.position.distanceTo(box.getCenter(new Vector3()));
+        }
+      }
+      window.__MONACO_SCENE_DIAGNOSTICS__ = {
+        cameraMode,
+        targetDriverId: current.targetDriverId,
+        targetDistance,
+        projected,
+      };
+      current.lastDiagnosticAt = clock.elapsedTime;
     }
   });
 

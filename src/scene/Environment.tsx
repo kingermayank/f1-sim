@@ -85,7 +85,9 @@ function LoadedTrack() {
     });
   }, [resources]);
 
-  return <primitive object={resources.scene} dispose={null} scale={2.3} position={[-9, -2.5, -19]} rotation={[0, -0.08, 0]} />;
+  // The GLB is verified and warmed with the rest of the delivery assets, but the
+  // simulation-aligned ribbon below is the single visible source of road geometry.
+  return <primitive object={resources.scene} dispose={null} visible={false} />;
 }
 
 class TrackAssetBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -121,10 +123,14 @@ function CityAndHarbor({ quality }: { quality: SceneQualityTier }) {
             <meshStandardMaterial color={index % 2 ? '#ad725d' : '#c58a67'} roughness={0.9} />
           </mesh>
           {quality === 'high' && (
-            <mesh position={[0, 0.8, depth / 2 + 0.02]}>
-              <planeGeometry args={[width * 0.7, Math.max(2, height * 0.5)]} />
-              <meshBasicMaterial color="#f6d797" transparent opacity={0.14} />
-            </mesh>
+            <group position={[0, 0, depth / 2 + 0.03]}>
+              {[-0.28, 0, 0.28].map((offset) => (
+                <mesh key={offset} position={[width * offset, 0.8, 0]}>
+                  <planeGeometry args={[Math.max(1.1, width * 0.14), Math.max(2, height * 0.48)]} />
+                  <meshStandardMaterial color="#82a9b8" emissive="#f7d995" emissiveIntensity={0.08} roughness={0.65} />
+                </mesh>
+              ))}
+            </group>
           )}
         </group>
       ))}
@@ -159,10 +165,10 @@ function CircuitFallback() {
   return (
     <group name="authoritative procedural circuit">
       <mesh geometry={trackGeometry} receiveShadow>
-        <meshStandardMaterial color="#272c30" roughness={0.96} metalness={0.02} />
+        <meshStandardMaterial color="#171d22" roughness={0.88} metalness={0.04} />
       </mesh>
       <mesh geometry={pitGeometry} receiveShadow>
-        <meshStandardMaterial color="#34393d" roughness={0.94} />
+        <meshStandardMaterial color="#22292e" roughness={0.9} />
       </mesh>
       <mesh geometry={outerBarrier} castShadow receiveShadow>
         <meshStandardMaterial color="#f0eee7" roughness={0.72} />
@@ -177,6 +183,62 @@ function CircuitFallback() {
             <boxGeometry args={[0.14, 0.04, 2.3]} />
             <meshBasicMaterial color="#d7d4c9" />
           </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+function TrackSurfaceDetails({ quality }: { quality: SceneQualityTier }) {
+  const samples = quality === 'high' ? 48 : 24;
+  return (
+    <group name="kerbs markings and catch fencing">
+      {Array.from({ length: samples }, (_, index) => {
+        const distance = index / samples;
+        const transform = TRACK.sample(distance, 0);
+        const kerbColor = index % 2 ? '#f4eee4' : '#d72e32';
+        return (
+          <group key={index} position={transform.position} quaternion={transform.rotation}>
+            <mesh position={[-3.18, 0.14, 0]} receiveShadow>
+              <boxGeometry args={[0.42, 0.08, 2.4]} />
+              <meshStandardMaterial color={kerbColor} roughness={0.72} />
+            </mesh>
+            <mesh position={[3.18, 0.14, 0]} receiveShadow>
+              <boxGeometry args={[0.42, 0.08, 2.4]} />
+              <meshStandardMaterial color={index % 2 ? '#d72e32' : '#f4eee4'} roughness={0.72} />
+            </mesh>
+            {index % 3 === 0 && (
+              <mesh position={[0, 0.145, 0]}>
+                <boxGeometry args={[0.1, 0.02, 1.4]} />
+                <meshBasicMaterial color="#d8dde0" />
+              </mesh>
+            )}
+            {quality === 'high' && index % 2 === 0 && (
+              <>
+                <mesh position={[-4.15, 1.05, 0]} castShadow><boxGeometry args={[0.07, 2, 0.07]} /><meshStandardMaterial color="#68737b" metalness={0.55} roughness={0.5} /></mesh>
+                <mesh position={[4.15, 1.05, 0]} castShadow><boxGeometry args={[0.07, 2, 0.07]} /><meshStandardMaterial color="#68737b" metalness={0.55} roughness={0.5} /></mesh>
+                <mesh position={[-4.15, 1.65, 0]}><boxGeometry args={[0.06, 0.06, 2.55]} /><meshStandardMaterial color="#8a959c" metalness={0.6} roughness={0.45} /></mesh>
+                <mesh position={[4.15, 1.65, 0]}><boxGeometry args={[0.06, 0.06, 2.55]} /><meshStandardMaterial color="#8a959c" metalness={0.6} roughness={0.45} /></mesh>
+              </>
+            )}
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+function HillsideTrees({ quality }: { quality: SceneQualityTier }) {
+  const count = quality === 'high' ? 18 : 8;
+  return (
+    <group name="hillside trees">
+      {Array.from({ length: count }, (_, index) => {
+        const transform = TRACK.sample((index / count + 0.06) % 1, index % 2 ? 16 : -16);
+        return (
+          <group key={index} position={transform.position}>
+            <mesh position={[0, 1.1, 0]} castShadow><cylinderGeometry args={[0.16, 0.24, 2.2, 7]} /><meshStandardMaterial color="#5a4435" roughness={1} /></mesh>
+            <mesh position={[0, 2.5, 0]} castShadow><icosahedronGeometry args={[0.95, 1]} /><meshStandardMaterial color={index % 3 ? '#285b43' : '#3a704f'} roughness={0.96} /></mesh>
+          </group>
         );
       })}
     </group>
@@ -209,37 +271,46 @@ function TracksideLandmarks() {
 export function Environment({ quality }: { quality: SceneQualityTier }) {
   return (
     <>
-      <color attach="background" args={['#77b5cb']} />
-      <fog attach="fog" args={['#a8c8cf', 125, 270]} />
-      <hemisphereLight args={['#e9f5ff', '#4d5846', quality === 'high' ? 1.55 : 1.8]} />
+      <color attach="background" args={['#6aa8bd']} />
+      <fog attach="fog" args={['#86aeb8', 105, 245]} />
+      <hemisphereLight args={['#d9eff7', '#263b3d', quality === 'high' ? 0.95 : 1.25]} />
       <directionalLight
         castShadow={quality === 'high'}
         color="#ffd29a"
-        intensity={3.4}
+        intensity={2.55}
         position={[78, 112, 42]}
-        shadow-mapSize={[1024, 1024]}
-        shadow-camera-left={-115}
-        shadow-camera-right={115}
-        shadow-camera-top={115}
-        shadow-camera-bottom={-115}
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-92}
+        shadow-camera-right={92}
+        shadow-camera-top={92}
+        shadow-camera-bottom={-92}
+        shadow-bias={-0.00035}
       />
       <mesh position={[0, -3, -8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[330, 330, 1, 1]} />
         <meshPhysicalMaterial
-          color="#176d86"
-          roughness={quality === 'high' ? 0.24 : 0.4}
+          color="#0f6078"
+          roughness={quality === 'high' ? 0.18 : 0.36}
           metalness={0.15}
           clearcoat={quality === 'high' ? 0.7 : 0.15}
           clearcoatRoughness={0.25}
         />
       </mesh>
+      {quality === 'high' && [0, 1, 2, 3, 4].map((index) => (
+        <mesh key={index} position={[-52 + index * 25, -2.86, 43 + (index % 2) * 13]} rotation={[-Math.PI / 2, 0, -0.25]}>
+          <planeGeometry args={[19, 1.1]} />
+          <meshBasicMaterial color="#b9e6ef" transparent opacity={0.13} depthWrite={false} />
+        </mesh>
+      ))}
       <mesh position={[-9, -2.75, -24]} receiveShadow>
         <cylinderGeometry args={[104, 116, 1, 12]} />
-        <meshStandardMaterial color="#987c59" roughness={1} />
+        <meshStandardMaterial color="#76624b" roughness={1} />
       </mesh>
       <CircuitFallback />
+      <TrackSurfaceDetails quality={quality} />
       <TracksideLandmarks />
       <CityAndHarbor quality={quality} />
+      <HillsideTrees quality={quality} />
       <TrackAssetBoundary>
         <Suspense fallback={null}><LoadedTrack /></Suspense>
       </TrackAssetBoundary>

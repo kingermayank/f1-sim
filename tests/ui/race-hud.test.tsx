@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
 import { DEFAULT_RACE_CONFIG } from '../../src/domain/race-config';
@@ -15,8 +15,10 @@ import { raceAudioController } from '../../src/audio/race-audio';
 describe('RaceHud', () => {
   beforeEach(() => raceStore.getState().restart(DEFAULT_RACE_CONFIG.seed));
   afterEach(() => {
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
-    window.dispatchEvent(new Event('resize'));
+    act(() => {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
+      window.dispatchEvent(new Event('resize'));
+    });
   });
 
   it('converts normalized laps per second to sane kilometers per hour', () => {
@@ -42,6 +44,12 @@ describe('RaceHud', () => {
     const resumeAudio = vi.spyOn(raceAudioController, 'resume').mockResolvedValue(true);
     render(<RaceHud />);
 
+    expect(screen.getByLabelText('Simulation speed')).toHaveDisplayValue('1×');
+    expect(screen.getByRole('option', { name: '0.25×' })).toHaveValue('0.25');
+    expect(screen.getByRole('option', { name: '0.5×' })).toHaveValue('0.5');
+    await user.selectOptions(screen.getByLabelText('Simulation speed'), '0.25');
+    expect(screen.getByLabelText('Simulation speed')).toHaveValue('0.25');
+    expect(screen.getByLabelText('Playback speed')).toHaveTextContent('0.25×');
     await user.selectOptions(screen.getByLabelText('Simulation speed'), '4');
     expect(screen.getByLabelText('Simulation speed')).toHaveValue('4');
 
@@ -51,6 +59,7 @@ describe('RaceHud', () => {
     await user.click(screen.getByRole('button', { name: 'Cockpit camera' }));
     expect(screen.getByRole('button', { name: 'Cockpit camera' })).toHaveAttribute('aria-pressed', 'true');
 
+    await user.click(screen.getByRole('button', { name: 'Open more race information and preferences' }));
     await user.click(screen.getByRole('button', { name: 'Hide car labels' }));
     await user.click(screen.getByRole('button', { name: 'Disable race effects' }));
     await user.click(screen.getByRole('button', { name: 'Unmute audio' }));
@@ -60,6 +69,7 @@ describe('RaceHud', () => {
     expect(screen.getByRole('button', { name: 'Mute audio' })).toHaveAttribute('aria-pressed', 'false');
     expect(resumeAudio).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Disable reduced motion' })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: 'Close more race information' }));
 
     const drawer = screen.getByRole('button', { name: 'Toggle timing tower' });
     expect(drawer).toHaveAttribute('aria-expanded', 'false');
@@ -75,11 +85,14 @@ describe('RaceHud', () => {
     expect(screen.getByLabelText(/race flag/i)).toHaveTextContent('Green');
     expect(screen.getByLabelText('Current lap')).toHaveTextContent('Lap 1 / 78');
     expect(screen.getByLabelText('Simulation seed')).toHaveTextContent(DEFAULT_RACE_CONFIG.seed);
-    expect(screen.getByRole('log', { name: 'Race events' })).toHaveAttribute('aria-live', 'off');
-    expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveAttribute('aria-live', 'polite');
-    expect(screen.getByRole('img', { name: 'Monaco circuit position map' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Open more race information and preferences' }));
+    const more = screen.getByRole('dialog', { name: 'More race information' });
+    expect(within(more).getByRole('log', { name: 'Race events' })).toHaveAttribute('aria-live', 'off');
+    expect(within(more).getByRole('region', { name: 'Latest race announcement' })).toHaveAttribute('aria-live', 'polite');
+    expect(within(more).getByRole('img', { name: 'Monaco circuit position map' })).toBeVisible();
     expect(screen.getAllByTestId('track-map-marker')).toHaveLength(DRIVERS_2026.length);
     expect(screen.getByRole('list', { name: 'Driver track positions' })).toHaveClass('visually-hidden');
+    await user.click(within(more).getByRole('button', { name: 'Close more race information' }));
 
     await user.click(screen.getByRole('button', { name: 'Open credits and disclosure' }));
     const credits = screen.getByRole('dialog', { name: 'Credits and disclosure' });
@@ -112,19 +125,82 @@ describe('RaceHud', () => {
   });
 
   it('removes the closed mobile timing drawer from keyboard navigation', async () => {
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
-    window.dispatchEvent(new Event('resize'));
+    act(() => {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+      window.dispatchEvent(new Event('resize'));
+    });
     const user = userEvent.setup();
     render(<RaceHud />);
 
     expect(screen.queryByRole('region', { name: 'Race classification' })).not.toBeInTheDocument();
     expect(screen.queryAllByRole('button', { name: /follow /i })).toHaveLength(0);
-    expect(screen.getByRole('list', { name: 'Driver track positions' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Toggle timing tower' })).not.toHaveAttribute('aria-controls');
-    await user.click(screen.getByRole('button', { name: 'Toggle timing tower' }));
-    expect(screen.getByRole('button', { name: 'Toggle timing tower' })).toHaveAttribute('aria-controls', 'timing-drawer');
+    expect(screen.getByRole('button', { name: 'Open more race information and preferences' })).toBeInTheDocument();
+    const timingToggle = screen.getByRole('button', { name: 'Toggle timing tower' });
+    expect(timingToggle).not.toHaveAttribute('aria-controls');
+    await user.click(timingToggle);
+    expect(timingToggle).toHaveAttribute('aria-controls', 'timing-drawer');
     expect(screen.getByRole('region', { name: 'Race classification' })).toBeVisible();
     expect(screen.getAllByRole('button', { name: /follow /i })).toHaveLength(22);
+    expect(screen.getByRole('button', { name: 'Close timing tower' })).toBeVisible();
+    expect(document.querySelector('.race-hud__right')).toHaveAttribute('aria-hidden', 'true');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('region', { name: 'Race classification' })).not.toBeInTheDocument();
+    expect(timingToggle).toHaveFocus();
+    expect(document.querySelector('.race-hud__right')).not.toHaveAttribute('aria-hidden');
+  });
+
+  it('shows elapsed time, playback speed, leader, sectors, strategy, condition, and fastest lap', () => {
+    const state = raceStore.getState();
+    const russell = state.snapshot.cars.find((car) => car.driverId === 'russell')!;
+    const antonelli = state.snapshot.cars.find((car) => car.driverId === 'antonelli')!;
+    const snapshot: RaceState = {
+      ...state.snapshot,
+      tick: 905,
+      elapsedSeconds: 90.5,
+      cars: [
+        { ...russell, position: 1, damage: 0.4, tire: { ...russell.tire, compound: 'soft' }, timing: { ...russell.timing, bestLap: 71.25 } },
+        { ...antonelli, position: 2, timing: { ...antonelli.timing, bestLap: 72.5 } },
+      ],
+      events: [
+        { type: 'sector', tick: 600, driverId: 'russell', lap: 4, sector: 1, sectorTime: 22.111 },
+        { type: 'sector', tick: 610, driverId: 'russell', lap: 4, sector: 2, sectorTime: 24.222 },
+        { type: 'sector', tick: 620, driverId: 'russell', lap: 4, sector: 3, sectorTime: 25.333 },
+        { type: 'pit-entry', tick: 700, driverId: 'russell' },
+        { type: 'tire-change', tick: 710, driverId: 'russell', compound: 'soft' },
+        { type: 'pit-exit', tick: 720, driverId: 'russell' },
+      ],
+    };
+    raceStore.setState({ snapshot: Object.freeze(snapshot), eventFeed: Object.freeze(snapshot.events), selectedDriverId: 'russell', speed: 4 });
+
+    render(<RaceHud />);
+
+    expect(screen.getByLabelText('Elapsed simulation time')).toHaveTextContent('1:30.500');
+    expect(screen.getByLabelText('Playback speed')).toHaveTextContent('4×');
+    expect(screen.getByLabelText('Race leader')).toHaveTextContent('George Russell');
+    expect(screen.getByText('22.111')).toBeVisible();
+    expect(screen.getByText('24.222')).toBeVisible();
+    expect(screen.getByText('25.333')).toBeVisible();
+    expect(screen.getByText(/1 stop · Soft stint/i)).toBeVisible();
+    expect(screen.getByText(/Moderate · 40% damage/i)).toBeVisible();
+    expect(screen.getByRole('button', { name: /follow george russell.*fastest lap/i })).toBeVisible();
+    expect(screen.getByText('S', { selector: '.tire' })).toHaveAccessibleName(/Soft tire/i);
+  });
+
+  it('moves secondary information and preferences into More below 1200px', async () => {
+    act(() => {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
+      window.dispatchEvent(new Event('resize'));
+    });
+    const user = userEvent.setup();
+    render(<RaceHud />);
+
+    expect(screen.queryByRole('img', { name: 'Monaco circuit position map' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hide car labels' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Open more race information and preferences' }));
+    const dialog = screen.getByRole('dialog', { name: 'More race information' });
+    expect(within(dialog).getByRole('img', { name: 'Monaco circuit position map' })).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: /(?:hide|show) car labels/i })).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Close more race information' })).toHaveFocus();
   });
 
   it('announces only a throttled latest event and uses stable event identities', () => {

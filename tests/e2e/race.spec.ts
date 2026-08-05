@@ -14,11 +14,31 @@ interface RuntimeSnapshot {
   canvasCount: number;
   effects: { capacity: { smoke: number; sparks: number; debris: number }; active: number };
   audio: { contextState: string; ownedNodeCount: number; ownedSourceCount: number; transientNodeCount: number };
+  scenario: {
+    activePitCars: number;
+    incidentCount: number;
+    pitEntryCount: number;
+    safetyCarCount: number;
+    safetyCarState: string;
+  };
+  renderer: {
+    buffers: number;
+    textures: number;
+    programs: number;
+    framebuffers: number;
+    renderbuffers: number;
+    drawCalls: number;
+  };
+  failedAssetUrls: string[];
 }
 
 declare global {
   interface Window {
     __listenerAudit__?: { active(): number };
+    __deliveryAudit__?: {
+      resetDrawCalls(): void;
+      snapshot(): Pick<RuntimeSnapshot, 'renderer' | 'failedAssetUrls'>;
+    };
   }
 }
 
@@ -43,24 +63,134 @@ test.beforeEach(async ({ page }) => {
 
   await page.addInitScript(() => {
     let active = 0;
+    const windowListeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+    const failedAssetUrls = new Set<string>();
+    const renderer = {
+      buffers: 0,
+      textures: 0,
+      programs: 0,
+      framebuffers: 0,
+      renderbuffers: 0,
+      drawCalls: 0,
+    };
     const originalAdd = EventTarget.prototype.addEventListener;
     const originalRemove = EventTarget.prototype.removeEventListener;
     EventTarget.prototype.addEventListener = function (...args) {
-      active += 1;
+      const [type, listener, options] = args;
+      if (this === window && listener) {
+        const capture = typeof options === 'boolean' ? options : options?.capture === true;
+        const key = `${type}:${capture}`;
+        const listeners = windowListeners.get(key) ?? new Set<EventListenerOrEventListenerObject>();
+        if (!listeners.has(listener)) {
+          listeners.add(listener);
+          windowListeners.set(key, listeners);
+          active += 1;
+        }
+      }
       return originalAdd.apply(this, args);
     };
     EventTarget.prototype.removeEventListener = function (...args) {
-      active -= 1;
+      const [type, listener, options] = args;
+      if (this === window && listener) {
+        const capture = typeof options === 'boolean' ? options : options?.capture === true;
+        const key = `${type}:${capture}`;
+        const listeners = windowListeners.get(key);
+        if (listeners?.delete(listener)) active -= 1;
+        if (listeners?.size === 0) windowListeners.delete(key);
+      }
       return originalRemove.apply(this, args);
     };
     window.__listenerAudit__ = { active: () => active };
+
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (...args) => {
+      const requestUrl = typeof args[0] === 'string' ? args[0]
+        : args[0] instanceof URL ? args[0].href : args[0].url;
+      try {
+        const response = await originalFetch(...args);
+        if (!response.ok && requestUrl.includes('/assets/')) failedAssetUrls.add(new URL(requestUrl, location.href).href);
+        return response;
+      } catch (error) {
+        if (requestUrl.includes('/assets/')) failedAssetUrls.add(new URL(requestUrl, location.href).href);
+        throw error;
+      }
+    };
+
+    type ResourceKey = 'buffers' | 'textures' | 'programs' | 'framebuffers' | 'renderbuffers';
+    const tracked: Record<ResourceKey, WeakSet<object>> = {
+      buffers: new WeakSet(),
+      textures: new WeakSet(),
+      programs: new WeakSet(),
+      framebuffers: new WeakSet(),
+      renderbuffers: new WeakSet(),
+    };
+    const patchResources = (
+      prototype: object,
+      createName: string,
+      deleteName: string,
+      key: ResourceKey,
+    ) => {
+      if (!Object.prototype.hasOwnProperty.call(prototype, createName)) return;
+      const record = prototype as Record<string, (...args: unknown[]) => unknown>;
+      const create = record[createName];
+      const remove = record[deleteName];
+      if (typeof create !== 'function' || typeof remove !== 'function') return;
+      record[createName] = function (...args: unknown[]) {
+        const resource = create.apply(this, args);
+        if (resource && typeof resource === 'object' && !tracked[key].has(resource)) {
+          tracked[key].add(resource);
+          renderer[key] += 1;
+        }
+        return resource;
+      };
+      record[deleteName] = function (...args: unknown[]) {
+        const resource = args[0];
+        if (resource && typeof resource === 'object' && tracked[key].has(resource)) {
+          tracked[key].delete(resource);
+          renderer[key] -= 1;
+        }
+        return remove.apply(this, args);
+      };
+    };
+    const patchDraw = (prototype: object, methodName: string) => {
+      if (!Object.prototype.hasOwnProperty.call(prototype, methodName)) return;
+      const record = prototype as Record<string, (...args: unknown[]) => unknown>;
+      const draw = record[methodName];
+      if (typeof draw !== 'function') return;
+      record[methodName] = function (...args: unknown[]) {
+        renderer.drawCalls += 1;
+        return draw.apply(this, args);
+      };
+    };
+    const prototypes = [
+      globalThis.WebGLRenderingContext?.prototype,
+      globalThis.WebGL2RenderingContext?.prototype,
+    ].filter(Boolean) as object[];
+    for (const prototype of prototypes) {
+      patchResources(prototype, 'createBuffer', 'deleteBuffer', 'buffers');
+      patchResources(prototype, 'createTexture', 'deleteTexture', 'textures');
+      patchResources(prototype, 'createProgram', 'deleteProgram', 'programs');
+      patchResources(prototype, 'createFramebuffer', 'deleteFramebuffer', 'framebuffers');
+      patchResources(prototype, 'createRenderbuffer', 'deleteRenderbuffer', 'renderbuffers');
+      for (const method of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) {
+        patchDraw(prototype, method);
+      }
+    }
+    window.__deliveryAudit__ = {
+      resetDrawCalls: () => { renderer.drawCalls = 0; },
+      snapshot: () => ({
+        renderer: { ...renderer },
+        failedAssetUrls: [...failedAssetUrls],
+      }),
+    };
   });
 
   await page.goto('/?diagnostics=1');
   await expect(page.getByRole('heading', { name: 'Monaco 2026 Simulation' })).toBeAttached();
   await expect(page.getByRole('region', { name: '3D race viewport' })).toBeVisible();
-  await expect(page.getByRole('status')).toContainText(/Ready · 22 cars|procedural asset fallback/, { timeout: 20_000 });
+  await expect(page.getByRole('status')).toHaveText('Ready · 22 cars on the Monaco circuit', { timeout: 20_000 });
   await expect.poll(() => runtime(page).then((snapshot) => snapshot.canvasCount)).toBe(1);
+  await expect.poll(() => runtime(page).then((snapshot) => snapshot.failedAssetUrls)).toEqual([]);
 });
 
 test.afterEach(async ({ page }, testInfo) => {
@@ -80,7 +210,8 @@ test.afterEach(async ({ page }, testInfo) => {
 async function runtime(page: Page): Promise<RuntimeSnapshot> {
   return page.evaluate(() => {
     if (!window.__MONACO_DIAGNOSTICS__) throw new Error('Delivery diagnostics were not installed');
-    return window.__MONACO_DIAGNOSTICS__.snapshot();
+    if (!window.__deliveryAudit__) throw new Error('Browser delivery audit was not installed');
+    return { ...window.__MONACO_DIAGNOSTICS__.snapshot(), ...window.__deliveryAudit__.snapshot() };
   });
 }
 
@@ -93,6 +224,12 @@ async function visibleTimingTower(page: Page, testInfo: TestInfo) {
     await expect(drawer).toHaveAttribute('aria-expanded', 'true');
   }
   return page.getByRole('region', { name: 'Race classification' });
+}
+
+async function openMorePanel(page: Page, testInfo: TestInfo) {
+  if (!testInfo.project.name.startsWith('mobile')) return;
+  await page.getByRole('button', { name: 'Open more race information and preferences' }).click();
+  await expect(page.getByRole('dialog', { name: 'More race information' })).toBeVisible();
 }
 
 async function simulationSeed(page: Page): Promise<string> {
@@ -129,16 +266,38 @@ async function measureFrames(page: Page, milliseconds = 2_000) {
 }
 
 test('loads 22 drivers and supports following, cameras, pause, speeds, seeds, and credits', async ({ page }, testInfo) => {
+  await page.evaluate(() => window.__MONACO_DIAGNOSTICS__!.restartRace('e2e-ui-matrix'));
+  await page.getByRole('button', { name: 'Pause race' }).click();
+  await expect(page.getByRole('button', { name: 'Resume race' })).toHaveAttribute('aria-pressed', 'true');
+  const pausedTick = (await runtime(page)).tick;
+  await page.waitForTimeout(250);
+  expect((await runtime(page)).tick).toBe(pausedTick);
+
   const tower = await visibleTimingTower(page, testInfo);
   const followButtons = tower.getByRole('button', { name: /^Follow / });
   await expect(followButtons).toHaveCount(22);
-  await expect(page.locator('[data-driver-id]')).toHaveCount(22);
+  const driverControls = page.locator('[data-driver-id]');
+  await expect(driverControls).toHaveCount(22);
+  const followLabels = await followButtons.evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')!));
 
-  const followKimi = tower.getByRole('button', { name: 'Follow Kimi Antonelli' });
+  for (const followLabel of followLabels) {
+    if (testInfo.project.name.startsWith('mobile') && await page.getByRole('region', { name: 'Race classification' }).count() === 0) {
+      await page.getByRole('button', { name: 'Toggle timing tower' }).click();
+    }
+    const currentTower = page.getByRole('region', { name: 'Race classification' });
+    const driverName = followLabel.replace(/^Follow /, '').replace(/, fastest lap$/, '');
+    const follow = currentTower.getByRole('button', { name: new RegExp(`^Follow ${driverName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:, fastest lap)?$`) });
+    await follow.click();
+    await expect(page.getByRole('heading', { name: driverName!, exact: true })).toBeVisible();
+    if (!testInfo.project.name.startsWith('mobile')) await expect(follow).toHaveAttribute('aria-current', 'true');
+  }
+
+  if (testInfo.project.name.startsWith('mobile')) await page.getByRole('button', { name: 'Toggle timing tower' }).click();
+  const currentTower = page.getByRole('region', { name: 'Race classification' });
+  const followKimi = currentTower.getByRole('button', { name: 'Follow Kimi Antonelli' });
   await followKimi.click();
   await expect(page.getByRole('heading', { name: 'Kimi Antonelli' })).toBeVisible();
   if (!testInfo.project.name.startsWith('mobile')) await expect(followKimi).toHaveAttribute('aria-current', 'true');
-  await page.locator('[data-driver-id="antonelli"]').click({ force: true });
   await expect(page.locator('[data-driver-id="antonelli"]')).toHaveAttribute('aria-pressed', 'true');
 
   for (const camera of ['Broadcast', 'Chase', 'Cockpit', 'Overhead', 'Free']) {
@@ -147,15 +306,9 @@ test('loads 22 drivers and supports following, cameras, pause, speeds, seeds, an
     await expect(button).toHaveAttribute('aria-pressed', 'true');
   }
 
-  const pause = page.getByRole('button', { name: 'Pause race' });
-  await pause.click();
-  await expect(page.getByRole('button', { name: 'Resume race' })).toHaveAttribute('aria-pressed', 'true');
-  const pausedTick = (await runtime(page)).tick;
-  await page.waitForTimeout(250);
-  expect((await runtime(page)).tick).toBe(pausedTick);
   await page.getByRole('button', { name: 'Resume race' }).click();
 
-  for (const speed of ['1', '2', '4', '8']) {
+  for (const speed of ['0.25', '0.5', '1', '2', '4', '8']) {
     await page.getByLabel('Simulation speed').selectOption(speed);
     await expect(page.getByLabel('Simulation speed')).toHaveValue(speed);
   }
@@ -172,6 +325,7 @@ test('loads 22 drivers and supports following, cameras, pause, speeds, seeds, an
   await page.getByRole('button', { name: 'New race seed' }).click();
   await expect.poll(() => simulationSeed(page)).not.toBe(originalSeed);
 
+  await openMorePanel(page, testInfo);
   await page.getByRole('button', { name: /Open credits and disclosure/ }).first().click();
   const credits = page.getByRole('dialog', { name: 'Credits and disclosure' });
   await expect(credits).toBeVisible();
@@ -181,25 +335,29 @@ test('loads 22 drivers and supports following, cameras, pause, speeds, seeds, an
   await expect(credits).toHaveCount(0);
 
   if (testInfo.project.name.startsWith('mobile')) {
+    await openMorePanel(page, testInfo);
     await expect(page.getByRole('img', { name: 'Monaco circuit position map' })).toBeAttached();
     await expect(page.getByRole('list', { name: 'Driver track positions' })).toBeAttached();
     await expect(page.getByTestId('track-map-marker')).toHaveCount(22);
+    await page.getByRole('button', { name: 'Close more race information' }).click();
   }
 });
 
-test('persists preferences across reloads', async ({ page }) => {
+test('persists preferences across reloads', async ({ page }, testInfo) => {
+  await page.getByRole('button', { name: 'Cockpit camera' }).click();
+  await openMorePanel(page, testInfo);
   await page.getByRole('button', { name: 'Hide car labels' }).click();
   await page.getByRole('button', { name: 'Disable race effects' }).click();
   await page.getByRole('button', { name: 'Enable reduced motion' }).click();
-  await page.getByRole('button', { name: 'Cockpit camera' }).click();
   await page.getByLabel('Scene detail').selectOption('mobile');
   await page.reload();
-  await expect(page.getByRole('status')).toContainText(/Ready · 22 cars|procedural asset fallback/, { timeout: 20_000 });
+  await expect(page.getByRole('status')).toHaveText('Ready · 22 cars on the Monaco circuit', { timeout: 20_000 });
 
+  await expect(page.getByRole('button', { name: 'Cockpit camera' })).toHaveAttribute('aria-pressed', 'true');
+  await openMorePanel(page, testInfo);
   await expect(page.getByRole('button', { name: 'Show car labels' })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('button', { name: 'Enable race effects' })).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByRole('button', { name: 'Disable reduced motion' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: 'Cockpit camera' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByLabel('Scene detail')).toHaveValue('mobile');
 });
 
@@ -221,18 +379,86 @@ test('finishes quickly through the diagnostics boundary and exposes replay actio
   await expect.poll(() => simulationSeed(page)).not.toBe(seed);
 });
 
+test('replays deterministic pit, safety-car, and incident delivery scenarios', async ({ page }, testInfo) => {
+  const safetyCheckpoint = await page.evaluate(() => {
+    const diagnostics = window.__MONACO_DIAGNOSTICS__!;
+    diagnostics.restartRace('scenario-0');
+    for (let second = 0; second < 400; second += 1) {
+      diagnostics.advanceRace(1);
+      const snapshot = diagnostics.snapshot();
+      if (snapshot.scenario.safetyCarCount > 0 && snapshot.scenario.incidentCount > 0) {
+        return snapshot.scenario;
+      }
+    }
+    return diagnostics.snapshot().scenario;
+  });
+  expect(safetyCheckpoint.incidentCount).toBeGreaterThan(0);
+  expect(safetyCheckpoint.safetyCarCount).toBeGreaterThan(0);
+
+  await page.getByRole('button', { name: 'Pause race' }).click();
+  const safetyCarFrames = await measureFrames(page);
+  await page.getByRole('button', { name: 'Resume race' }).click();
+
+  const activePitCheckpoint = await page.evaluate(() => {
+    const diagnostics = window.__MONACO_DIAGNOSTICS__!;
+    diagnostics.restartRace('scenario-0');
+    for (let second = 0; second < 400; second += 1) {
+      diagnostics.advanceRace(1);
+      const snapshot = diagnostics.snapshot();
+      if (snapshot.scenario.activePitCars > 0) return snapshot.scenario;
+    }
+    return diagnostics.snapshot().scenario;
+  });
+  expect(activePitCheckpoint.activePitCars).toBeGreaterThan(0);
+  expect(activePitCheckpoint.pitEntryCount).toBeGreaterThan(0);
+
+  const first = await page.evaluate(() => {
+    window.__MONACO_DIAGNOSTICS__!.finishRace();
+    return window.__MONACO_DIAGNOSTICS__!.snapshot().scenario;
+  });
+  const replay = await page.evaluate(() => {
+    window.__MONACO_DIAGNOSTICS__!.restartRace('scenario-0');
+    window.__MONACO_DIAGNOSTICS__!.finishRace();
+    return window.__MONACO_DIAGNOSTICS__!.snapshot().scenario;
+  });
+  expect(replay).toEqual(first);
+  expect(first).toMatchObject({
+    activePitCars: 0,
+    safetyCarState: 'none',
+  });
+  expect(first.pitEntryCount).toBeGreaterThan(0);
+  expect(first.incidentCount).toBeGreaterThan(0);
+  expect(first.safetyCarCount).toBeGreaterThan(0);
+
+  console.log(`SCENARIO ${testInfo.project.name} safety=${first.safetyCarCount} incidents=${first.incidentCount} pits=${first.pitEntryCount} safety-car=${safetyCarFrames.fps.toFixed(1)}fps/${safetyCarFrames.p95Ms.toFixed(1)}ms-p95`);
+});
+
 test('keeps canvas, listeners, audio, and effect pools steady over five restarts and records frame timing', async ({ page }, testInfo) => {
+  await openMorePanel(page, testInfo);
   await page.getByRole('button', { name: 'Unmute audio' }).click();
   await expect.poll(() => runtime(page).then((value) => value.audio.contextState)).toBe('running');
+  if (testInfo.project.name.startsWith('mobile')) {
+    await page.getByRole('button', { name: 'Close more race information' }).click();
+  }
   await page.getByRole('button', { name: 'Pause race' }).click();
+  // Let Three/WebGL complete its one-time lazy allocations before the five
+  // measured restart cycles; otherwise shader/geometry warm-up looks like a leak.
+  await page.getByRole('button', { name: 'Restart race' }).click();
+  await page.getByRole('button', { name: 'Pause race' }).click();
+  await page.waitForTimeout(500);
   const baseline = await runtime(page);
   const listenerBaseline = await page.evaluate(() => window.__listenerAudit__!.active());
+  const rendererBaseline = { ...baseline.renderer, drawCalls: 0 };
   expect(baseline).toMatchObject({
     carCount: 22,
     canvasCount: 1,
     effects: { capacity: { smoke: 32, sparks: 64, debris: 24 }, active: 0 },
     audio: { contextState: 'running', ownedNodeCount: 10, ownedSourceCount: 4, transientNodeCount: 0 },
+    failedAssetUrls: [],
   });
+  expect(rendererBaseline.buffers).toBeGreaterThan(0);
+  expect(rendererBaseline.programs).toBeGreaterThan(0);
+  expect(rendererBaseline.textures).toBeGreaterThan(0);
 
   for (let restart = 0; restart < 5; restart += 1) {
     await page.getByRole('button', { name: 'Restart race' }).click();
@@ -242,6 +468,10 @@ test('keeps canvas, listeners, audio, and effect pools steady over five restarts
     const current = await runtime(page);
     expect(current.effects).toEqual(baseline.effects);
     expect(current.audio).toEqual(baseline.audio);
+    expect({ ...current.renderer, drawCalls: 0 }).toEqual(rendererBaseline);
+    await page.evaluate(() => window.__deliveryAudit__!.resetDrawCalls());
+    await page.waitForTimeout(250);
+    expect((await runtime(page)).renderer.drawCalls).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.__listenerAudit__!.active())).toBe(listenerBaseline);
   }
 

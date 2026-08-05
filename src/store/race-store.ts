@@ -7,7 +7,7 @@ import { createRaceEngine, type RaceEngine } from '../simulation/race-engine';
 import type { RaceEvent, RaceState } from '../simulation/events';
 import { MONACO_TRACK } from '../track/monaco-track';
 
-export const PLAYBACK_SPEEDS = [1, 2, 4, 8] as const;
+export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2, 4, 8] as const;
 export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 
 export const CAMERA_MODES = ['broadcast', 'chase', 'cockpit', 'overhead', 'free'] as const;

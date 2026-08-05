@@ -26,6 +26,10 @@ it('presents final classification, race facts, incidents, and replay actions', (
   expect(screen.getByText('finish-seed')).toBeVisible();
   expect(screen.getByText(/Fastest lap/i)).toBeVisible();
   expect(screen.getByText(/1 incident/i)).toBeVisible();
+  const recap = screen.getByRole('list', { name: 'Incident recap' });
+  expect(within(recap).getByText(/Minor incident/i)).toBeVisible();
+  expect(within(recap).getByText(new RegExp(DRIVERS_2026[1].name, 'i'))).toBeVisible();
+  expect(within(recap).getByText(/T\+4\.0s/i)).toBeVisible();
   expect(screen.getByRole('button', { name: 'Replay this seed' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Start with a new seed' })).toBeVisible();
   expect(within(screen.getByRole('table', { name: 'Final classification' })).getAllByRole('row')).toHaveLength(23);

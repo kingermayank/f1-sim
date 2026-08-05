@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_RACE_CONFIG } from '../../src/domain/race-config';
-import { PREFERENCES_STORAGE_KEY, createRaceStore, raceStore } from '../../src/store/race-store';
+import { PLAYBACK_SPEEDS, PREFERENCES_STORAGE_KEY, createRaceStore, raceStore } from '../../src/store/race-store';
 
 describe('raceStore', () => {
   beforeEach(() => {
@@ -35,6 +35,11 @@ describe('raceStore', () => {
   });
 
   it('accepts only supported playback speeds and camera modes', () => {
+    expect(PLAYBACK_SPEEDS).toEqual([0.25, 0.5, 1, 2, 4, 8]);
+    raceStore.getState().setSpeed(0.25);
+    expect(raceStore.getState().speed).toBe(0.25);
+    raceStore.getState().setSpeed(0.5);
+    expect(raceStore.getState().speed).toBe(0.5);
     raceStore.getState().setSpeed(8);
     raceStore.getState().setSpeed(3 as never);
     expect(raceStore.getState().speed).toBe(8);
@@ -42,6 +47,31 @@ describe('raceStore', () => {
     raceStore.getState().setCameraMode('cockpit');
     raceStore.getState().setCameraMode('sidecar' as never);
     expect(raceStore.getState().cameraMode).toBe('cockpit');
+  });
+
+  it('scales fractional playback deterministically while preserving pause and replay behavior', () => {
+    const quarter = createRaceStore(DEFAULT_RACE_CONFIG, { storage: null });
+    const half = createRaceStore(DEFAULT_RACE_CONFIG, { storage: null });
+    const normal = createRaceStore(DEFAULT_RACE_CONFIG, { storage: null });
+
+    quarter.getState().setSpeed(0.25);
+    quarter.getState().tick(4);
+    half.getState().setSpeed(0.5);
+    half.getState().tick(2);
+    normal.getState().tick(1);
+    expect(quarter.getState().snapshot).toEqual(normal.getState().snapshot);
+    expect(half.getState().snapshot).toEqual(normal.getState().snapshot);
+
+    quarter.getState().togglePause();
+    const pausedSnapshot = quarter.getState().snapshot;
+    quarter.getState().tick(4);
+    expect(quarter.getState().snapshot).toBe(pausedSnapshot);
+
+    quarter.getState().replaySeed();
+    expect(quarter.getState()).toMatchObject({ isPaused: false, speed: 1 });
+    quarter.getState().setSpeed(0.25);
+    quarter.getState().tick(4);
+    expect(quarter.getState().snapshot).toEqual(normal.getState().snapshot);
   });
 
   it('starts a new race with a provided seed and replays it deterministically', () => {

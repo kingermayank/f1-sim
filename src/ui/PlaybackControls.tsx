@@ -6,26 +6,47 @@ function ControlIcon({ children }: { children: React.ReactNode }) {
   return <span className="control-icon" aria-hidden="true">{children}</span>;
 }
 
-export function PlaybackControls({ onOpenCredits }: { onOpenCredits(): void }) {
-  const snapshot = useRaceStore((state) => state.snapshot);
-  const isPaused = useRaceStore((state) => state.isPaused);
-  const speed = useRaceStore((state) => state.speed);
-  const cameraMode = useRaceStore((state) => state.cameraMode);
+export function PreferenceControls({ onOpenCredits }: { onOpenCredits(): void }) {
   const labelsEnabled = useRaceStore((state) => state.labelsEnabled);
   const effectsEnabled = useRaceStore((state) => state.effectsEnabled);
   const audioMuted = useRaceStore((state) => state.audioMuted);
   const reducedMotion = useRaceStore((state) => state.reducedMotion);
   const qualityMode = useRaceStore((state) => state.qualityMode);
-  const togglePause = useRaceStore((state) => state.togglePause);
-  const setSpeed = useRaceStore((state) => state.setSpeed);
-  const setCameraMode = useRaceStore((state) => state.setCameraMode);
-  const restart = useRaceStore((state) => state.restart);
-  const replaySeed = useRaceStore((state) => state.replaySeed);
   const toggleLabels = useRaceStore((state) => state.toggleLabels);
   const toggleEffects = useRaceStore((state) => state.toggleEffects);
   const toggleAudio = useRaceStore((state) => state.toggleAudio);
   const toggleReducedMotion = useRaceStore((state) => state.toggleReducedMotion);
   const setQualityMode = useRaceStore((state) => state.setQualityMode);
+
+  return (
+    <div className="preference-controls" aria-label="Presentation preferences">
+      <button type="button" aria-label={labelsEnabled ? 'Hide car labels' : 'Show car labels'} aria-pressed={labelsEnabled} onClick={toggleLabels}>Labels</button>
+      <button type="button" aria-label={effectsEnabled ? 'Disable race effects' : 'Enable race effects'} aria-pressed={effectsEnabled} onClick={toggleEffects}>FX</button>
+      <button type="button" aria-label={audioMuted ? 'Unmute audio' : 'Mute audio'} aria-pressed={audioMuted} onClick={() => {
+        if (audioMuted) void raceAudioController.resume();
+        toggleAudio();
+      }}>{audioMuted ? 'Muted' : 'Audio'}</button>
+      <button type="button" aria-label={reducedMotion ? 'Disable reduced motion' : 'Enable reduced motion'} aria-pressed={reducedMotion} onClick={toggleReducedMotion}>Motion</button>
+      <label className="quality-control"><span>Quality</span><select aria-label="Scene detail" value={qualityMode} onChange={(event) => setQualityMode(event.target.value as QualityMode)}><option value="auto">Auto</option><option value="high">High</option><option value="mobile">Low</option></select></label>
+      <button type="button" aria-label="Open credits and disclosure from controls" onClick={onOpenCredits}>Credits</button>
+    </div>
+  );
+}
+
+export function PlaybackControls({ onOpenCredits, compactPreferences = false, onOpenMore }: {
+  onOpenCredits(): void;
+  compactPreferences?: boolean;
+  onOpenMore?(): void;
+}) {
+  const snapshot = useRaceStore((state) => state.snapshot);
+  const isPaused = useRaceStore((state) => state.isPaused);
+  const speed = useRaceStore((state) => state.speed);
+  const cameraMode = useRaceStore((state) => state.cameraMode);
+  const togglePause = useRaceStore((state) => state.togglePause);
+  const setSpeed = useRaceStore((state) => state.setSpeed);
+  const setCameraMode = useRaceStore((state) => state.setCameraMode);
+  const restart = useRaceStore((state) => state.restart);
+  const replaySeed = useRaceStore((state) => state.replaySeed);
 
   const confirmRestart = (action: () => void) => {
     const activePastLapOne = snapshot.phase === 'racing' && snapshot.cars.some((car) => car.lap > 1);
@@ -46,17 +67,9 @@ export function PlaybackControls({ onOpenCredits }: { onOpenCredits(): void }) {
 
       <fieldset className="camera-controls"><legend>Camera</legend>{CAMERA_MODES.map((mode) => <button key={mode} type="button" aria-label={`${titleCase(mode)} camera`} aria-pressed={cameraMode === mode} onClick={() => setCameraMode(mode as CameraMode)}>{titleCase(mode)}</button>)}</fieldset>
 
-      <div className="preference-controls" aria-label="Presentation preferences">
-        <button type="button" aria-label={labelsEnabled ? 'Hide car labels' : 'Show car labels'} aria-pressed={labelsEnabled} onClick={toggleLabels}>Labels</button>
-        <button type="button" aria-label={effectsEnabled ? 'Disable race effects' : 'Enable race effects'} aria-pressed={effectsEnabled} onClick={toggleEffects}>FX</button>
-        <button type="button" aria-label={audioMuted ? 'Unmute audio' : 'Mute audio'} aria-pressed={audioMuted} onClick={() => {
-          if (audioMuted) void raceAudioController.resume();
-          toggleAudio();
-        }}>{audioMuted ? 'Muted' : 'Audio'}</button>
-        <button type="button" aria-label={reducedMotion ? 'Disable reduced motion' : 'Enable reduced motion'} aria-pressed={reducedMotion} onClick={toggleReducedMotion}>Motion</button>
-        <label className="quality-control"><span>Quality</span><select aria-label="Scene detail" value={qualityMode} onChange={(event) => setQualityMode(event.target.value as QualityMode)}><option value="auto">Auto</option><option value="high">High</option><option value="mobile">Low</option></select></label>
-        <button type="button" aria-label="Open credits and disclosure from controls" onClick={onOpenCredits}>Credits</button>
-      </div>
+      {compactPreferences
+        ? <button type="button" className="control control--more" aria-label="Open more race information and preferences" onClick={onOpenMore}><ControlIcon>•••</ControlIcon><span>More</span></button>
+        : <PreferenceControls onOpenCredits={onOpenCredits} />}
     </nav>
   );
 }

@@ -17,6 +17,9 @@ export interface StrategySituation {
   lap: number;
   safetyCar: boolean;
   trafficSeconds: number;
+  tireWear: number;
+  tireGrip: number;
+  damage: number;
 }
 
 function windowAround(target: number, radius: number): readonly [number, number] {
@@ -59,6 +62,11 @@ export function createStrategy(driver: Driver, weather: Weather, prng: Prng): Ra
 export function shouldPit(stop: StrategyStop, situation: StrategySituation): boolean {
   const [earliest, latest] = stop.window;
   if (situation.lap >= latest) return true;
+  const adaptiveWindowOpen = situation.lap >= Math.max(2, earliest - 6);
+  if (
+    adaptiveWindowOpen
+    && (situation.tireWear >= 0.78 || situation.tireGrip <= 0.87 || situation.damage >= 0.15)
+  ) return true;
   if (situation.lap < earliest) {
     return situation.safetyCar && situation.lap >= Math.max(2, earliest - 3);
   }

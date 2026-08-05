@@ -13,6 +13,7 @@ import {
   Mesh,
   MeshStandardMaterial,
   SphereGeometry,
+  TorusGeometry,
   TubeGeometry,
   Vector3,
 } from 'three';
@@ -37,8 +38,9 @@ const sourceRoot = resolve('work/assets-source');
 for (const path of [modelRoot, textureRoot, sourceRoot]) mkdirSync(path, { recursive: true });
 
 const material = (color, roughness = 0.65, metalness = 0.05) => new MeshStandardMaterial({ color, roughness, metalness });
-const add = (parent, geometry, color, position, scale, rotation = [0, 0, 0]) => {
+const add = (parent, geometry, color, position, scale, rotation = [0, 0, 0], name = '') => {
   const mesh = new Mesh(geometry, material(color));
+  mesh.name = name;
   mesh.position.set(...position);
   mesh.scale.set(...scale);
   mesh.rotation.set(...rotation);
@@ -87,16 +89,27 @@ function createCar() {
   car.name = 'Project Original Low-poly Open-wheel Race Car';
   const carbon = '#11161a';
   const body = '#e8e8e2';
-  add(car, new BoxGeometry(1.4, 0.36, 3.5), body, [0, 0.45, 0], [1, 1, 1]);
-  add(car, new SphereGeometry(0.48, 10, 6), body, [0, 0.63, -0.22], [0.85, 0.7, 1.25]);
-  add(car, new BoxGeometry(2.35, 0.12, 0.5), carbon, [0, 0.42, -1.72], [1, 1, 1]);
-  add(car, new BoxGeometry(1.95, 0.1, 0.28), carbon, [0, 0.88, 1.55], [1, 1, 1]);
-  add(car, new BoxGeometry(0.1, 0.62, 0.22), carbon, [-0.72, 0.64, 1.52], [1, 1, 1]);
-  add(car, new BoxGeometry(0.1, 0.62, 0.22), carbon, [0.72, 0.64, 1.52], [1, 1, 1]);
-  const wheelGeometry = new CylinderGeometry(0.46, 0.46, 0.28, 10);
-  for (const [x, z] of [[-0.92, -1.05], [0.92, -1.05], [-0.92, 1.05], [0.92, 1.05]]) {
-    add(car, wheelGeometry, carbon, [x, 0.44, z], [1, 1, 1], [Math.PI / 2, 0, 0]);
-  }
+  add(car, new BoxGeometry(1.55, 0.08, 4.15), carbon, [0, 0.2, 0], [1, 1, 1], [0, 0, 0], 'floor');
+  add(car, new BoxGeometry(1.12, 0.42, 2.55), body, [0, 0.48, 0.1], [1, 1, 1], [0, 0, 0], 'body-shell');
+  add(car, new CylinderGeometry(0.16, 0.46, 2.35, 8), body, [0, 0.43, -1.7], [1, 1, 1], [Math.PI / 2, 0, 0], 'nose');
+  add(car, new BoxGeometry(0.48, 0.42, 1.65), body, [-0.72, 0.47, 0.22], [1, 1, 1], [0, 0.08, 0], 'sidepod-left');
+  add(car, new BoxGeometry(0.48, 0.42, 1.65), body, [0.72, 0.47, 0.22], [1, 1, 1], [0, -0.08, 0], 'sidepod-right');
+  add(car, new SphereGeometry(0.42, 14, 8), '#111820', [0, 0.72, 0.08], [0.86, 0.55, 1.08], [0, 0, 0], 'cockpit');
+  add(car, new TorusGeometry(0.43, 0.055, 6, 14, Math.PI * 1.35), carbon, [0, 0.94, -0.08], [1, 1, 1], [Math.PI / 2, 0, -0.55], 'halo');
+  add(car, new BoxGeometry(2.25, 0.1, 0.42), carbon, [0, 0.34, -2.15], [1, 1, 1], [0, 0, 0], 'front-wing');
+  add(car, new BoxGeometry(1.82, 0.12, 0.3), carbon, [0, 0.9, 1.92], [1, 1, 1], [0, 0, 0], 'rear-wing');
+  add(car, new BoxGeometry(0.08, 0.62, 0.22), carbon, [-0.72, 0.62, 1.88], [1, 1, 1], [0, 0, 0], 'rear-wing-left');
+  add(car, new BoxGeometry(0.08, 0.62, 0.22), carbon, [0.72, 0.62, 1.88], [1, 1, 1], [0, 0, 0], 'rear-wing-right');
+  add(car, new BoxGeometry(0.68, 0.035, 0.48), '#f5f7f8', [0, 0.91, -0.48], [1, 1, 1], [0, 0, 0], 'number-mount');
+  const wheelGeometry = new CylinderGeometry(0.47, 0.47, 0.34, 16);
+  for (const [name, x, z] of [
+    ['wheel-front-left', -0.98, -1.35], ['wheel-front-right', 0.98, -1.35],
+    ['wheel-rear-left', -0.98, 1.25], ['wheel-rear-right', 0.98, 1.25],
+  ]) add(car, wheelGeometry, carbon, [x, 0.43, z], [1, 1, 1], [Math.PI / 2, 0, 0], name);
+  for (const [name, x, z, rotation] of [
+    ['suspension-front-left', -0.58, -1.35, -0.35], ['suspension-front-right', 0.58, -1.35, 0.35],
+    ['suspension-rear-left', -0.58, 1.25, 0.35], ['suspension-rear-right', 0.58, 1.25, -0.35],
+  ]) add(car, new BoxGeometry(0.06, 0.06, 0.92), carbon, [x, 0.43, z], [1, 1, 1], [0, rotation, 0], name);
   return car;
 }
 

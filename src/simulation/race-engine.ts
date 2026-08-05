@@ -12,11 +12,12 @@ import type {
 } from './events';
 import { evaluateIncident } from './incidents';
 import { evaluateOvertake } from './overtakes';
-import { calculateTargetPace } from './pace';
+import { calculateFuelFactor, calculateTargetPace } from './pace';
 import { createPrng } from './prng';
 import { getClassification } from './selectors';
 import { createStrategy, shouldPit, type RaceStrategy } from './strategy';
 import { updateTire } from './tires';
+import { createWeatherSchedule, weatherTrackTemperature } from './weather';
 
 const TICK_SECONDS = 0.1;
 const TICKS_PER_SECOND = 1 / TICK_SECONDS;
@@ -63,6 +64,33 @@ interface RaceContext {
   ahead: RunningCarState | undefined;
   gapSeconds: number;
 }
+
+export interface DriverPaceDecisionInput {
+  driver: Readonly<Driver>;
+  car: Readonly<RunningCarState>;
+  race: Readonly<Pick<RaceState, 'tick' | 'elapsedSeconds' | 'phase' | 'flag' | 'weather' | 'safetyCar'>>;
+  context: Readonly<{ gapSeconds: number; hasCarAhead: boolean }>;
+  /** The complete rules-based AI pace before an injected controller adjusts it. */
+  suggestedPace: number;
+}
+
+export interface DriverPaceDecision {
+  paceFactor: number;
+}
+
+export interface DriverController {
+  decidePace(input: DriverPaceDecisionInput): DriverPaceDecision;
+}
+
+export interface RaceEngineOptions {
+  /** A controller can replace the default AI for any individual driver. */
+  controllers?: Readonly<Partial<Record<string, DriverController>>>;
+  defaultController?: DriverController;
+}
+
+export const DEFAULT_AI_DRIVER_CONTROLLER: DriverController = Object.freeze({
+  decidePace: ({ suggestedPace }: DriverPaceDecisionInput) => ({ paceFactor: suggestedPace }),
+});
 
 export interface RaceEngine {
   advance(presentationSeconds: number): void;
@@ -126,6 +154,21 @@ function completedDistance(car: CarState): number {
   return car.lap + car.distance;
 }
 
+function qualifyingOrder(seed: string, drivers: readonly Driver[]): Driver[] {
+  return [...drivers]
+    .map((driver) => {
+      const qualifyingPrng = createPrng(`${seed}:qualifying:${driver.id}`);
+      const ratingScore = (
+        driver.ratings.qualifying * 0.88
+        + driver.ratings.pace * 0.08
+        + driver.ratings.consistency * 0.04
+      );
+      return { driver, score: ratingScore + qualifyingPrng.range(-0.06, 0.06) };
+    })
+    .sort((left, right) => right.score - left.score || left.driver.id.localeCompare(right.driver.id))
+    .map(({ driver }) => driver);
+}
+
 function atZone(distance: number, zone: TrackZone): boolean {
   return zone.start <= zone.end
     ? distance >= zone.start && distance <= zone.end
@@ -150,7 +193,7 @@ function initialCar(
     lateralOffset: slot.lateral,
     speed: 0,
     tire: { compound, wear: 0, temperature: compound === 'wet' ? 0.62 : 0.78 },
-    fuelFactor: 1,
+    fuelFactor: calculateFuelFactor(0, 78),
     damage: 0,
     pitState: 'track',
     pitProgress: 0,
@@ -165,6 +208,7 @@ export function createRaceEngine(
   config: RaceConfig,
   track: TrackDefinition,
   drivers: readonly Driver[],
+  options: RaceEngineOptions = {},
 ): RaceEngine {
   if (drivers.length === 0) throw new RangeError('A race requires at least one driver');
   if (track.gridSlots.length < drivers.length) {
@@ -172,11 +216,12 @@ export function createRaceEngine(
   }
 
   const prng = createPrng(config.seed);
+  const grid = qualifyingOrder(config.seed, drivers);
   const driverById = new Map(drivers.map((driver) => [driver.id, driver]));
   const runtimeByDriver = new Map<string, DriverRuntime>();
   for (const driver of drivers) {
     runtimeByDriver.set(driver.id, {
-      strategy: createStrategy(driver, config.weather, prng),
+      strategy: createStrategy(driver, config.weather, createPrng(`${config.seed}:strategy:${driver.id}`)),
       nextStop: 0,
       pit: null,
       penaltyTicks: 0,
@@ -193,7 +238,7 @@ export function createRaceEngine(
     flag: 'green',
     weather: config.weather,
     safetyCar: 'none',
-    cars: drivers.map((driver, index) => {
+    cars: grid.map((driver, index) => {
       const runtime = runtimeByDriver.get(driver.id);
       if (!runtime) throw new Error(`Missing strategy for ${driver.id}`);
       return initialCar(driver, index, track, runtime.strategy.initialCompound);
@@ -209,7 +254,13 @@ export function createRaceEngine(
     config.laps * REFERENCE_LAP_SECONDS * TICKS_PER_SECOND
   ) / (config.presentationMinutes * 60);
   const passingZones = track.zones.filter((zone) => zone.kind === 'passing');
-  const trackTemperature = config.weather === 'sunny' ? 0.88 : config.weather === 'cloudy' ? 0.7 : 0.55;
+  const weatherSchedule = createWeatherSchedule(
+    config.weather,
+    config.laps,
+    createPrng(`${config.seed}:weather`),
+    config.dynamicWeather ?? config.weather !== 'sunny',
+  );
+  let nextWeatherTransition = 0;
   let pendingTicks = 0;
   let safetyCarTicks = 0;
   let yellowTicks = 0;
@@ -259,6 +310,20 @@ export function createRaceEngine(
         state.flag = 'green';
         emit({ type: 'flag', tick: state.tick, flag: 'green' });
       }
+    }
+  }
+
+  function updateWeather(): void {
+    const leaderLap = state.cars.reduce((maximum, car) => Math.max(maximum, car.lap), 0);
+    while (
+      nextWeatherTransition < weatherSchedule.length
+      && leaderLap >= weatherSchedule[nextWeatherTransition]!.lap
+    ) {
+      const transition = weatherSchedule[nextWeatherTransition]!;
+      nextWeatherTransition += 1;
+      if (transition.weather === state.weather) continue;
+      state.weather = transition.weather;
+      emit({ type: 'weather', tick: state.tick, weather: transition.weather });
     }
   }
 
@@ -387,7 +452,10 @@ export function createRaceEngine(
     if (!timing) throw new Error(`Missing timing state for ${originalCar.driverId}`);
     const tickEndedAt = tickStartedAt + TICK_SECONDS;
 
-    let car = originalCar;
+    let car = {
+      ...originalCar,
+      fuelFactor: calculateFuelFactor(Math.max(0, completedDistance(originalCar)), config.laps),
+    };
     if (runtime.pit) return movePitCar(car, runtime, tickEndedAt);
     if (runtime.penaltyTicks > 0) {
       runtime.penaltyTicks -= 1;
@@ -399,6 +467,8 @@ export function createRaceEngine(
       };
     }
 
+    const trackTemperature = weatherTrackTemperature(state.weather);
+    const currentTire = updateTire(car.tire, 0, trackTemperature);
     const plannedStop = runtime.strategy.stops[runtime.nextStop];
     if (
       plannedStop
@@ -408,13 +478,15 @@ export function createRaceEngine(
         lap: car.lap,
         safetyCar: state.safetyCar !== 'none',
         trafficSeconds: context.gapSeconds,
+        tireWear: currentTire.wear,
+        tireGrip: currentTire.grip,
+        damage: car.damage,
       })
     ) {
       car = startPitStop(car, runtime, plannedStop.compound);
       return movePitCar(car, runtime, tickEndedAt);
     }
 
-    const currentTire = updateTire(car.tire, 0, trackTemperature);
     const weatherGrip = state.weather === 'rain'
       ? car.tire.compound === 'wet' ? 1 : car.tire.compound === 'intermediate' ? 1.025 : 0.72
       : car.tire.compound === 'wet' ? 0.82 : car.tire.compound === 'intermediate' ? 0.88 : 1;
@@ -426,7 +498,7 @@ export function createRaceEngine(
       pitState: car.pitState,
       penaltyTicks: runtime.penaltyTicks,
     });
-    const paceFactor = calculateTargetPace({
+    const suggestedPace = calculateTargetPace({
       basePace: 0.92 + driver.ratings.pace * 0.08,
       consistencyNoise: prng.range(-noiseRange, noiseRange),
       tireGrip: currentTire.grip * weatherGrip,
@@ -437,6 +509,27 @@ export function createRaceEngine(
       flagFactor: (state.flag === 'green' ? 1 : state.flag === 'yellow' ? 0.7 : 0.55)
         * safetyCarCatchupFactor,
     });
+    const controller = options.controllers?.[car.driverId]
+      ?? options.defaultController
+      ?? DEFAULT_AI_DRIVER_CONTROLLER;
+    const decision = controller.decidePace({
+      driver,
+      car,
+      race: {
+        tick: state.tick,
+        elapsedSeconds: state.elapsedSeconds,
+        phase: state.phase,
+        flag: state.flag,
+        weather: state.weather,
+        safetyCar: state.safetyCar,
+      },
+      context: { gapSeconds: context.gapSeconds, hasCarAhead: context.ahead !== undefined },
+      suggestedPace,
+    });
+    if (!Number.isFinite(decision.paceFactor) || decision.paceFactor < 0) {
+      throw new RangeError(`Controller for ${car.driverId} returned an invalid pace factor`);
+    }
+    const paceFactor = decision.paceFactor;
     const speed = paceFactor / REFERENCE_LAP_SECONDS;
     const startDistance = car.distance;
     const endDistance = startDistance + speed * TICK_SECONDS;
@@ -631,6 +724,8 @@ export function createRaceEngine(
       state.phase = 'racing';
       emit({ type: 'start', tick: state.tick });
     }
+
+    updateWeather();
 
     const tickStartedAt = state.elapsedSeconds;
     const finishCandidates: FinishCandidate[] = [];

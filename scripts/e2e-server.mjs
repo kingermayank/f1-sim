@@ -1,12 +1,19 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { build, preview } from 'vite';
 
-await build({ mode: 'e2e' });
+const outputDirectory = await mkdtemp(join(tmpdir(), 'monaco-e2e-'));
+
+await build({ mode: 'e2e', build: { outDir: outputDirectory, emptyOutDir: true } });
 const server = await preview({
-  preview: { host: '127.0.0.1', port: 5173, strictPort: true },
+  build: { outDir: outputDirectory },
+  preview: { host: '127.0.0.1', port: 5189, strictPort: true },
 });
 
 const shutdown = async () => {
   await server.close();
+  await rm(outputDirectory, { recursive: true, force: true });
   process.exit(0);
 };
 

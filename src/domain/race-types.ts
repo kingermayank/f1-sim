@@ -56,6 +56,8 @@ export interface RaceConfig {
   laps: 78;
   presentationMinutes: number;
   weather: Weather;
+  /** Non-sunny races vary by default; sunny races opt in explicitly. */
+  dynamicWeather?: boolean;
   safetyCars: boolean;
   incidents: boolean;
 }
