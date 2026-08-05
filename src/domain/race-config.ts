@@ -3,7 +3,7 @@ import type { RaceConfig } from './race-types';
 
 const raceConfigSchema = z.object({
   seed: z.string().min(1),
-  laps: z.literal(78),
+  laps: z.literal(56),
   presentationMinutes: z.number().min(5).max(8),
   weather: z.enum(['sunny', 'cloudy', 'rain']),
   dynamicWeather: z.boolean().optional(),
@@ -12,8 +12,8 @@ const raceConfigSchema = z.object({
 });
 
 export const DEFAULT_RACE_CONFIG: RaceConfig = {
-  seed: 'monaco-2026-opening-race',
-  laps: 78,
+  seed: 'shanghai-2026-opening-race',
+  laps: 56,
   presentationMinutes: 6,
   weather: 'sunny',
   safetyCars: true,

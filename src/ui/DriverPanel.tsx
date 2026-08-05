@@ -2,10 +2,10 @@ import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import type { RaceState } from '../simulation/events';
 import { getClassification, getIntervals } from '../simulation/selectors';
 import { formatDuration, formatRaceGap, titleCase } from './formatters';
-import { MONACO_TRACK } from '../track/monaco-track';
+import { SHANGHAI_TRACK } from '../track/shanghai-track';
 
 export function driverSpeedKph(normalizedLapsPerSecond: number): number {
-  return normalizedLapsPerSecond * MONACO_TRACK.lengthMeters * 3.6;
+  return normalizedLapsPerSecond * SHANGHAI_TRACK.lengthMeters * 3.6;
 }
 
 export function DriverPanel({ snapshot, selectedDriverId }: {

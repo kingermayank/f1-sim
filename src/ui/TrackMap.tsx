@@ -1,8 +1,8 @@
 import { DRIVERS_2026 } from '../domain/grid-2026';
 import type { RaceState } from '../simulation/events';
-import { MONACO_TRACK } from '../track/monaco-track';
+import { SHANGHAI_TRACK } from '../track/shanghai-track';
 
-const points = MONACO_TRACK.centerLine;
+const points = SHANGHAI_TRACK.centerLine;
 const bounds = points.reduce((result, point) => ({
   minX: Math.min(result.minX, point.x), maxX: Math.max(result.maxX, point.x),
   minZ: Math.min(result.minZ, point.z), maxZ: Math.max(result.maxZ, point.z),
@@ -22,8 +22,8 @@ export function TrackMap({ snapshot, selectedDriverId }: {
 }) {
   return (
     <section className="track-map" aria-label="Track map">
-      <header className="panel-kicker"><span>Position map</span><span>Monte Carlo</span></header>
-      <svg viewBox="0 0 200 200" role="img" aria-label="Monaco circuit position map">
+      <header className="panel-kicker"><span>Position map</span><span>Shanghai</span></header>
+      <svg viewBox="0 0 200 200" role="img" aria-label="Shanghai circuit position map">
         <path className="track-map__shadow" d={path} />
         <path className="track-map__line" d={path} />
         <line className="track-map__finish" x1="128" x2="139" y1="113" y2="119" />

@@ -12,7 +12,7 @@ export function CreditsPanel({ open, onClose }: { open: boolean; onClose(): void
         <header><div><p className="panel-kicker">Provenance</p><h2 id="credits-title">Credits and disclosure</h2></div><button type="button" className="modal-close" aria-label="Close credits" data-autofocus onClick={onClose}>×</button></header>
         <div className="disclosure">
           <strong>Independent simulated broadcast</strong>
-          <p>This is a generated simulation for a private prototype. Timing, incidents, results, track geometry, liveries, and presentation graphics are fictional or project-original. It is not affiliated with or endorsed by Formula 1, the FIA, the Monaco Grand Prix, its teams, or drivers.</p>
+          <p>This is a generated simulation for a private prototype. Timing, incidents, results, track geometry, liveries, and presentation graphics are fictional or project-original. It is not affiliated with or endorsed by Formula 1, the FIA, the Chinese Grand Prix, its teams, or drivers.</p>
         </div>
         <ul className="credits-list">
           {credits.map((credit) => (

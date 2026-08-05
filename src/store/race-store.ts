@@ -5,19 +5,19 @@ import { DRIVERS_2026 } from '../domain/grid-2026';
 import type { RaceConfig } from '../domain/race-types';
 import { createRaceEngine, type RaceEngine } from '../simulation/race-engine';
 import type { RaceEvent, RaceState } from '../simulation/events';
-import { MONACO_TRACK } from '../track/monaco-track';
+import { SHANGHAI_TRACK } from '../track/shanghai-track';
 
 export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2, 4, 8] as const;
 export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 
-export const CAMERA_MODES = ['broadcast', 'chase', 'cockpit', 'overhead', 'free'] as const;
+export const CAMERA_MODES = ['broadcast', 'trackside', 'aerial', 'drone', 'chase', 'cockpit', 'overhead', 'free'] as const;
 export type CameraMode = (typeof CAMERA_MODES)[number];
 
 export const QUALITY_MODES = ['auto', 'high', 'mobile'] as const;
 export type QualityMode = (typeof QUALITY_MODES)[number];
 
 const EVENT_FEED_LIMIT = 100;
-export const PREFERENCES_STORAGE_KEY = 'monaco-race.preferences.v1';
+export const PREFERENCES_STORAGE_KEY = 'shanghai-race.preferences.v1';
 
 interface PreferenceStorage {
   getItem(key: string): string | null;
@@ -133,11 +133,11 @@ let generatedSeedCounter = 0;
 
 function createNewSeed(): string {
   generatedSeedCounter += 1;
-  return `monaco-2026-${Date.now().toString(36)}-${generatedSeedCounter}`;
+  return `shanghai-2026-${Date.now().toString(36)}-${generatedSeedCounter}`;
 }
 
 export function createRaceStore(initialConfig: RaceConfig = DEFAULT_RACE_CONFIG, options: RaceStoreOptions = browserPreferenceOptions()) {
-  let engine: RaceEngine = createRaceEngine(initialConfig, MONACO_TRACK, DRIVERS_2026);
+  let engine: RaceEngine = createRaceEngine(initialConfig, SHANGHAI_TRACK, DRIVERS_2026);
   const storage = options.storage ?? null;
   const preferences = readPreferences(storage);
   let reducedMotionPreference = preferences.reducedMotion;
@@ -158,7 +158,7 @@ export function createRaceStore(initialConfig: RaceConfig = DEFAULT_RACE_CONFIG,
     };
 
     const resetRace = (config: RaceConfig): void => {
-      engine = createRaceEngine(config, MONACO_TRACK, DRIVERS_2026);
+      engine = createRaceEngine(config, SHANGHAI_TRACK, DRIVERS_2026);
       set({
         config: immutableConfig(config),
         snapshot: engine.snapshot(),

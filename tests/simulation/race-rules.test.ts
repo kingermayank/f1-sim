@@ -7,7 +7,7 @@ import { createPrng } from '../../src/simulation/prng';
 import { calculateSafetyCarCatchupFactor, createRaceEngine } from '../../src/simulation/race-engine';
 import { createStrategy, shouldPit } from '../../src/simulation/strategy';
 import { updateTire } from '../../src/simulation/tires';
-import { MONACO_TRACK } from '../../src/track/monaco-track';
+import { SHANGHAI_TRACK } from '../../src/track/shanghai-track';
 import { createSplineTrack } from '../../src/track/spline-track';
 
 const raceConfig = (seed: string, overrides: Partial<RaceConfig> = {}): RaceConfig => ({
@@ -44,7 +44,7 @@ describe('race rule primitives', () => {
 
     expect(first).toEqual(replay);
     expect(first.stops).toHaveLength(first.stopCount);
-    expect(first.stops.every((stop) => stop.window[0] > 0 && stop.window[1] < 78)).toBe(true);
+    expect(first.stops.every((stop) => stop.window[0] > 0 && stop.window[1] < 56)).toBe(true);
   });
 
   it('brings a stop forward when tire wear reaches the cliff', () => {
@@ -117,7 +117,7 @@ describe('integrated race rules', () => {
   it('keeps the default sunny race stable without weather events', () => {
     const engine = createRaceEngine(
       raceConfig('sunny-stable', { incidents: false, safetyCars: false }),
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       [DRIVERS_2026[0]!],
     );
 
@@ -130,12 +130,12 @@ describe('integrated race rules', () => {
   it('replays seeded weather transitions for configurable non-sunny races', () => {
     const first = createRaceEngine(
       raceConfig('dynamic-weather', { weather: 'rain', incidents: false, safetyCars: false }),
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       [DRIVERS_2026[0]!],
     );
     const replay = createRaceEngine(
       raceConfig('dynamic-weather', { weather: 'rain', incidents: false, safetyCars: false }),
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       [DRIVERS_2026[0]!],
     );
 
@@ -157,7 +157,7 @@ describe('integrated race rules', () => {
         incidents: false,
         safetyCars: false,
       }),
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       [DRIVERS_2026[0]!],
     );
 
@@ -169,7 +169,7 @@ describe('integrated race rules', () => {
   it('changes compound during a pit stop and charges meaningful time', () => {
     const engine = createRaceEngine(
       raceConfig('pit-stop', { incidents: false, safetyCars: false }),
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       [DRIVERS_2026[0]!],
     );
 
@@ -189,10 +189,10 @@ describe('integrated race rules', () => {
   it('publishes monotonic pit progress that moves the presentation transform during a real stop', () => {
     const engine = createRaceEngine(
       raceConfig('pit-stop', { incidents: false, safetyCars: false }),
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       [DRIVERS_2026[0]!],
     );
-    const spline = createSplineTrack(MONACO_TRACK);
+    const spline = createSplineTrack(SHANGHAI_TRACK);
     const samples: { progress: number; x: number; z: number }[] = [];
     let completedStop = false;
 
@@ -217,8 +217,8 @@ describe('integrated race rules', () => {
 
   it('keeps a retired car terminal for the remainder of the race', () => {
     const engine = createRaceEngine(
-      raceConfig('scenario-0'),
-      MONACO_TRACK,
+      raceConfig('scenario-2'),
+      SHANGHAI_TRACK,
       DRIVERS_2026,
     );
 
@@ -235,7 +235,7 @@ describe('integrated race rules', () => {
   });
 
   it('emits safety-car transitions and compresses active-car gaps', () => {
-    const engine = createRaceEngine(raceConfig('scenario-0'), MONACO_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(raceConfig('scenario-2'), SHANGHAI_TRACK, DRIVERS_2026);
     let gapAtDeployment: number | undefined;
     let compressedGap: number | undefined;
 
@@ -280,17 +280,17 @@ describe('integrated race rules', () => {
       penaltyTicks: 10,
     })).toBe(1);
 
-    const engine = createRaceEngine(raceConfig('review-1'), MONACO_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(raceConfig('review-1'), SHANGHAI_TRACK, DRIVERS_2026);
     engine.runToFinish();
     const lapEvents = engine.snapshot().events.filter((event) => event.type === 'lap');
     for (const car of engine.snapshot().cars) {
       if (car.status !== 'finished') continue;
-      expect(lapEvents.filter((event) => event.driverId === car.driverId)).toHaveLength(78);
+      expect(lapEvents.filter((event) => event.driverId === car.driverId)).toHaveLength(56);
     }
   });
 
   it('updates each battle participant at most once per ordering checkpoint', () => {
-    const engine = createRaceEngine(raceConfig('review-1'), MONACO_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(raceConfig('review-1'), SHANGHAI_TRACK, DRIVERS_2026);
     engine.runToFinish();
     const participantsByTick = new Map<number, string[]>();
 
@@ -311,8 +311,8 @@ describe('integrated race rules', () => {
   });
 
   it('restores racing lines outside passing zones and whenever racing is neutralized', () => {
-    const engine = createRaceEngine(raceConfig('review-1'), MONACO_TRACK, DRIVERS_2026);
-    const passingZones = MONACO_TRACK.zones.filter((zone) => zone.kind === 'passing');
+    const engine = createRaceEngine(raceConfig('review-1'), SHANGHAI_TRACK, DRIVERS_2026);
+    const passingZones = SHANGHAI_TRACK.zones.filter((zone) => zone.kind === 'passing');
     const isPassingZone = (distance: number) => passingZones.some((zone) => (
       zone.start <= zone.end
         ? distance >= zone.start && distance <= zone.end
@@ -335,7 +335,7 @@ describe('integrated race rules', () => {
     const winners = new Set<string>();
 
     for (let seed = 0; seed < 200; seed += 1) {
-      const engine = createRaceEngine(raceConfig(`invariant-${seed}`), MONACO_TRACK, DRIVERS_2026);
+      const engine = createRaceEngine(raceConfig(`invariant-${seed}`), SHANGHAI_TRACK, DRIVERS_2026);
       engine.runToFinish();
       const snapshot = engine.snapshot();
       const events = engine.drainEvents();

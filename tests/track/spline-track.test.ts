@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Vector3 } from 'three';
 import { createSplineTrack } from '../../src/track/spline-track';
-import { MONACO_TRACK } from '../../src/track/monaco-track';
+import { SHANGHAI_TRACK } from '../../src/track/shanghai-track';
 
 describe('SplineTrack', () => {
   it('closes the racing line continuously', () => {
-    const track = createSplineTrack(MONACO_TRACK);
+    const track = createSplineTrack(SHANGHAI_TRACK);
     const start = track.sample(0, 0);
     const end = track.sample(1, 0);
 
@@ -14,7 +14,7 @@ describe('SplineTrack', () => {
   });
 
   it('wraps normalized center-line distances in either direction', () => {
-    const track = createSplineTrack(MONACO_TRACK);
+    const track = createSplineTrack(SHANGHAI_TRACK);
     const reference = track.sample(0.23, 0);
 
     expect(track.sample(1.23, 0).position.distanceTo(reference.position)).toBeLessThan(0.0001);
@@ -22,7 +22,7 @@ describe('SplineTrack', () => {
   });
 
   it('keeps pit-line samples at their open-line boundaries', () => {
-    const track = createSplineTrack(MONACO_TRACK);
+    const track = createSplineTrack(SHANGHAI_TRACK);
     const entry = track.sample(0, 0, 'pit');
     const exit = track.sample(1, 0, 'pit');
 
@@ -32,7 +32,7 @@ describe('SplineTrack', () => {
   });
 
   it('uses a stable orientation and lateral normal', () => {
-    const track = createSplineTrack(MONACO_TRACK);
+    const track = createSplineTrack(SHANGHAI_TRACK);
     const base = track.sample(0.4, 0);
     const left = track.sample(0.4, 3);
     const right = track.sample(0.4, -3);
@@ -45,10 +45,14 @@ describe('SplineTrack', () => {
   });
 
   it('provides grid slots, three sectors, pit path, wrapped zones, and camera anchors', () => {
-    expect(MONACO_TRACK.gridSlots).toHaveLength(22);
-    expect(MONACO_TRACK.sectors).toHaveLength(3);
-    expect(MONACO_TRACK.pitLine.length).toBeGreaterThan(3);
-    expect(MONACO_TRACK.cameraAnchors.length).toBeGreaterThanOrEqual(8);
-    expect(MONACO_TRACK.zones).toContainEqual({ start: 0.91, end: 0.08, kind: 'speed-limit' });
+    expect(SHANGHAI_TRACK.gridSlots).toHaveLength(14);
+    expect(SHANGHAI_TRACK.sectors).toHaveLength(3);
+    expect(SHANGHAI_TRACK.pitLine.length).toBeGreaterThan(3);
+    expect(SHANGHAI_TRACK.cameraAnchors.length).toBeGreaterThanOrEqual(8);
+    expect(SHANGHAI_TRACK.zones).toContainEqual({
+      start: SHANGHAI_TRACK.pitEntry,
+      end: SHANGHAI_TRACK.pitExit,
+      kind: 'speed-limit',
+    });
   });
 });

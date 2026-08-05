@@ -16,6 +16,49 @@ function createFixture() {
   return { manifestPath, publicRoot };
 }
 
+/** Reads the GLB's JSON chunk without needing a full glTF parser. */
+function readGlbJson(glb: Buffer): { json: Record<string, any>; text: string; start: number } {
+  const declaredLength = glb.readUInt32LE(8);
+  let offset = 12;
+  while (offset < declaredLength) {
+    const length = glb.readUInt32LE(offset);
+    const type = glb.subarray(offset + 4, offset + 8).toString();
+    if (type === 'JSON') {
+      const start = offset + 8;
+      const text = glb.subarray(start, start + length).toString('utf8');
+      return { json: JSON.parse(text.replace(/[\0\s]+$/u, '')), text, start };
+    }
+    offset += 8 + length;
+  }
+  throw new Error('GLB has no JSON chunk');
+}
+
+/**
+ * Finds an accessor whose `byteOffset` can be inflated in place — same digit
+ * count, larger value — so it reads past the end of its bufferView. Deriving
+ * this from the file keeps the test valid as the runtime model changes.
+ */
+function findOverflowableAccessorOffset(glb: Buffer): { offset: number; replacement: string } | null {
+  const { json, text, start } = readGlbJson(glb);
+  for (const accessor of json.accessors ?? []) {
+    const byteOffset: number = accessor.byteOffset ?? 0;
+    const digits = String(byteOffset);
+    if (byteOffset <= 0 || digits[0] === '9') continue;
+    const view = json.bufferViews?.[accessor.bufferView];
+    if (!view) continue;
+    const inflated = `9${digits.slice(1)}`;
+    if (Number(inflated) <= view.byteLength) continue;
+    const needle = `"byteOffset":${digits},"bufferView":${accessor.bufferView}`;
+    const index = text.indexOf(needle);
+    if (index < 0) continue;
+    return {
+      offset: start + index,
+      replacement: `"byteOffset":${inflated},"bufferView":${accessor.bufferView}`,
+    };
+  }
+  return null;
+}
+
 function verify(manifestPath: string, publicRoot: string) {
   return spawnSync('node', ['scripts/verify-assets.mjs'], {
     encoding: 'utf8',
@@ -33,7 +76,7 @@ describe('asset verifier binary validation', () => {
     const valid = verify(fixture.manifestPath, fixture.publicRoot);
     expect(valid.status).toBe(0);
 
-    const glbPath = join(fixture.publicRoot, 'assets/models/monaco-track.glb');
+    const glbPath = join(fixture.publicRoot, 'assets/models/shanghai-track.glb');
     const glb = readFileSync(glbPath);
     glb.writeUInt32LE(1, 4);
     writeFileSync(glbPath, glb);
@@ -43,9 +86,12 @@ describe('asset verifier binary validation', () => {
 
     cpSync('public', fixture.publicRoot, { recursive: true, force: true });
     const invalidAccessor = readFileSync(glbPath);
-    const countOffset = invalidAccessor.indexOf(Buffer.from('"count":64'));
-    expect(countOffset).toBeGreaterThan(-1);
-    invalidAccessor.write('"count":99', countOffset, 'utf8');
+    // Push an accessor past the end of its bufferView. The replacement is
+    // derived from the file and is exactly as wide as the original, so the GLB
+    // chunk lengths stay valid and only the accessor bounds become wrong.
+    const accessorOffset = findOverflowableAccessorOffset(invalidAccessor);
+    expect(accessorOffset).not.toBeNull();
+    invalidAccessor.write(accessorOffset!.replacement, accessorOffset!.offset, 'utf8');
     writeFileSync(glbPath, invalidAccessor);
     const invalidCount = verify(fixture.manifestPath, fixture.publicRoot);
     expect(invalidCount.status).toBe(1);

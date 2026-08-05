@@ -18,21 +18,60 @@ function isNonNegativeInteger(value) {
 }
 
 function validateGltfSemantics(gltf, binLength) {
-  if (!Array.isArray(gltf.buffers) || gltf.buffers.length !== 1) return 'GLB must contain exactly one embedded buffer';
-  const [buffer] = gltf.buffers;
-  if (!isNonNegativeInteger(buffer?.byteLength) || buffer.byteLength > binLength) return 'invalid GLB buffer byteLength';
-  if (buffer.uri) return 'GLB buffer must not reference an external URI';
+  if (!Array.isArray(gltf.buffers) || gltf.buffers.length === 0) return 'GLB must contain at least one buffer';
+
+  // Meshopt-compressed runtime models carry a second, zero-filled "fallback"
+  // buffer that is intentionally absent from the BIN chunk. Only the primary
+  // buffer must fit inside the embedded payload.
+  const fallbackIndexes = new Set();
+  gltf.buffers.forEach((entry, index) => {
+    if (entry?.extensions?.EXT_meshopt_compression?.fallback === true) fallbackIndexes.add(index);
+  });
+  if (gltf.buffers.length - fallbackIndexes.size !== 1) {
+    return 'GLB must contain exactly one embedded buffer';
+  }
+
+  for (const [index, entry] of gltf.buffers.entries()) {
+    if (!isNonNegativeInteger(entry?.byteLength)) return `buffer ${index} has invalid byteLength`;
+    if (entry.uri) return 'GLB buffer must not reference an external URI';
+    if (!fallbackIndexes.has(index) && entry.byteLength > binLength) return 'invalid GLB buffer byteLength';
+  }
 
   const bufferViews = gltf.bufferViews ?? [];
   if (!Array.isArray(bufferViews)) return 'invalid GLB bufferViews';
   for (const [index, view] of bufferViews.entries()) {
     const offset = view?.byteOffset ?? 0;
-    if (!Number.isInteger(view?.buffer) || view.buffer !== 0) return `bufferView ${index} references an invalid buffer`;
-    if (!isNonNegativeInteger(offset) || !isNonNegativeInteger(view?.byteLength) || offset + view.byteLength > buffer.byteLength) {
+    const target = gltf.buffers[view?.buffer];
+    if (!Number.isInteger(view?.buffer) || !target) return `bufferView ${index} references an invalid buffer`;
+    if (!isNonNegativeInteger(offset) || !isNonNegativeInteger(view?.byteLength) || offset + view.byteLength > target.byteLength) {
       return `bufferView ${index} exceeds buffer byteLength`;
     }
     if (view.byteStride !== undefined && (!Number.isInteger(view.byteStride) || view.byteStride < 4 || view.byteStride > 252 || view.byteStride % 4 !== 0)) {
       return `bufferView ${index} has invalid byteStride`;
+    }
+    // A compressed view must point at real bytes in the embedded buffer.
+    const meshopt = view.extensions?.EXT_meshopt_compression;
+    if (meshopt) {
+      const source = gltf.buffers[meshopt.buffer];
+      if (!Number.isInteger(meshopt.buffer) || !source || fallbackIndexes.has(meshopt.buffer)) {
+        return `bufferView ${index} meshopt data references an invalid buffer`;
+      }
+      const meshoptOffset = meshopt.byteOffset ?? 0;
+      if (!isNonNegativeInteger(meshoptOffset) || !isNonNegativeInteger(meshopt.byteLength)
+        || meshoptOffset + meshopt.byteLength > source.byteLength) {
+        return `bufferView ${index} meshopt data exceeds buffer byteLength`;
+      }
+      if (!isNonNegativeInteger(meshopt.count) || meshopt.count === 0) {
+        return `bufferView ${index} meshopt data has invalid count`;
+      }
+      if (!Number.isInteger(meshopt.byteStride) || meshopt.byteStride <= 0) {
+        return `bufferView ${index} meshopt data has invalid byteStride`;
+      }
+      // EXT_meshopt_compression requires the decompressed view to be exactly
+      // count * byteStride bytes, which pins the element count to the payload.
+      if (view.byteLength !== meshopt.count * meshopt.byteStride) {
+        return `bufferView ${index} meshopt count does not match byteLength`;
+      }
     }
   }
 
@@ -54,6 +93,17 @@ function validateGltfSemantics(gltf, binLength) {
     if (stride < elementBytes || stride % componentBytes !== 0) return `accessor ${index} has invalid stride`;
     const requiredBytes = accessor.count === 0 ? 0 : ((accessor.count - 1) * stride) + elementBytes;
     if (offset + requiredBytes > view.byteLength) return `accessor ${index} exceeds bufferView byteLength`;
+
+    // On a meshopt-compressed view the decompressed element count is declared by
+    // the extension, so an accessor may not read past it even when the fallback
+    // buffer is large enough to absorb the overrun.
+    const meshopt = view.extensions?.EXT_meshopt_compression;
+    if (meshopt && Number.isInteger(meshopt.count)) {
+      const firstElement = stride === 0 ? 0 : Math.floor(offset / stride);
+      if (firstElement + accessor.count > meshopt.count) {
+        return `accessor ${index} exceeds bufferView byteLength`;
+      }
+    }
   }
 
   const meshes = gltf.meshes ?? [];
@@ -222,15 +272,21 @@ if (manifest && !Array.isArray(manifest)) {
 if (Array.isArray(manifest)) {
   const ids = new Set();
   const runtimeFiles = new Set();
+  // Every team that races must have both a runtime car model and a livery
+  // texture, so a missing model cannot silently fall back to procedural cars.
+  const RACING_TEAMS = ['red-bull', 'ferrari', 'mclaren', 'aston-martin', 'alpine', 'williams', 'racing-bulls'];
+  const FONTS = ['formula1-display-regular', 'formula1-wide', 'monospec-variable'];
   const requiredRuntimeFiles = new Set([
-    '/assets/models/monaco-track.glb',
+    '/assets/models/shanghai-track.glb',
     '/assets/models/f1-car.glb',
-    ...['mercedes', 'ferrari', 'mclaren', 'red-bull', 'racing-bulls', 'alpine', 'haas', 'audi', 'williams', 'aston-martin', 'cadillac']
-      .map((team) => `/assets/textures/teams/${team}.webp`),
+    ...RACING_TEAMS.map((team) => `/assets/models/cars/${team}.glb`),
+    ...RACING_TEAMS.map((team) => `/assets/textures/teams/${team}.webp`),
+    ...FONTS.map((font) => `/assets/fonts/${font}.woff2`),
   ]);
 
-  if (manifest.length !== 13) {
-    problems.push(`Asset manifest must contain 13 entries; found ${manifest.length}`);
+  const EXPECTED_ENTRIES = 2 + RACING_TEAMS.length * 2 + FONTS.length;
+  if (manifest.length !== EXPECTED_ENTRIES) {
+    problems.push(`Asset manifest must contain ${EXPECTED_ENTRIES} entries; found ${manifest.length}`);
   }
 
   for (const [index, asset] of manifest.entries()) {
@@ -267,7 +323,8 @@ if (Array.isArray(manifest)) {
         if (runtimeFiles.has(asset.runtimeFile)) problems.push(`${label}: duplicate runtimeFile`);
         runtimeFiles.add(asset.runtimeFile);
         const bytes = readFileSync(runtimePath);
-        const limit = asset.runtimeFile.endsWith('monaco-track.glb') ? 30_000_000
+        const limit = asset.runtimeFile.endsWith('shanghai-track.glb') ? 20_000_000
+          : asset.runtimeFile.startsWith('/assets/models/cars/') ? 4_000_000
           : asset.runtimeFile.endsWith('f1-car.glb') ? 2_000_000 : 300_000;
         if (statSync(runtimePath).size > limit) problems.push(`${label}: runtime file exceeds ${limit} bytes`);
         if (asset.runtimeFile.endsWith('.glb')) {

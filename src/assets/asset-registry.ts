@@ -1,7 +1,8 @@
 /** Public runtime URLs for the race scene. Keep these paths stable for loaders. */
 export const ASSETS = {
-  track: '/assets/models/monaco-track.glb',
+  track: '/assets/models/shanghai-track.glb',
   car: '/assets/models/f1-car.glb',
+  teamCar: (teamId: string) => `/assets/models/cars/${teamId}.glb`,
   teamTexture: (teamId: string) => `/assets/textures/teams/${teamId}.webp`,
 } as const;
 

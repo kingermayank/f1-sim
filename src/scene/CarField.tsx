@@ -1,7 +1,8 @@
 import { useFrame } from '@react-three/fiber';
-import { Html, useGLTF, useTexture } from '@react-three/drei';
+import { Html, useGLTF } from '@react-three/drei';
 import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
+  Box3,
   CanvasTexture,
   Group,
   Mesh,
@@ -14,13 +15,15 @@ import { ASSETS } from '../assets/asset-registry';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import type { CarState } from '../simulation/events';
 import { useRaceStore } from '../store/race-store';
-import { MONACO_TRACK } from '../track/monaco-track';
+import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { createSplineTrack } from '../track/spline-track';
 import type { SceneQualityTier } from './RaceScene';
 import { cloneSceneWithOwnedMaterials } from './scene-resources';
 
-const TRACK = createSplineTrack(MONACO_TRACK);
+const TRACK = createSplineTrack(SHANGHAI_TRACK);
 const RETIREMENT_PRESENTATION_TICKS = 80;
+/** Real 2026-era F1 car length; Shanghai is authored in metres. */
+const CAR_LENGTH_METRES = 5.6;
 const CLOSE_BATTLE_DISTANCE = 0.012;
 
 type TrackLine = 'center' | 'attack' | 'defend' | 'pit';
@@ -87,7 +90,7 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
   const sample = getCarTrackSample(car);
   const transform = TRACK.sample(sample.distance, sample.lateral, sample.line);
   const ahead = TRACK.sample(Math.min(0.999, sample.distance + 0.002), sample.lateral, sample.line);
-  const wheelRotation = ((car.lap + car.distance) * MONACO_TRACK.lengthMeters) / 0.43;
+  const wheelRotation = ((car.lap + car.distance) * SHANGHAI_TRACK.lengthMeters) / 0.43;
   const steering = Math.atan2(
     transform.tangent.clone().cross(ahead.tangent).y,
     transform.tangent.dot(ahead.tangent),
@@ -139,7 +142,6 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
       userData={{ driverId: driver.id, teamId: driver.teamId }}
       position={transform.position}
       quaternion={transform.rotation}
-      scale={0.82}
       onClick={(event) => {
         event.stopPropagation();
         selectDriver(driver.id);
@@ -161,7 +163,7 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
         <meshBasicMaterial map={identifierTexture} toneMapped={false} polygonOffset polygonOffsetFactor={-2} />
       </mesh>
       {model ? <primitive object={model} dispose={null} /> : (
-        <group>
+        <group scale={CAR_LENGTH_METRES / 4.15}>
           <mesh castShadow position={[0, 0.47, 0.05]}>
             <boxGeometry args={[1.12, 0.4, 2.55]} />
             <meshStandardMaterial color={team.color} roughness={0.38} metalness={0.2} />
@@ -192,31 +194,25 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
   );
 }
 
+/**
+ * Loads the supplied model for a team. `useGLTF` caches by URL, so each team's
+ * geometry is fetched and parsed once and then cloned for that team's two
+ * drivers rather than loaded per car.
+ */
 function LoadedTeamCar({ car, selected, selectDriver, showLabel }: CarProps) {
   const driver = DRIVERS_2026.find((candidate) => candidate.id === car.driverId) ?? DRIVERS_2026[0];
   const team = TEAMS_2026.find((candidate) => candidate.id === driver.teamId) ?? TEAMS_2026[0];
-  const gltf = useGLTF(ASSETS.car);
-  const livery = useTexture(ASSETS.teamTexture(team.id));
-  livery.colorSpace = SRGBColorSpace;
+  const gltf = useGLTF(ASSETS.teamCar(team.id));
 
-  const cloneResources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (ownedMaterial, mesh) => {
-      if (!(ownedMaterial instanceof MeshStandardMaterial)) return;
-      const material = ownedMaterial;
-      const carbonPart = /wheel|wing|floor|halo|suspension|cockpit/.test(mesh.name);
-      if (carbonPart) {
-        material.color.set(mesh.name.startsWith('wheel') ? '#07090b' : '#111820');
-        material.map = null;
-        material.roughness = mesh.name.startsWith('wheel') ? 0.88 : 0.58;
-        material.metalness = mesh.name.startsWith('wheel') ? 0.02 : 0.18;
-      } else {
-        material.color.set(mesh.name === 'nose' ? team.accent : mesh.name === 'number-mount' ? '#f4f6f7' : team.color);
-        material.map = mesh.name.startsWith('sidepod') ? livery : null;
-        material.emissive.set(team.color);
-        material.emissiveIntensity = 0.045;
-        material.roughness = 0.32;
-        material.metalness = 0.16;
-      }
-    }), [gltf.scene, livery, team.color]);
+  const cloneResources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (ownedMaterial) => {
+    if (!(ownedMaterial instanceof MeshStandardMaterial)) return;
+    // The supplied models carry their own liveries, carbon, tyre, glass and
+    // metal materials. Keep them and only tame the extremes so every car sits
+    // in the same lighting rather than repainting them with flat team colours.
+    const material = ownedMaterial;
+    material.roughness = Math.min(0.95, Math.max(0.18, material.roughness));
+    material.envMapIntensity = 0.85;
+  }), [gltf.scene]);
 
   useEffect(() => () => cloneResources.dispose(), [cloneResources]);
   useEffect(() => {
@@ -227,7 +223,28 @@ function LoadedTeamCar({ car, selected, selectDriver, showLabel }: CarProps) {
     });
   }, [cloneResources]);
 
-  return <AnimatedCar car={car} selected={selected} selectDriver={selectDriver} model={cloneResources.scene} showLabel={showLabel} />;
+  // The supplied cars are authored at wildly different scales (metres, x100 and
+  // x0.03 across the seven archives), so normalise from each model's own bounds
+  // instead of carrying per-team fudge factors.
+  const normalized = useMemo(() => {
+    const scene = cloneResources.scene;
+    scene.scale.set(1, 1, 1);
+    scene.position.set(0, 0, 0);
+    const bounds = new Box3().setFromObject(scene);
+    const size = bounds.getSize(new Vector3());
+    const length = Math.max(size.x, size.z);
+    if (!Number.isFinite(length) || length <= 0) return scene;
+    const scale = CAR_LENGTH_METRES / length;
+    scene.scale.setScalar(scale);
+    // Re-measure after scaling so the car is centred laterally and its wheels
+    // sit on the road surface.
+    const scaled = new Box3().setFromObject(scene);
+    const centre = scaled.getCenter(new Vector3());
+    scene.position.set(-centre.x, -scaled.min.y, -centre.z);
+    return scene;
+  }, [cloneResources]);
+
+  return <AnimatedCar car={car} selected={selected} selectDriver={selectDriver} model={normalized} showLabel={showLabel} />;
 }
 
 class CarAssetBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {

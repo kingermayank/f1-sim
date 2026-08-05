@@ -10,7 +10,7 @@ function readGlbJson(path: string) {
 
 describe('asset registry', () => {
   it('exposes stable public paths for the shared race models and team liveries', () => {
-    expect(ASSETS.track).toBe('/assets/models/monaco-track.glb');
+    expect(ASSETS.track).toBe('/assets/models/shanghai-track.glb');
     expect(ASSETS.car).toBe('/assets/models/f1-car.glb');
     expect(ASSETS.teamTexture('ferrari')).toBe('/assets/textures/teams/ferrari.webp');
   });

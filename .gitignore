@@ -7,3 +7,9 @@ playwright-report/
 work/*
 !work/assets-source/
 !work/assets-source/**
+
+# Track only asset provenance metadata, never the multi-hundred-MB source
+# archives or their extracted originals. Originals stay on disk under
+# work/assets-source/ so licensing is auditable without bloating the repo.
+work/assets-source/incoming/
+work/assets-source/**/original/

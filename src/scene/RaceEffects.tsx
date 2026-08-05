@@ -2,12 +2,12 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { Color, InstancedMesh, Object3D, Vector3 } from 'three';
 import { useRaceStore } from '../store/race-store';
-import { MONACO_TRACK } from '../track/monaco-track';
+import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { createSplineTrack } from '../track/spline-track';
 
 export const EFFECT_POOL_CAPACITY = Object.freeze({ smoke: 32, sparks: 64, debris: 24 });
 
-const TRACK = createSplineTrack(MONACO_TRACK);
+const TRACK = createSplineTrack(SHANGHAI_TRACK);
 const dummy = new Object3D();
 const hiddenScale = new Vector3(0, 0, 0);
 

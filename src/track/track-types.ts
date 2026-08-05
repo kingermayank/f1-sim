@@ -14,6 +14,8 @@ export interface TrackZone {
 
 export interface CameraAnchor {
   id: string;
+  /** Human-readable shot name, shown when the director cuts to this camera. */
+  name: string;
   distance: number;
   position: TrackPoint;
   targetOffset: TrackPoint;

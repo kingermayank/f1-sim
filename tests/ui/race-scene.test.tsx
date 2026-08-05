@@ -154,12 +154,12 @@ it('replaces render-tree crashes with the accessible procedural fallback', () =>
   consoleError.mockRestore();
 });
 
-it('exposes all 22 cars as driver-selectable controls without WebGL', () => {
+it('exposes all 14 cars as driver-selectable controls without WebGL', () => {
   render(<App />);
 
   const driverControls = screen.getAllByRole('button', { name: /select .* car/i });
   expect(driverControls).toHaveLength(DRIVERS_2026.length);
-  expect(driverControls).toHaveLength(22);
+  expect(driverControls).toHaveLength(14);
   expect(driverControls[0]).toHaveAttribute('data-driver-id', DRIVERS_2026[0].id);
 
   fireEvent.click(driverControls[0]);
@@ -174,6 +174,7 @@ it('calculates distinct allocation-safe poses for broadcast, chase, cockpit, and
   };
   const anchor = {
     id: 'camera-test',
+    name: 'Camera Test',
     distance: 0.5,
     position: { x: 20, y: 12, z: 30 },
     targetOffset: { x: 0, y: 0.5, z: 0 },

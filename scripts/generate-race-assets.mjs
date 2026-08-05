@@ -160,7 +160,7 @@ async function writeLiveryTextures() {
   }
 }
 
-await exportGlb(createTrack(), 'monaco-track.glb');
+await exportGlb(createTrack(), 'shanghai-track.glb');
 await exportGlb(createCar(), 'f1-car.glb');
 await writeLiveryTextures();
 

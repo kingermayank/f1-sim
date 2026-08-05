@@ -7,7 +7,8 @@ const URGENT_INTERRUPT_SECONDS = 1;
 const REDUCED_MOTION_INTERRUPT_SECONDS = 2;
 const CLOSE_GAP_DISTANCE = 0.012;
 
-export type CameraDirectorMode = 'broadcast' | 'chase' | 'cockpit' | 'overhead' | 'free';
+export type CameraDirectorMode =
+  | 'broadcast' | 'trackside' | 'aerial' | 'drone' | 'chase' | 'cockpit' | 'overhead' | 'free';
 export type CameraDirectorEvent =
   | Exclude<RaceEvent, { type: 'incident' }>
   | (Readonly<Omit<Extract<RaceEvent, { type: 'incident' }>, 'driverIds'>> & {

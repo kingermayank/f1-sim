@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build, preview } from 'vite';
 
-const outputDirectory = await mkdtemp(join(tmpdir(), 'monaco-e2e-'));
+const outputDirectory = await mkdtemp(join(tmpdir(), 'shanghai-e2e-'));
 
 await build({ mode: 'e2e', build: { outDir: outputDirectory, emptyOutDir: true } });
 const server = await preview({

@@ -3,24 +3,20 @@ import { DEFAULT_RACE_CONFIG, parseRaceConfig } from '../../src/domain/race-conf
 import { parseRatings } from '../../src/domain/race-types';
 
 const expectedDrivers = [
-  ['George Russell', 63, 'mercedes'], ['Kimi Antonelli', 12, 'mercedes'],
   ['Charles Leclerc', 16, 'ferrari'], ['Lewis Hamilton', 44, 'ferrari'],
   ['Lando Norris', 1, 'mclaren'], ['Oscar Piastri', 81, 'mclaren'],
   ['Max Verstappen', 3, 'red-bull'], ['Isack Hadjar', 6, 'red-bull'],
   ['Liam Lawson', 30, 'racing-bulls'], ['Arvid Lindblad', 41, 'racing-bulls'],
   ['Pierre Gasly', 10, 'alpine'], ['Franco Colapinto', 43, 'alpine'],
-  ['Esteban Ocon', 31, 'haas'], ['Oliver Bearman', 87, 'haas'],
-  ['Nico Hulkenberg', 27, 'audi'], ['Gabriel Bortoleto', 5, 'audi'],
   ['Carlos Sainz', 55, 'williams'], ['Alexander Albon', 23, 'williams'],
   ['Fernando Alonso', 14, 'aston-martin'], ['Lance Stroll', 18, 'aston-martin'],
-  ['Sergio Perez', 11, 'cadillac'], ['Valtteri Bottas', 77, 'cadillac'],
 ] as const;
 
-it('contains 11 teams and 22 unique drivers', () => {
-  expect(TEAMS_2026).toHaveLength(11);
-  expect(DRIVERS_2026).toHaveLength(22);
-  expect(new Set(DRIVERS_2026.map((driver) => driver.id)).size).toBe(22);
-  expect(new Set(DRIVERS_2026.map((driver) => driver.number)).size).toBe(22);
+it('contains 7 teams and 14 unique drivers', () => {
+  expect(TEAMS_2026).toHaveLength(7);
+  expect(DRIVERS_2026).toHaveLength(14);
+  expect(new Set(DRIVERS_2026.map((driver) => driver.id)).size).toBe(14);
+  expect(new Set(DRIVERS_2026.map((driver) => driver.number)).size).toBe(14);
 });
 
 it('assigns exactly two drivers to every team', () => {
@@ -45,9 +41,9 @@ it('gives every driver their team display color and bounded ratings', () => {
   }
 });
 
-it('validates the 78-lap compressed default race', () => {
+it('validates the 56-lap compressed default race', () => {
   expect(parseRaceConfig(DEFAULT_RACE_CONFIG)).toMatchObject({
-    laps: 78,
+    laps: 56,
     presentationMinutes: 6,
     weather: 'sunny',
   });

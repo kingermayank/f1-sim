@@ -53,7 +53,7 @@ export interface Driver {
 
 export interface RaceConfig {
   seed: string;
-  laps: 78;
+  laps: 56;
   presentationMinutes: number;
   weather: Weather;
   /** Non-sunny races vary by default; sunny races opt in explicitly. */

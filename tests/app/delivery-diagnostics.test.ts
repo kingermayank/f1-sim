@@ -6,7 +6,7 @@ import { createRaceStore } from '../../src/store/race-store';
 beforeEach(() => {
   document.body.innerHTML = '<section class="race-viewport"><canvas></canvas></section>';
   window.history.replaceState(null, '', '/');
-  delete window.__MONACO_DIAGNOSTICS__;
+  delete window.__RACE_DIAGNOSTICS__;
 });
 
 it('exposes stable race, canvas, effects, and audio delivery diagnostics', () => {
@@ -24,7 +24,7 @@ it('exposes stable race, canvas, effects, and audio delivery diagnostics', () =>
   expect(diagnostics.snapshot()).toMatchObject({
     seed: DEFAULT_RACE_CONFIG.seed,
     phase: 'grid',
-    carCount: 22,
+    carCount: 14,
     canvasCount: 1,
     effects: { capacity: { smoke: 32, sparks: 64, debris: 24 }, active: 0 },
     audio: { contextState: 'uninitialized', ownedNodeCount: 0 },
@@ -42,7 +42,7 @@ it('exposes stable race, canvas, effects, and audio delivery diagnostics', () =>
   diagnostics.restartRace('scenario-0');
   expect(diagnostics.snapshot()).toMatchObject({ seed: 'scenario-0', phase: 'grid', tick: 0 });
   diagnostics.finishRace();
-  expect(diagnostics.snapshot()).toMatchObject({ phase: 'finished', carCount: 22 });
+  expect(diagnostics.snapshot()).toMatchObject({ phase: 'finished', carCount: 14 });
   expect(diagnostics.snapshot().scenario).toMatchObject({
     incidentCount: expect.any(Number),
     pitEntryCount: expect.any(Number),
@@ -55,11 +55,11 @@ it('installs diagnostics only with an explicit development query opt-in', () => 
   const audio = { getDiagnostics: () => ({ contextState: 'closed' as const, ownedNodeCount: 0, ownedSourceCount: 0, transientNodeCount: 0 }) };
 
   expect(installDeliveryDiagnostics(store, audio, false)).toBeUndefined();
-  expect(window.__MONACO_DIAGNOSTICS__).toBeUndefined();
+  expect(window.__RACE_DIAGNOSTICS__).toBeUndefined();
 
   window.history.replaceState(null, '', '/?diagnostics=1');
   const uninstall = installDeliveryDiagnostics(store, audio, true);
-  expect(window.__MONACO_DIAGNOSTICS__).toBeDefined();
+  expect(window.__RACE_DIAGNOSTICS__).toBeDefined();
   uninstall?.();
-  expect(window.__MONACO_DIAGNOSTICS__).toBeUndefined();
+  expect(window.__RACE_DIAGNOSTICS__).toBeUndefined();
 });

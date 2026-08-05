@@ -45,7 +45,7 @@ export function titleCase(value: string): string {
 export function formatRaceEvent(event: RaceEvent | ImmutableRaceEvent): string {
   const driver = 'driverId' in event ? driverById.get(event.driverId) : undefined;
   switch (event.type) {
-    case 'start': return 'The Monaco race is underway';
+    case 'start': return 'The Shanghai race is underway';
     case 'sector': return `${driver?.abbreviation ?? event.driverId} completed sector ${event.sector}`;
     case 'lap': return `${driver?.abbreviation ?? event.driverId} set a ${formatDuration(event.lapTime)} lap`;
     case 'overtake': return `${driverById.get(event.attackerId)?.abbreviation ?? event.attackerId} passed ${driverById.get(event.defenderId)?.abbreviation ?? event.defenderId} for P${event.position}`;

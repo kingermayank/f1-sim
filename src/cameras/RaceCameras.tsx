@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Box3, type Camera, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { raceStore, useRaceStore, type CameraMode, type RaceStoreState } from '../store/race-store';
 import type { CarState } from '../simulation/events';
-import { MONACO_TRACK } from '../track/monaco-track';
+import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { createSplineTrack } from '../track/spline-track';
 import type { CameraAnchor, TrackPoint, TrackTransform } from '../track/track-types';
 import {
@@ -92,7 +92,7 @@ export function measureProjectedBox(box: Box3, camera: Camera): ProjectedBoxMeas
 
 declare global {
   interface Window {
-    __MONACO_SCENE_DIAGNOSTICS__?: {
+    __RACE_SCENE_DIAGNOSTICS__?: {
       cameraMode: CameraMode;
       targetDriverId: string | null;
       targetDistance: number;
@@ -105,11 +105,35 @@ export function cameraBlendFactor(
   mode: CameraMode,
   reducedMotion: boolean,
   delta: number,
-  _broadcastCut: boolean,
+  broadcastCut: boolean,
 ): number {
   if (mode === 'broadcast') return 1;
-  const rate = mode === 'cockpit' ? 9 : mode === 'chase' ? 7.5 : reducedMotion ? 4.5 : 6;
+  // A fixed trackside camera should cut cleanly to its new position rather than
+  // fly across the circuit, so a pending cut snaps.
+  if (mode === 'trackside' && broadcastCut) return 1;
+  const rate = mode === 'cockpit' ? 9
+    : mode === 'chase' ? 7.5
+    : mode === 'trackside' ? (reducedMotion ? 6 : 9)
+    : mode === 'drone' ? (reducedMotion ? 3.2 : 4.2)
+    : mode === 'aerial' ? (reducedMotion ? 3.5 : 5)
+    : reducedMotion ? 4.5 : 6;
   return 1 - Math.exp(-Math.min(delta, 0.1) * rate);
+}
+
+/** Nearest curated trackside camera to a point on the lap. */
+export function nearestAnchorIndex(distance: number): number {
+  const anchors = SHANGHAI_TRACK.cameraAnchors;
+  let best = 0;
+  let bestGap = Number.POSITIVE_INFINITY;
+  for (let index = 0; index < anchors.length; index += 1) {
+    const raw = Math.abs(anchors[index].distance - distance);
+    const gap = Math.min(raw, 1 - raw);
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = index;
+    }
+  }
+  return best;
 }
 
 export function calculateTrackBounds(points: readonly TrackPoint[]): TrackBounds {
@@ -131,7 +155,7 @@ export function calculateTrackBounds(points: readonly TrackPoint[]): TrackBounds
   return { minX, maxX, minY, maxY, minZ, maxZ };
 }
 
-const TRACK_BOUNDS = calculateTrackBounds(MONACO_TRACK.centerLine);
+const TRACK_BOUNDS = calculateTrackBounds(SHANGHAI_TRACK.centerLine);
 
 function overheadClearance(bounds: TrackBounds, aspect: number, fov: number, margin: number): number {
   const verticalHalfAngle = (fov * Math.PI) / 360;
@@ -218,7 +242,7 @@ export function sampleCameraTrackInto(
   return output;
 }
 
-const TRACK_CACHE = createCameraTrackSampleCache(createSplineTrack(MONACO_TRACK));
+const TRACK_CACHE = createCameraTrackSampleCache(createSplineTrack(SHANGHAI_TRACK));
 const FREE_TARGET: [number, number, number] = [
   (TRACK_BOUNDS.minX + TRACK_BOUNDS.maxX) / 2,
   (TRACK_BOUNDS.minY + TRACK_BOUNDS.maxY) / 2,
@@ -262,6 +286,56 @@ function calculateCameraPoseInto(
       sample.z + sample.tangentZ * 0.5 + anchor.targetOffset.z,
     );
     output.fov = portrait ? 46 : 44;
+    return true;
+  }
+  if (mode === 'trackside') {
+    // A fixed camera at a curated Shanghai location. The lens tightens with
+    // distance so the car stays large from a stationary position.
+    const portrait = aspect < 0.8;
+    output.position.set(anchor.position.x, anchor.position.y, anchor.position.z);
+    output.target.set(
+      sample.x + anchor.targetOffset.x,
+      sample.y + anchor.targetOffset.y,
+      sample.z + anchor.targetOffset.z,
+    );
+    const range = Math.hypot(anchor.position.x - sample.x, anchor.position.z - sample.z);
+    output.fov = Math.min(portrait ? 40 : 36, Math.max(12, 1250 / Math.max(20, range)));
+    return true;
+  }
+  if (mode === 'aerial') {
+    // High oblique: the car sits low in frame with the corner ahead visible.
+    const portrait = aspect < 0.8;
+    output.position.set(
+      sample.x - sample.tangentX * 62,
+      sample.y + (portrait ? 118 : 96),
+      sample.z - sample.tangentZ * 62,
+    );
+    output.target.set(
+      sample.x + sample.tangentX * 26,
+      sample.y + anchor.targetOffset.y,
+      sample.z + sample.tangentZ * 26,
+    );
+    output.fov = portrait ? 46 : 40;
+    return true;
+  }
+  if (mode === 'drone') {
+    // Elevated follow, offset to one side so the car is not hidden by its own
+    // rear wing. The side alternates per anchor so successive shots vary.
+    const portrait = aspect < 0.8;
+    const side = Math.round(anchor.distance * 100) % 2 === 0 ? -1 : 1;
+    const lateralX = -sample.tangentZ * side;
+    const lateralZ = sample.tangentX * side;
+    output.position.set(
+      sample.x - sample.tangentX * 27 + lateralX * 15,
+      sample.y + 15.5,
+      sample.z - sample.tangentZ * 27 + lateralZ * 15,
+    );
+    output.target.set(
+      sample.x + sample.tangentX * 7,
+      sample.y + 1.15 + anchor.targetOffset.y,
+      sample.z + sample.tangentZ * 7,
+    );
+    output.fov = portrait ? 44 : 39;
     return true;
   }
   if (mode === 'cockpit') {
@@ -323,6 +397,8 @@ function trackedCar(cars: readonly CarState[], preferredId: string | null): CarS
 
 interface CameraRigState {
   shot: BroadcastShot;
+  /** Curated camera currently in use; trackside picks its own, others follow the shot. */
+  anchorIndex: number;
   lastCutAt: number;
   lastSeenEventTick: number;
   sample: MutableCameraTrackSample;
@@ -355,6 +431,7 @@ export function RaceCameras() {
         targetDriverId: trackedCar(state.snapshot.cars, state.selectedDriverId)?.driverId ?? null,
         secondaryDriverId: null, eventTick: null, anchorIndex: 0,
       },
+      anchorIndex: 0,
       lastCutAt: state.snapshot.elapsedSeconds - 10,
       lastSeenEventTick: -1,
       sample: { x: 0, y: 0, z: 0, tangentX: 0, tangentY: 0, tangentZ: 1 },
@@ -392,7 +469,7 @@ export function RaceCameras() {
           currentShot: current.shot,
           cameraMode,
           reducedMotion,
-          anchorCount: MONACO_TRACK.cameraAnchors.length,
+          anchorCount: SHANGHAI_TRACK.cameraAnchors.length,
           lastSeenEventTick: current.lastSeenEventTick,
         });
         current.lastSeenEventTick = newestBroadcastEventTick(state.eventFeed, current.lastSeenEventTick);
@@ -416,7 +493,14 @@ export function RaceCameras() {
         line,
         current.sample,
       );
-      const anchor = MONACO_TRACK.cameraAnchors[current.shot.anchorIndex % MONACO_TRACK.cameraAnchors.length];
+      // Trackside follows the curated camera closest to the car; the other
+      // modes ride the director's current shot.
+      const anchorIndex = cameraMode === 'trackside'
+        ? nearestAnchorIndex(line === 'pit' ? 0 : car.distance)
+        : current.shot.anchorIndex;
+      if (cameraMode === 'trackside' && anchorIndex !== current.anchorIndex) current.snapPending = true;
+      current.anchorIndex = anchorIndex;
+      const anchor = SHANGHAI_TRACK.cameraAnchors[anchorIndex % SHANGHAI_TRACK.cameraAnchors.length];
       current.hasPose = calculateCameraPoseInto(cameraMode, current.sample, anchor, aspect, current.pose);
     };
 
@@ -428,7 +512,13 @@ export function RaceCameras() {
     const current = rig.current!;
     if (!current.hasPose || cameraMode === 'free') return;
     const targetObject = current.targetDriverId ? scene.getObjectByName(`car-${current.targetDriverId}`) : undefined;
-    if (cameraMode === 'broadcast' && targetObject) {
+    // Modes that frame a car track the rendered object rather than the raw
+    // spline sample, so the subject stays centred as it moves between ticks.
+    const followsCar = cameraMode === 'broadcast'
+      || cameraMode === 'trackside'
+      || cameraMode === 'aerial'
+      || cameraMode === 'drone';
+    if (followsCar && targetObject) {
       targetObject.getWorldPosition(current.targetPosition);
       targetObject.getWorldQuaternion(current.targetQuaternion);
       current.targetTangent.set(0, 0, 1).applyQuaternion(current.targetQuaternion).normalize();
@@ -438,8 +528,8 @@ export function RaceCameras() {
       current.visualSample.tangentX = current.targetTangent.x;
       current.visualSample.tangentY = current.targetTangent.y;
       current.visualSample.tangentZ = current.targetTangent.z;
-      const anchor = MONACO_TRACK.cameraAnchors[current.shot.anchorIndex % MONACO_TRACK.cameraAnchors.length];
-      calculateCameraPoseInto('broadcast', current.visualSample, anchor, aspect, current.pose);
+      const anchor = SHANGHAI_TRACK.cameraAnchors[current.anchorIndex % SHANGHAI_TRACK.cameraAnchors.length];
+      calculateCameraPoseInto(cameraMode, current.visualSample, anchor, aspect, current.pose);
     }
     const damping = cameraBlendFactor(cameraMode, reducedMotion, delta, current.snapPending);
     current.desiredPosition.copy(current.pose.position);
@@ -466,7 +556,7 @@ export function RaceCameras() {
           targetDistance = camera.position.distanceTo(box.getCenter(new Vector3()));
         }
       }
-      window.__MONACO_SCENE_DIAGNOSTICS__ = {
+      window.__RACE_SCENE_DIAGNOSTICS__ = {
         cameraMode,
         targetDriverId: current.targetDriverId,
         targetDistance,

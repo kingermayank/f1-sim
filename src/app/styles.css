@@ -1,9 +1,37 @@
+/* Formula1 Display carries the broadcast branding and headings; MonoSpec is the
+   telemetry face for timing, gaps and any figure that must not reflow as it
+   ticks. Both are self-hosted WOFF2 and swap in over the system stack. */
+@font-face {
+  font-family: 'Formula1 Display';
+  src: url('/assets/fonts/formula1-display-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Formula1 Wide';
+  src: url('/assets/fonts/formula1-wide.woff2') format('woff2');
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'MonoSpec';
+  src: url('/assets/fonts/monospec-variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Formula1 Display', Inter, ui-sans-serif, system-ui, sans-serif;
   background: #05080d;
   color: #f6f7f9;
   font-synthesis: none;
+  --font-display: 'Formula1 Wide', 'Formula1 Display', 'Arial Narrow', ui-sans-serif, sans-serif;
+  --font-body: 'Formula1 Display', Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'MonoSpec', ui-monospace, SFMono-Regular, Menlo, monospace;
   --ink: #05080d;
   --panel: rgb(8 13 21 / 91%);
   --panel-solid: #0a1019;
@@ -22,7 +50,12 @@ button, select, a { -webkit-tap-highlight-color: transparent; }
 button { color: inherit; }
 button:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 button:disabled { cursor: not-allowed; opacity: .5; }
-code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd { font-variant-numeric: tabular-nums; }
+code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+.timing-row__position, .driver-panel__position { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 .app-shell { position: relative; min-height: 100vh; overflow: hidden; background: var(--ink); }
 .race-viewport { position: relative; width: 100%; min-height: 100vh; overflow: hidden; isolation: isolate; background: linear-gradient(165deg, #f5c782 0%, #86bad0 31%, #1c5d70 68%, #09242b 100%); }
@@ -37,11 +70,11 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd { font-varia
 .race-hud button, .race-hud select, .race-hud a, .race-hud__left, .race-hud__right, .race-header, .playback-controls, .finish-screen, .credits-panel, .more-panel { pointer-events: auto; }
 .race-header { position: absolute; top: .75rem; left: .75rem; right: .75rem; min-height: 4rem; display: grid; grid-template-columns: minmax(15rem, 1fr) auto minmax(15rem, 1fr); align-items: center; gap: 1rem; border: 1px solid var(--line); border-radius: .45rem; padding: .45rem .7rem; background: linear-gradient(115deg, rgb(5 9 15 / 94%), rgb(13 21 33 / 82%)); box-shadow: 0 1rem 3rem rgb(0 0 0 / 28%); backdrop-filter: blur(16px) saturate(130%); }
 .race-header__brand { display: flex; align-items: center; gap: .65rem; min-width: 0; }
-.race-header__mark { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; flex: none; border-radius: .25rem; background: var(--signal); color: #07100d; font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: 1.2rem; font-weight: 800; letter-spacing: -.05em; transform: skew(-6deg); }
+.race-header__mark { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; flex: none; border-radius: .25rem; background: var(--signal); color: #07100d; font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; letter-spacing: -.05em; transform: skew(-6deg); }
 .race-header__brand p, .race-meta span { margin: 0 0 .12rem; color: var(--muted); font-size: .6875rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
-.race-header__brand strong { display: block; overflow: hidden; font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: 1.12rem; letter-spacing: .03em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.race-header__brand strong { display: block; overflow: hidden; font-family: var(--font-display); font-size: 1.12rem; letter-spacing: .03em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
 .race-state { display: flex; align-items: center; justify-content: center; gap: .65rem; }
-.race-state > strong { font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: 1.3rem; letter-spacing: .04em; text-transform: uppercase; }
+.race-state > strong { font-family: var(--font-display); font-size: 1.3rem; letter-spacing: .04em; text-transform: uppercase; }
 .race-state__stat { min-width: 3.2rem; display: grid; color: #f1f4f7; font-size: .75rem; font-weight: 750; line-height: 1.1; white-space: nowrap; }
 .race-state__stat small { color: var(--muted); font-size: .6875rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .race-state__leader { max-width: 8.75rem; overflow: hidden; text-overflow: ellipsis; }
@@ -63,11 +96,11 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd { font-varia
 .timing-row::after { position: absolute; inset: 0; content: ''; opacity: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--team-color) 25%, transparent), transparent 65%); transition: opacity 140ms ease; }
 .timing-row:hover::after, .timing-row[aria-current='true']::after { opacity: 1; }
 .timing-row > * { position: relative; z-index: 1; }
-.timing-row__position { color: #d6dde6; font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: .92rem; font-weight: 700; }
+.timing-row__position { color: #d6dde6; font-family: var(--font-display); font-size: .92rem; font-weight: 700; }
 .timing-row__driver { min-width: 0; display: grid; }
-.timing-row__driver strong { font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: .92rem; letter-spacing: .06em; }
+.timing-row__driver strong { font-family: var(--font-display); font-size: .92rem; letter-spacing: .06em; }
 .timing-row__driver small { overflow: hidden; color: var(--muted); font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
-.fastest-lap { display: inline-grid; place-items: center; min-width: 1.2rem; min-height: 1.2rem; margin-left: .22rem; border-radius: 50%; background: #b966ff; color: #0a0610; font-family: Inter, ui-sans-serif, sans-serif; font-size: .6875rem; font-weight: 900; letter-spacing: -.04em; vertical-align: middle; }
+.fastest-lap { display: inline-grid; place-items: center; min-width: 1.2rem; min-height: 1.2rem; margin-left: .22rem; border-radius: 50%; background: #b966ff; color: #0a0610; font-family: var(--font-body); font-size: .6875rem; font-weight: 900; letter-spacing: -.04em; vertical-align: middle; }
 .timing-row__gap { justify-self: end; color: #f2f5f8; font-size: .72rem; font-weight: 700; }
 .timing-row__laps { display: grid; justify-self: end; color: #d2d8e0; font-size: .6875rem; }
 .timing-row__laps small { color: #9ca7b4; font-size: .6875rem; letter-spacing: .08em; }
@@ -80,10 +113,10 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd { font-varia
 .driver-panel, .track-map, .event-feed { overflow: hidden; border: 1px solid var(--line); border-radius: .45rem; background: var(--panel); box-shadow: 0 1rem 3rem rgb(0 0 0 / 20%); backdrop-filter: blur(16px) saturate(120%); }
 .driver-panel { border-top: .22rem solid var(--team-color); }
 .driver-panel__identity { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .6rem; padding: .75rem; }
-.driver-panel__position { color: var(--signal); font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: 1.5rem; font-weight: 700; }
+.driver-panel__position { color: var(--signal); font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; }
 .driver-panel__identity p { margin: 0; color: var(--muted); font-size: .6875rem; font-weight: 700; text-transform: uppercase; }
-.driver-panel__identity h2 { margin: .1rem 0 0; font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: 1.25rem; line-height: 1; text-transform: uppercase; }
-.driver-panel__identity > strong { color: color-mix(in srgb, var(--team-color) 80%, white); font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: 1.4rem; }
+.driver-panel__identity h2 { margin: .1rem 0 0; font-family: var(--font-display); font-size: 1.25rem; line-height: 1; text-transform: uppercase; }
+.driver-panel__identity > strong { color: color-mix(in srgb, var(--team-color) 80%, white); font-family: var(--font-display); font-size: 1.4rem; }
 .telemetry-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; border-top: 1px solid var(--line); }
 .telemetry-grid div { min-width: 0; padding: .55rem .65rem; border-right: 1px solid rgb(255 255 255 / 8%); border-bottom: 1px solid rgb(255 255 255 / 8%); }
 .telemetry-grid dt { margin-bottom: .18rem; color: #96a2b0; font-size: .6875rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
@@ -123,7 +156,7 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd { font-varia
 .credits-panel { width: min(64rem, 100%); max-height: min(48rem, calc(100vh - 4rem)); overflow: hidden; border: 1px solid var(--line); border-radius: .6rem; background: #0b111a; box-shadow: 0 2rem 6rem rgb(0 0 0 / 60%); }
 .credits-panel::backdrop, .finish-screen::backdrop, .more-panel::backdrop { background: rgb(1 3 6 / 78%); backdrop-filter: blur(10px); }
 .credits-panel > header { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--line); }
-.credits-panel h2 { margin: .25rem 0 0; font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: 2rem; text-transform: uppercase; }
+.credits-panel h2 { margin: .25rem 0 0; font-family: var(--font-display); font-size: 2rem; text-transform: uppercase; }
 .modal-close { width: 2.75rem; border: 1px solid var(--line); border-radius: 50%; background: transparent; cursor: pointer; font-size: 1.4rem; }
 .disclosure { margin: 1rem 1.5rem; border-left: .25rem solid var(--signal); padding: .25rem 1rem; }
 .disclosure strong { color: var(--signal); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
@@ -141,7 +174,7 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd { font-varia
 .finish-screen { position: fixed; z-index: 15; inset: 1.5rem; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: 1rem; border: 1px solid var(--line); border-radius: .65rem; padding: clamp(1rem, 3vw, 2.5rem); background: radial-gradient(circle at 70% 0, rgb(58 79 105 / 30%), transparent 32%), rgb(5 9 15 / 96%); box-shadow: 0 2rem 8rem #000; backdrop-filter: blur(20px); }
 .finish-screen header { text-align: center; }
 .finish-screen__eyebrow { margin: 0; color: var(--signal); font-size: .7rem; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
-.finish-screen h2 { margin: .25rem 0 0; font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: clamp(2.5rem, 6vw, 5rem); line-height: .9; text-transform: uppercase; }
+.finish-screen h2 { margin: .25rem 0 0; font-family: var(--font-display); font-size: clamp(2.5rem, 6vw, 5rem); line-height: .9; text-transform: uppercase; }
 .finish-screen header > p:last-child { margin: .65rem 0 0; color: #c5ced8; }
 .finish-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: .65rem; }
 .finish-facts p { display: grid; margin: 0; border: 1px solid var(--line); border-radius: .35rem; padding: .65rem .85rem; background: rgb(255 255 255 / 4%); }
@@ -164,7 +197,7 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd { font-varia
 .more-panel { position: fixed; z-index: 14; inset: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); width: min(48rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); margin: auto; overflow: auto; border: 1px solid var(--line); border-radius: .65rem; padding: 0; background: var(--panel-solid); color: inherit; box-shadow: 0 2rem 6rem rgb(0 0 0 / 62%); }
 .more-panel > header { position: sticky; z-index: 2; top: 0; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding: .8rem 1rem; background: var(--panel-solid); }
 .more-panel > header p { margin: 0 0 .18rem; color: var(--signal); font-size: .6875rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
-.more-panel h2 { margin: 0; font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: 1.45rem; text-transform: uppercase; }
+.more-panel h2 { margin: 0; font-family: var(--font-display); font-size: 1.45rem; text-transform: uppercase; }
 .more-panel__content { min-height: 18rem; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(16rem, .75fr); gap: .75rem; padding: .75rem; }
 .more-panel .track-map, .more-panel .event-feed { min-height: 18rem; }
 .more-panel .track-map svg { min-height: 15rem; }
@@ -205,7 +238,7 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd { font-varia
   .flag i { width: .62rem; height: .62rem; }
   .race-hud__left { z-index: 8; top: 9.9rem; bottom: 6.1rem; left: .5rem; width: min(22rem, calc(100vw - 1rem)); transform: translateX(calc(-100% - 1rem)); transition: transform 180ms ease; }
   .race-hud__left[data-open='true'] { transform: translateX(0); }
-  .timing-drawer-toggle { position: absolute; z-index: 9; top: 6.5rem; left: .5rem; min-width: 9rem; display: flex; align-items: center; justify-content: space-between; gap: .6rem; border: 1px solid var(--line); border-radius: .35rem; padding: 0 .7rem; background: var(--panel); cursor: pointer; font-family: 'Arial Narrow', ui-sans-serif, sans-serif; font-size: .8rem; text-transform: uppercase; backdrop-filter: blur(14px); }
+  .timing-drawer-toggle { position: absolute; z-index: 9; top: 6.5rem; left: .5rem; min-width: 9rem; display: flex; align-items: center; justify-content: space-between; gap: .6rem; border: 1px solid var(--line); border-radius: .35rem; padding: 0 .7rem; background: var(--panel); cursor: pointer; font-family: var(--font-display); font-size: .8rem; text-transform: uppercase; backdrop-filter: blur(14px); }
   .timing-drawer-toggle strong { color: var(--signal); font-size: .6875rem; }
   .timing-drawer-backdrop { position: absolute; z-index: 7; inset: 0; display: block; width: 100%; min-height: 100%; border: 0; padding: 0; background: rgb(1 3 6 / 70%); backdrop-filter: blur(5px); cursor: pointer; }
   .race-hud__right { top: 6.5rem; right: .5rem; bottom: auto; left: .5rem; width: auto; display: block; }

@@ -36,7 +36,7 @@ export interface DeliveryDiagnostics {
 
 declare global {
   interface Window {
-    __MONACO_DIAGNOSTICS__?: DeliveryDiagnostics;
+    __RACE_DIAGNOSTICS__?: DeliveryDiagnostics;
   }
 }
 
@@ -105,8 +105,8 @@ export function installDeliveryDiagnostics(
 ): (() => void) | undefined {
   if (!development || new URLSearchParams(window.location.search).get('diagnostics') !== '1') return undefined;
   const diagnostics = createDeliveryDiagnostics(store, audio);
-  window.__MONACO_DIAGNOSTICS__ = diagnostics;
+  window.__RACE_DIAGNOSTICS__ = diagnostics;
   return () => {
-    if (window.__MONACO_DIAGNOSTICS__ === diagnostics) delete window.__MONACO_DIAGNOSTICS__;
+    if (window.__RACE_DIAGNOSTICS__ === diagnostics) delete window.__RACE_DIAGNOSTICS__;
   };
 }

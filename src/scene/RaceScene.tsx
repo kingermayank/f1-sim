@@ -94,8 +94,8 @@ export function getRaceSceneStatus(input: SceneStatusInput): string {
     || input.assetsActive
     || input.assetsTotal === 0
     || input.assetsLoaded < input.assetsTotal
-  ) return 'Rendering Monaco race scene';
-  return isRaceSceneReady(input) ? 'Ready · 22 cars on the Monaco circuit' : 'Rendering Monaco race scene';
+  ) return 'Rendering Shanghai race scene';
+  return isRaceSceneReady(input) ? 'Ready · 14 cars on the Shanghai circuit' : 'Rendering Shanghai race scene';
 }
 
 export class SceneRenderBoundary extends Component<{

@@ -6,7 +6,7 @@ import { FinishScreen } from '../../src/ui/FinishScreen';
 
 it('presents final classification, race facts, incidents, and replay actions', () => {
   const cars = DRIVERS_2026.map((driver, index) => ({
-    driverId: driver.id, lap: 78, distance: 1, lateralOffset: 0, speed: 0,
+    driverId: driver.id, lap: 56, distance: 1, lateralOffset: 0, speed: 0,
     tire: { compound: 'hard' as const, wear: 0.7, temperature: 0.5 }, fuelFactor: 0,
     damage: 0, pitState: 'track' as const, pitProgress: 0, position: index + 1,
     timing: { lastLap: 74 + index / 10, bestLap: 72 + index / 10, totalTime: 5400 + index * 4 },
@@ -32,12 +32,12 @@ it('presents final classification, race facts, incidents, and replay actions', (
   expect(within(recap).getByText(/T\+4\.0s/i)).toBeVisible();
   expect(screen.getByRole('button', { name: 'Replay this seed' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Start with a new seed' })).toBeVisible();
-  expect(within(screen.getByRole('table', { name: 'Final classification' })).getAllByRole('row')).toHaveLength(23);
+  expect(within(screen.getByRole('table', { name: 'Final classification' })).getAllByRole('row')).toHaveLength(15);
 });
 
 it('uses official finish-time gaps and lap deficits for retired drivers', () => {
   const finisher = {
-    driverId: 'russell', lap: 78, distance: 1, lateralOffset: 0, speed: 0,
+    driverId: 'verstappen', lap: 56, distance: 1, lateralOffset: 0, speed: 0,
     tire: { compound: 'hard' as const, wear: 0.7, temperature: 0.5 }, fuelFactor: 0,
     damage: 0, pitState: 'track' as const, pitProgress: 0, position: 1,
     timing: { lastLap: 74, bestLap: 72, totalTime: 5400 }, targetLine: 'racing' as const,
@@ -47,8 +47,8 @@ it('uses official finish-time gaps and lap deficits for retired drivers', () => 
     seed: 'classified-seed', tick: 1000, elapsedSeconds: 5400, phase: 'finished', flag: 'green', weather: 'sunny', safetyCar: 'none',
     cars: [
       finisher,
-      { ...finisher, driverId: 'antonelli', position: 2, finishPosition: 2, timing: { ...finisher.timing, totalTime: 5406.25 } },
-      { ...finisher, driverId: 'leclerc', lap: 75, distance: 0.6, position: 3, speed: 0, status: 'retired' as const, finishPosition: undefined as never, retirementTick: 900 },
+      { ...finisher, driverId: 'hadjar', position: 2, finishPosition: 2, timing: { ...finisher.timing, totalTime: 5406.25 } },
+      { ...finisher, driverId: 'leclerc', lap: 53, distance: 0.6, position: 3, speed: 0, status: 'retired' as const, finishPosition: undefined as never, retirementTick: 900 },
     ],
     events: [{ type: 'retirement', tick: 900, driverId: 'leclerc', reason: 'mechanical' }],
   };

@@ -186,9 +186,9 @@ test.beforeEach(async ({ page }) => {
   });
 
   await page.goto('/?diagnostics=1');
-  await expect(page.getByRole('heading', { name: 'Monaco 2026 Simulation' })).toBeAttached();
+  await expect(page.getByRole('heading', { name: 'Shanghai 2026 Simulation' })).toBeAttached();
   await expect(page.getByRole('region', { name: '3D race viewport' })).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText('Ready · 22 cars on the Monaco circuit', { timeout: 20_000 });
+  await expect(page.getByRole('status')).toHaveText('Ready · 14 cars on the Shanghai circuit', { timeout: 20_000 });
   await expect.poll(() => runtime(page).then((snapshot) => snapshot.canvasCount)).toBe(1);
   await expect.poll(() => runtime(page).then((snapshot) => snapshot.failedAssetUrls)).toEqual([]);
 });
@@ -209,9 +209,9 @@ test.afterEach(async ({ page }, testInfo) => {
 
 async function runtime(page: Page): Promise<RuntimeSnapshot> {
   return page.evaluate(() => {
-    if (!window.__MONACO_DIAGNOSTICS__) throw new Error('Delivery diagnostics were not installed');
+    if (!window.__RACE_DIAGNOSTICS__) throw new Error('Delivery diagnostics were not installed');
     if (!window.__deliveryAudit__) throw new Error('Browser delivery audit was not installed');
-    return { ...window.__MONACO_DIAGNOSTICS__.snapshot(), ...window.__deliveryAudit__.snapshot() };
+    return { ...window.__RACE_DIAGNOSTICS__.snapshot(), ...window.__deliveryAudit__.snapshot() };
   });
 }
 
@@ -265,8 +265,8 @@ async function measureFrames(page: Page, milliseconds = 2_000) {
   }), milliseconds);
 }
 
-test('loads 22 drivers and supports following, cameras, pause, speeds, seeds, and credits', async ({ page }, testInfo) => {
-  await page.evaluate(() => window.__MONACO_DIAGNOSTICS__!.restartRace('e2e-ui-matrix'));
+test('loads 14 drivers and supports following, cameras, pause, speeds, seeds, and credits', async ({ page }, testInfo) => {
+  await page.evaluate(() => window.__RACE_DIAGNOSTICS__!.restartRace('e2e-ui-matrix'));
   await page.getByRole('button', { name: 'Pause race' }).click();
   await expect(page.getByRole('button', { name: 'Resume race' })).toHaveAttribute('aria-pressed', 'true');
   const pausedTick = (await runtime(page)).tick;
@@ -275,9 +275,9 @@ test('loads 22 drivers and supports following, cameras, pause, speeds, seeds, an
 
   const tower = await visibleTimingTower(page, testInfo);
   const followButtons = tower.getByRole('button', { name: /^Follow / });
-  await expect(followButtons).toHaveCount(22);
+  await expect(followButtons).toHaveCount(14);
   const driverControls = page.locator('[data-driver-id]');
-  await expect(driverControls).toHaveCount(22);
+  await expect(driverControls).toHaveCount(14);
   const followLabels = await followButtons.evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label')!));
 
   for (const followLabel of followLabels) {
@@ -298,7 +298,7 @@ test('loads 22 drivers and supports following, cameras, pause, speeds, seeds, an
   await followKimi.click();
   await expect(page.getByRole('heading', { name: 'Kimi Antonelli' })).toBeVisible();
   if (!testInfo.project.name.startsWith('mobile')) await expect(followKimi).toHaveAttribute('aria-current', 'true');
-  await expect(page.locator('[data-driver-id="antonelli"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-driver-id="hamilton"]')).toHaveAttribute('aria-pressed', 'true');
 
   for (const camera of ['Broadcast', 'Chase', 'Cockpit', 'Overhead', 'Free']) {
     const button = page.getByRole('button', { name: `${camera} camera` });
@@ -314,7 +314,7 @@ test('loads 22 drivers and supports following, cameras, pause, speeds, seeds, an
   }
 
   const originalSeed = await simulationSeed(page);
-  await page.evaluate(() => window.__MONACO_DIAGNOSTICS__!.advanceRace(30));
+  await page.evaluate(() => window.__RACE_DIAGNOSTICS__!.advanceRace(30));
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Replay seed' }).click();
   await expect(page.getByLabel('Current lap')).toContainText('Lap 1 / 78');
@@ -336,9 +336,9 @@ test('loads 22 drivers and supports following, cameras, pause, speeds, seeds, an
 
   if (testInfo.project.name.startsWith('mobile')) {
     await openMorePanel(page, testInfo);
-    await expect(page.getByRole('img', { name: 'Monaco circuit position map' })).toBeAttached();
+    await expect(page.getByRole('img', { name: 'Shanghai circuit position map' })).toBeAttached();
     await expect(page.getByRole('list', { name: 'Driver track positions' })).toBeAttached();
-    await expect(page.getByTestId('track-map-marker')).toHaveCount(22);
+    await expect(page.getByTestId('track-map-marker')).toHaveCount(14);
     await page.getByRole('button', { name: 'Close more race information' }).click();
   }
 });
@@ -351,7 +351,7 @@ test('persists preferences across reloads', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: 'Enable reduced motion' }).click();
   await page.getByLabel('Scene detail').selectOption('mobile');
   await page.reload();
-  await expect(page.getByRole('status')).toHaveText('Ready · 22 cars on the Monaco circuit', { timeout: 20_000 });
+  await expect(page.getByRole('status')).toHaveText('Ready · 14 cars on the Shanghai circuit', { timeout: 20_000 });
 
   await expect(page.getByRole('button', { name: 'Cockpit camera' })).toHaveAttribute('aria-pressed', 'true');
   await openMorePanel(page, testInfo);
@@ -362,7 +362,7 @@ test('persists preferences across reloads', async ({ page }, testInfo) => {
 });
 
 test('finishes quickly through the diagnostics boundary and exposes replay actions', async ({ page }) => {
-  await page.evaluate(() => window.__MONACO_DIAGNOSTICS__!.finishRace());
+  await page.evaluate(() => window.__RACE_DIAGNOSTICS__!.finishRace());
   const finish = page.getByRole('dialog', { name: 'Race complete' });
   await expect(finish).toBeVisible({ timeout: 20_000 });
   await expect(page.getByLabel('Current lap')).toContainText('Lap 78 / 78');
@@ -374,14 +374,14 @@ test('finishes quickly through the diagnostics boundary and exposes replay actio
   await expect(page.getByLabel('Current lap')).toContainText('Lap 1 / 78');
   expect(await simulationSeed(page)).toBe(seed);
 
-  await page.evaluate(() => window.__MONACO_DIAGNOSTICS__!.finishRace());
+  await page.evaluate(() => window.__RACE_DIAGNOSTICS__!.finishRace());
   await page.getByRole('button', { name: 'Start with a new seed' }).click();
   await expect.poll(() => simulationSeed(page)).not.toBe(seed);
 });
 
 test('replays deterministic pit, safety-car, and incident delivery scenarios', async ({ page }, testInfo) => {
   const safetyCheckpoint = await page.evaluate(() => {
-    const diagnostics = window.__MONACO_DIAGNOSTICS__!;
+    const diagnostics = window.__RACE_DIAGNOSTICS__!;
     diagnostics.restartRace('scenario-0');
     for (let second = 0; second < 400; second += 1) {
       diagnostics.advanceRace(1);
@@ -400,7 +400,7 @@ test('replays deterministic pit, safety-car, and incident delivery scenarios', a
   await page.getByRole('button', { name: 'Resume race' }).click();
 
   const activePitCheckpoint = await page.evaluate(() => {
-    const diagnostics = window.__MONACO_DIAGNOSTICS__!;
+    const diagnostics = window.__RACE_DIAGNOSTICS__!;
     diagnostics.restartRace('scenario-0');
     for (let second = 0; second < 400; second += 1) {
       diagnostics.advanceRace(1);
@@ -413,13 +413,13 @@ test('replays deterministic pit, safety-car, and incident delivery scenarios', a
   expect(activePitCheckpoint.pitEntryCount).toBeGreaterThan(0);
 
   const first = await page.evaluate(() => {
-    window.__MONACO_DIAGNOSTICS__!.finishRace();
-    return window.__MONACO_DIAGNOSTICS__!.snapshot().scenario;
+    window.__RACE_DIAGNOSTICS__!.finishRace();
+    return window.__RACE_DIAGNOSTICS__!.snapshot().scenario;
   });
   const replay = await page.evaluate(() => {
-    window.__MONACO_DIAGNOSTICS__!.restartRace('scenario-0');
-    window.__MONACO_DIAGNOSTICS__!.finishRace();
-    return window.__MONACO_DIAGNOSTICS__!.snapshot().scenario;
+    window.__RACE_DIAGNOSTICS__!.restartRace('scenario-0');
+    window.__RACE_DIAGNOSTICS__!.finishRace();
+    return window.__RACE_DIAGNOSTICS__!.snapshot().scenario;
   });
   expect(replay).toEqual(first);
   expect(first).toMatchObject({
@@ -477,7 +477,7 @@ test('keeps canvas, listeners, audio, and effect pools steady over five restarts
 
   await page.getByRole('button', { name: 'Resume race' }).click();
   const start = await measureFrames(page);
-  await page.evaluate(() => window.__MONACO_DIAGNOSTICS__!.advanceRace(150));
+  await page.evaluate(() => window.__RACE_DIAGNOSTICS__!.advanceRace(150));
   const advanced = await measureFrames(page);
   const target = testInfo.project.name.startsWith('mobile') ? 30 : 60;
   console.log(`PERF ${testInfo.project.name} start=${start.fps.toFixed(1)}fps/${start.p95Ms.toFixed(1)}ms-p95 advanced=${advanced.fps.toFixed(1)}fps/${advanced.p95Ms.toFixed(1)}ms-p95`);

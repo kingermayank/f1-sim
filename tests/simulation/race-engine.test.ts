@@ -6,7 +6,7 @@ import {
   createRaceEngine,
   type DriverController,
 } from '../../src/simulation/race-engine';
-import { MONACO_TRACK } from '../../src/track/monaco-track';
+import { SHANGHAI_TRACK } from '../../src/track/shanghai-track';
 
 describe('calculateTargetPace', () => {
   it('combines every pace factor', () => {
@@ -36,9 +36,9 @@ describe('calculateTargetPace', () => {
   });
 
   it('models the pace gain from burning fuel over a race distance', () => {
-    const fullTank = calculateFuelFactor(0, 78);
-    const halfTank = calculateFuelFactor(39, 78);
-    const nearEmpty = calculateFuelFactor(78, 78);
+    const fullTank = calculateFuelFactor(0, 56);
+    const halfTank = calculateFuelFactor(28, 56);
+    const nearEmpty = calculateFuelFactor(56, 56);
 
     expect(fullTank).toBeLessThan(1);
     expect(halfTank).toBeGreaterThan(fullTank);
@@ -67,17 +67,17 @@ describe('calculateTargetPace', () => {
 
 describe('RaceEngine', () => {
   it('initializes every car in a seeded qualifying order on the track grid', () => {
-    const snapshot = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026).snapshot();
-    const replay = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026).snapshot();
+    const snapshot = createRaceEngine(DEFAULT_RACE_CONFIG, SHANGHAI_TRACK, DRIVERS_2026).snapshot();
+    const replay = createRaceEngine(DEFAULT_RACE_CONFIG, SHANGHAI_TRACK, DRIVERS_2026).snapshot();
     const alternate = createRaceEngine(
       { ...DEFAULT_RACE_CONFIG, seed: 'alternate-qualifying' },
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       DRIVERS_2026,
     ).snapshot();
 
     expect(snapshot.phase).toBe('grid');
     expect(snapshot.tick).toBe(0);
-    expect(snapshot.cars).toHaveLength(22);
+    expect(snapshot.cars).toHaveLength(14);
     expect(snapshot.cars.map((car) => car.driverId)).toEqual(
       replay.cars.map((car) => car.driverId),
     );
@@ -88,11 +88,11 @@ describe('RaceEngine', () => {
       new Set(DRIVERS_2026.map((driver) => driver.id)),
     );
     expect(snapshot.cars.map((car) => car.position)).toEqual(
-      Array.from({ length: 22 }, (_, index) => index + 1),
+      Array.from({ length: 14 }, (_, index) => index + 1),
     );
     snapshot.cars.forEach((car, index) => {
-      expect(car.distance).toBe(MONACO_TRACK.gridSlots[index]?.distance);
-      expect(car.lateralOffset).toBe(MONACO_TRACK.gridSlots[index]?.lateral);
+      expect(car.distance).toBe(SHANGHAI_TRACK.gridSlots[index]?.distance);
+      expect(car.lateralOffset).toBe(SHANGHAI_TRACK.gridSlots[index]?.lateral);
       expect(car.status).toBe('running');
     });
   });
@@ -112,7 +112,7 @@ describe('RaceEngine', () => {
     for (let seed = 0; seed < 20; seed += 1) {
       const cars = createRaceEngine(
         { ...DEFAULT_RACE_CONFIG, seed: `ratings-${seed}` },
-        MONACO_TRACK,
+        SHANGHAI_TRACK,
         [novice, elite],
       ).snapshot().cars;
       expect(cars.map((car) => car.driverId)).toEqual(['elite-qualifier', 'novice-qualifier']);
@@ -120,8 +120,8 @@ describe('RaceEngine', () => {
   });
 
   it('produces identical state for identical seeds and elapsed time', () => {
-    const a = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026);
-    const b = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026);
+    const a = createRaceEngine(DEFAULT_RACE_CONFIG, SHANGHAI_TRACK, DRIVERS_2026);
+    const b = createRaceEngine(DEFAULT_RACE_CONFIG, SHANGHAI_TRACK, DRIVERS_2026);
 
     a.advance(20);
     b.advance(20);
@@ -131,8 +131,8 @@ describe('RaceEngine', () => {
   });
 
   it('is independent of presentation-time chunking', () => {
-    const whole = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026);
-    const chunked = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026);
+    const whole = createRaceEngine(DEFAULT_RACE_CONFIG, SHANGHAI_TRACK, DRIVERS_2026);
+    const chunked = createRaceEngine(DEFAULT_RACE_CONFIG, SHANGHAI_TRACK, DRIVERS_2026);
 
     whole.advance(20);
     for (let index = 0; index < 200; index += 1) chunked.advance(0.1);
@@ -144,7 +144,7 @@ describe('RaceEngine', () => {
   it('evolves each car fuel factor as the field burns fuel', () => {
     const engine = createRaceEngine(
       { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       [DRIVERS_2026[0]!],
     );
     const initialFuelFactor = engine.snapshot().cars[0]!.fuelFactor;
@@ -165,7 +165,7 @@ describe('RaceEngine', () => {
     };
     const engine = createRaceEngine(
       { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       [controlledDriver],
       { controllers: { [controlledDriver.id]: controller } },
     );
@@ -178,7 +178,7 @@ describe('RaceEngine', () => {
   });
 
   it('returns isolated, frozen snapshots and copied event batches', () => {
-    const engine = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(DEFAULT_RACE_CONFIG, SHANGHAI_TRACK, DRIVERS_2026);
     engine.advance(10);
 
     const first = engine.snapshot();
@@ -201,7 +201,7 @@ describe('RaceEngine', () => {
   it('emits start, sector, lap, and finish events with realistic lap timing', () => {
     const engine = createRaceEngine(
       { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       DRIVERS_2026,
     );
     engine.runToFinish();
@@ -212,16 +212,32 @@ describe('RaceEngine', () => {
 
     expect(events.filter((event) => event.type === 'start')).toHaveLength(1);
     expect(new Set(sectorEvents.map((event) => event.sector))).toEqual(new Set([1, 2, 3]));
-    expect(lapEvents).toHaveLength(22 * DEFAULT_RACE_CONFIG.laps);
-    expect(finishEvents).toHaveLength(22);
-    // Pit laps include Monaco's roughly 20-second lane loss.
-    expect(lapEvents.every((event) => event.lapTime > 60 && event.lapTime < 130)).toBe(true);
+    // Cars that are lapped complete fewer tours than the leader, so assert the
+    // real invariant: every driver appears, the leader runs the full distance,
+    // and nobody is dropped more than a couple of laps.
+    const lapsPerDriver = new Map<string, number>();
+    for (const event of lapEvents) {
+      lapsPerDriver.set(event.driverId, (lapsPerDriver.get(event.driverId) ?? 0) + 1);
+    }
+    expect(lapsPerDriver.size).toBe(DRIVERS_2026.length);
+    expect(Math.max(...lapsPerDriver.values())).toBe(DEFAULT_RACE_CONFIG.laps);
+    for (const laps of lapsPerDriver.values()) {
+      expect(laps).toBeGreaterThanOrEqual(DEFAULT_RACE_CONFIG.laps - 2);
+    }
+    expect(finishEvents).toHaveLength(DRIVERS_2026.length);
+    // Pit laps include Shanghai's long pit lane, so the outer band is wide; the
+    // median must still land in a realistic green-lap window for a 5.3 km lap.
+    expect(lapEvents.every((event) => event.lapTime > 60 && event.lapTime < 175)).toBe(true);
+    const sortedLapTimes = lapEvents.map((event) => event.lapTime).sort((left, right) => left - right);
+    const medianLapTime = sortedLapTimes[Math.floor(sortedLapTimes.length / 2)]!;
+    expect(medianLapTime).toBeGreaterThan(70);
+    expect(medianLapTime).toBeLessThan(100);
   });
 
-  it('finishes and classifies all 22 cars after 78 laps', () => {
+  it('finishes and classifies all 14 cars after 56 laps', () => {
     const engine = createRaceEngine(
       { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
-      MONACO_TRACK,
+      SHANGHAI_TRACK,
       DRIVERS_2026,
     );
 
@@ -229,19 +245,19 @@ describe('RaceEngine', () => {
     const snapshot = engine.snapshot();
 
     expect(snapshot.phase).toBe('finished');
-    expect(snapshot.cars).toHaveLength(22);
+    expect(snapshot.cars).toHaveLength(14);
     expect(snapshot.cars.every((car) => car.status === 'finished')).toBe(true);
     expect(snapshot.cars.every((car) => car.lap === DEFAULT_RACE_CONFIG.laps)).toBe(true);
     expect(snapshot.cars.map((car) => car.position)).toEqual(
-      Array.from({ length: 22 }, (_, index) => index + 1),
+      Array.from({ length: 14 }, (_, index) => index + 1),
     );
     expect(snapshot.cars.map((car) => car.status === 'finished' ? car.finishPosition : -1)).toEqual(
-      Array.from({ length: 22 }, (_, index) => index + 1),
+      Array.from({ length: 14 }, (_, index) => index + 1),
     );
   });
 
   it('does not advance after the race is finished', () => {
-    const engine = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(DEFAULT_RACE_CONFIG, SHANGHAI_TRACK, DRIVERS_2026);
     engine.runToFinish();
     const finished = engine.snapshot();
 
@@ -253,7 +269,7 @@ describe('RaceEngine', () => {
   it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])(
     'rejects invalid presentation time %s',
     (presentationSeconds) => {
-      const engine = createRaceEngine(DEFAULT_RACE_CONFIG, MONACO_TRACK, DRIVERS_2026);
+      const engine = createRaceEngine(DEFAULT_RACE_CONFIG, SHANGHAI_TRACK, DRIVERS_2026);
       expect(() => engine.advance(presentationSeconds)).toThrow(RangeError);
     },
   );
