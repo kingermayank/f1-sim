@@ -10,11 +10,19 @@ export interface RaceAudioDependencies {
   createContext(): AudioContext;
 }
 
+export interface RaceAudioDiagnostics {
+  contextState: AudioContextState | 'uninitialized';
+  ownedNodeCount: number;
+  ownedSourceCount: number;
+  transientNodeCount: number;
+}
+
 export interface RaceAudioController {
   resume(): Promise<boolean>;
   update(snapshot: Readonly<RaceState>, selectedDriverId: string | null): void;
   handleEvents(events: readonly RaceEvent[]): void;
   setMuted(muted: boolean): void;
+  getDiagnostics(): RaceAudioDiagnostics;
   dispose(): Promise<void>;
 }
 
@@ -241,6 +249,15 @@ export function createRaceAudioController(
     setMuted(nextMuted): void {
       muted = nextMuted;
       if (context && masterGain) setSmooth(masterGain.gain, muted ? 0 : MASTER_GAIN, context.currentTime, 0.035);
+    },
+
+    getDiagnostics(): RaceAudioDiagnostics {
+      return {
+        contextState: context?.state ?? (disposed ? 'closed' : 'uninitialized'),
+        ownedNodeCount: ownedNodes.size,
+        ownedSourceCount: ownedSources.size,
+        transientNodeCount: transientCleanups.size,
+      };
     },
 
     async dispose(): Promise<void> {

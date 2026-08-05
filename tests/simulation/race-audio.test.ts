@@ -100,6 +100,33 @@ function setupController() {
 }
 
 describe('RaceAudioController', () => {
+  it('reports bounded public diagnostics before, during, and after audio use', async () => {
+    const { controller } = setupController();
+
+    expect(controller.getDiagnostics()).toEqual({
+      contextState: 'uninitialized',
+      ownedNodeCount: 0,
+      ownedSourceCount: 0,
+      transientNodeCount: 0,
+    });
+
+    await controller.resume();
+    expect(controller.getDiagnostics()).toMatchObject({
+      contextState: 'running',
+      ownedNodeCount: 10,
+      ownedSourceCount: 4,
+      transientNodeCount: 0,
+    });
+
+    await controller.dispose();
+    expect(controller.getDiagnostics()).toEqual({
+      contextState: 'closed',
+      ownedNodeCount: 0,
+      ownedSourceCount: 0,
+      transientNodeCount: 0,
+    });
+  });
+
   it('creates one audio context only after explicit resume', async () => {
     const { context, controller, factory } = setupController();
 

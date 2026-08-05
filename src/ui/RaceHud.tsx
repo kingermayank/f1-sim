@@ -31,10 +31,10 @@ export function RaceHud() {
         <div className="race-header__brand"><span className="race-header__mark" aria-hidden="true">MC</span><div><p>Principauté de Monaco · 2026</p><strong>Harbor Grand Prix</strong></div></div>
         <div className="race-state">
           <span className={`flag flag--${snapshot.flag}`} aria-label={`Race flag: ${titleCase(snapshot.flag)}`}><i aria-hidden="true" />{titleCase(snapshot.flag)}</span>
-          <strong>Lap {currentLap} / 78</strong>
+          <strong aria-label="Current lap">Lap {currentLap} / 78</strong>
           <span>{titleCase(snapshot.weather)} · 24°C</span>
         </div>
-        <div className="race-meta"><span>Simulation seed</span><code>{snapshot.seed}</code><button type="button" onClick={() => setCreditsOpen(true)} aria-label="Open credits and disclosure">Credits</button></div>
+        <div className="race-meta"><span>Simulation seed</span><code aria-label="Simulation seed">{snapshot.seed}</code><button type="button" onClick={() => setCreditsOpen(true)} aria-label="Open credits and disclosure">Credits</button></div>
       </header>
 
       <button type="button" className="timing-drawer-toggle" aria-label="Toggle timing tower" aria-expanded={timingOpen} aria-controls={!compactLayout || timingOpen ? 'timing-drawer' : undefined} onClick={() => setTimingOpen((value) => !value)}><span>Classification</span><strong>{timingOpen ? 'Close' : 'P1–P22'}</strong></button>

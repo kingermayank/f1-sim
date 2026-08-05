@@ -73,8 +73,8 @@ describe('RaceHud', () => {
     render(<RaceHud />);
 
     expect(screen.getByLabelText(/race flag/i)).toHaveTextContent('Green');
-    expect(screen.getByText(/Lap 1 \/ 78/i)).toBeVisible();
-    expect(screen.getByText(DEFAULT_RACE_CONFIG.seed)).toBeVisible();
+    expect(screen.getByLabelText('Current lap')).toHaveTextContent('Lap 1 / 78');
+    expect(screen.getByLabelText('Simulation seed')).toHaveTextContent(DEFAULT_RACE_CONFIG.seed);
     expect(screen.getByRole('log', { name: 'Race events' })).toHaveAttribute('aria-live', 'off');
     expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByRole('img', { name: 'Monaco circuit position map' })).toBeVisible();
