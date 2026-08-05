@@ -78,4 +78,3 @@ export function evaluateIncident(input: IncidentInput, prng: Prng): IncidentDeci
     safetyCar: major && prng.chance(0.55),
   };
 }
-

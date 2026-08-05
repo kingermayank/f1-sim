@@ -60,4 +60,3 @@ export function updateTire(
     grip: clamp(profile.peakGrip - temperaturePenalty - ordinaryWearPenalty - cliffPenalty, 0.68, 1.03),
   };
 }
-

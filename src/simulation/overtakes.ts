@@ -30,4 +30,3 @@ export function evaluateOvertake(input: OvertakeInput, prng: Prng): OvertakeDeci
   if (prng.chance(passChance)) return 'pass';
   return prng.chance(0.55) ? 'attack' : 'failed';
 }
-

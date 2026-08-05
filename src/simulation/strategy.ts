@@ -66,4 +66,3 @@ export function shouldPit(stop: StrategyStop, situation: StrategySituation): boo
   if (situation.trafficSeconds < 0.7 && situation.lap < stop.targetLap + 2) return false;
   return situation.lap >= stop.targetLap;
 }
-
