@@ -5,7 +5,7 @@ function ControlIcon({ children }: { children: React.ReactNode }) {
   return <span className="control-icon" aria-hidden="true">{children}</span>;
 }
 
-export function PlaybackControls() {
+export function PlaybackControls({ onOpenCredits }: { onOpenCredits(): void }) {
   const snapshot = useRaceStore((state) => state.snapshot);
   const isPaused = useRaceStore((state) => state.isPaused);
   const speed = useRaceStore((state) => state.speed);
@@ -51,6 +51,7 @@ export function PlaybackControls() {
         <button type="button" aria-label={audioMuted ? 'Unmute audio' : 'Mute audio'} aria-pressed={audioMuted} onClick={toggleAudio}>{audioMuted ? 'Muted' : 'Audio'}</button>
         <button type="button" aria-label={reducedMotion ? 'Disable reduced motion' : 'Enable reduced motion'} aria-pressed={reducedMotion} onClick={toggleReducedMotion}>Motion</button>
         <label className="quality-control"><span>Quality</span><select aria-label="Scene detail" value={qualityMode} onChange={(event) => setQualityMode(event.target.value as QualityMode)}><option value="auto">Auto</option><option value="high">High</option><option value="mobile">Low</option></select></label>
+        <button type="button" aria-label="Open credits and disclosure from controls" onClick={onOpenCredits}>Credits</button>
       </div>
     </nav>
   );

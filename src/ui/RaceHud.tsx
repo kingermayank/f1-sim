@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRaceStore } from '../store/race-store';
 import { CreditsPanel } from './CreditsPanel';
 import { DriverPanel } from './DriverPanel';
@@ -12,6 +12,12 @@ import { titleCase } from './formatters';
 export function RaceHud() {
   const [timingOpen, setTimingOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  const [compactLayout, setCompactLayout] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 760);
+  useEffect(() => {
+    const update = () => setCompactLayout(window.innerWidth <= 760);
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
   const snapshot = useRaceStore((state) => state.snapshot);
   const eventFeed = useRaceStore((state) => state.eventFeed);
   const selectedDriverId = useRaceStore((state) => state.selectedDriverId);
@@ -32,9 +38,11 @@ export function RaceHud() {
       </header>
 
       <button type="button" className="timing-drawer-toggle" aria-label="Toggle timing tower" aria-expanded={timingOpen} aria-controls="timing-drawer" onClick={() => setTimingOpen((value) => !value)}><span>Classification</span><strong>{timingOpen ? 'Close' : 'P1–P22'}</strong></button>
-      <aside id="timing-drawer" className="race-hud__left" data-open={timingOpen}>
-        <Leaderboard snapshot={snapshot} selectedDriverId={selectedDriverId} onSelect={(id) => { selectDriver(id); setTimingOpen(false); }} />
-      </aside>
+      {(!compactLayout || timingOpen) && (
+        <aside id="timing-drawer" className="race-hud__left" data-open={timingOpen}>
+          <Leaderboard snapshot={snapshot} selectedDriverId={selectedDriverId} onSelect={(id) => { selectDriver(id); setTimingOpen(false); }} />
+        </aside>
+      )}
 
       <aside className="race-hud__right">
         <DriverPanel snapshot={snapshot} selectedDriverId={selectedDriverId} />
@@ -42,7 +50,7 @@ export function RaceHud() {
         <EventFeed events={eventFeed} />
       </aside>
 
-      <PlaybackControls />
+      <PlaybackControls onOpenCredits={() => setCreditsOpen(true)} />
       {snapshot.phase === 'finished' && <FinishScreen snapshot={snapshot} onReplay={replaySeed} onNewRace={() => restart()} />}
       <CreditsPanel open={creditsOpen} onClose={() => setCreditsOpen(false)} />
     </div>

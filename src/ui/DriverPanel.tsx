@@ -2,6 +2,11 @@ import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import type { RaceState } from '../simulation/events';
 import { getClassification, getIntervals } from '../simulation/selectors';
 import { formatDuration, titleCase } from './formatters';
+import { MONACO_TRACK } from '../track/monaco-track';
+
+export function driverSpeedKph(normalizedLapsPerSecond: number): number {
+  return normalizedLapsPerSecond * MONACO_TRACK.lengthMeters * 3.6;
+}
 
 export function DriverPanel({ snapshot, selectedDriverId }: {
   snapshot: Readonly<RaceState>;
@@ -23,7 +28,7 @@ export function DriverPanel({ snapshot, selectedDriverId }: {
       </div>
       <dl className="telemetry-grid">
         <div><dt>Interval</dt><dd>{position === 1 ? 'Leader' : `+${(intervals.get(driver.id) ?? 0).toFixed(3)}`}</dd></div>
-        <div><dt>Speed</dt><dd>{Math.round(car.speed * 3337 * 3600)} <small>km/h</small></dd></div>
+        <div><dt>Speed</dt><dd>{Math.round(driverSpeedKph(car.speed))} <small>km/h</small></dd></div>
         <div><dt>Last lap</dt><dd>{formatDuration(car.timing.lastLap)}</dd></div>
         <div><dt>Best lap</dt><dd>{formatDuration(car.timing.bestLap)}</dd></div>
         <div><dt>Tire</dt><dd>{titleCase(car.tire.compound)} · {Math.round(car.tire.wear * 100)}%</dd></div>

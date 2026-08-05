@@ -1,13 +1,23 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
 import { DEFAULT_RACE_CONFIG } from '../../src/domain/race-config';
 import { raceStore } from '../../src/store/race-store';
 import { RaceHud } from '../../src/ui/RaceHud';
+import { driverSpeedKph } from '../../src/ui/DriverPanel';
+import { eventKey, EventFeed } from '../../src/ui/EventFeed';
 
 describe('RaceHud', () => {
   beforeEach(() => raceStore.getState().restart(DEFAULT_RACE_CONFIG.seed));
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
+    window.dispatchEvent(new Event('resize'));
+  });
+
+  it('converts normalized laps per second to sane kilometers per hour', () => {
+    expect(driverSpeedKph(0.02)).toBeCloseTo(240.264, 3);
+  });
 
   it('shows complete timing for all 22 drivers and selects a driver', async () => {
     const user = userEvent.setup();
@@ -58,7 +68,8 @@ describe('RaceHud', () => {
     expect(screen.getByLabelText(/race flag/i)).toHaveTextContent('Green');
     expect(screen.getByText(/Lap 1 \/ 78/i)).toBeVisible();
     expect(screen.getByText(DEFAULT_RACE_CONFIG.seed)).toBeVisible();
-    expect(screen.getByRole('log', { name: 'Race events' })).toHaveAttribute('aria-live', 'polite');
+    expect(screen.getByRole('log', { name: 'Race events' })).toHaveAttribute('aria-live', 'off');
+    expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveAttribute('aria-live', 'polite');
     expect(screen.getByRole('img', { name: 'Monaco circuit position map' })).toBeVisible();
     expect(screen.getAllByTestId('track-map-marker')).toHaveLength(DRIVERS_2026.length);
     expect(screen.getByRole('list', { name: 'Driver track positions' })).toHaveClass('visually-hidden');
@@ -68,6 +79,10 @@ describe('RaceHud', () => {
     expect(within(credits).getByText(/generated simulation/i)).toBeVisible();
     expect(within(credits).getAllByRole('link', { name: /license/i }).length).toBeGreaterThan(0);
     expect(within(credits).getByText(/Monaco-inspired Harbor Circuit/i)).toBeVisible();
+    expect(within(credits).getByRole('button', { name: 'Close credits' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Credits and disclosure' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open credits and disclosure' })).toHaveFocus();
   });
 
   it('requires confirmation before restarting an active race after lap one', async () => {
@@ -87,5 +102,36 @@ describe('RaceHud', () => {
     expect(confirm).toHaveBeenCalledOnce();
     expect(raceStore.getState().snapshot.cars[0].lap).toBe(2);
     confirm.mockRestore();
+  });
+
+  it('removes the closed mobile timing drawer from keyboard navigation', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+    window.dispatchEvent(new Event('resize'));
+    const user = userEvent.setup();
+    render(<RaceHud />);
+
+    expect(screen.queryByRole('region', { name: 'Race classification' })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole('button', { name: /follow /i })).toHaveLength(0);
+    expect(screen.getByRole('list', { name: 'Driver track positions' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Toggle timing tower' }));
+    expect(screen.getByRole('region', { name: 'Race classification' })).toBeVisible();
+    expect(screen.getAllByRole('button', { name: /follow /i })).toHaveLength(22);
+  });
+
+  it('announces only a throttled latest event and uses stable event identities', () => {
+    const first = { type: 'start' as const, tick: 1 };
+    const routine = { type: 'sector' as const, tick: 12, driverId: 'russell', lap: 1, sector: 1 as const, sectorTime: 24 };
+    const later = { ...routine, tick: 42, sector: 2 as const };
+    const view = render(<EventFeed events={[first]} />);
+
+    expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveTextContent(/underway/i);
+    expect(screen.getByText('T+0.1s')).toBeVisible();
+    view.rerender(<EventFeed events={[first, routine]} />);
+    expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveTextContent(/underway/i);
+    view.rerender(<EventFeed events={[first, routine, later]} />);
+    expect(screen.getByRole('region', { name: 'Latest race announcement' })).toHaveTextContent(/sector 2/i);
+    expect(eventKey(routine)).toBe(eventKey({ ...routine }));
+    expect(eventKey(routine)).not.toBe(eventKey(later));
+    expect(screen.getByRole('log', { name: 'Race events' })).toHaveAttribute('aria-live', 'off');
   });
 });
