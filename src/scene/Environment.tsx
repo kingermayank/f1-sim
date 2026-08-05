@@ -1,5 +1,5 @@
 import { useGLTF } from '@react-three/drei';
-import { Component, Suspense, useMemo, type ReactNode } from 'react';
+import { Component, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 import {
   BufferGeometry,
   CatmullRomCurve3,
@@ -14,6 +14,7 @@ import { MONACO_TRACK } from '../track/monaco-track';
 import { createSplineTrack } from '../track/spline-track';
 import type { TrackPoint } from '../track/track-types';
 import type { SceneQualityTier } from './RaceScene';
+import { cloneSceneWithOwnedMaterials } from './scene-resources';
 
 const TRACK = createSplineTrack(MONACO_TRACK);
 
@@ -72,21 +73,19 @@ function createRibbon(points: readonly TrackPoint[], width: number, closed = tru
 
 function LoadedTrack() {
   const gltf = useGLTF(ASSETS.track);
-  const scene = useMemo(() => {
-    const clone = gltf.scene.clone(true);
-    clone.traverse((object) => {
+  const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
+    if (material instanceof MeshStandardMaterial) material.roughness = Math.max(0.55, material.roughness);
+  }), [gltf.scene]);
+  useEffect(() => () => resources.dispose(), [resources]);
+  useEffect(() => {
+    resources.scene.traverse((object) => {
       if (!(object instanceof Mesh)) return;
       object.receiveShadow = true;
       object.castShadow = true;
-      if (object.material instanceof MeshStandardMaterial) {
-        object.material = object.material.clone();
-        object.material.roughness = Math.max(0.55, object.material.roughness);
-      }
     });
-    return clone;
-  }, [gltf.scene]);
+  }, [resources]);
 
-  return <primitive object={scene} scale={2.3} position={[-9, -2.5, -19]} rotation={[0, -0.08, 0]} />;
+  return <primitive object={resources.scene} dispose={null} scale={2.3} position={[-9, -2.5, -19]} rotation={[0, -0.08, 0]} />;
 }
 
 class TrackAssetBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {

@@ -1,5 +1,6 @@
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useState } from 'react';
+import { useProgress } from '@react-three/drei';
+import { Component, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Vector3 } from 'three';
 import { DRIVERS_2026 } from '../domain/grid-2026';
 import { useRaceStore } from '../store/race-store';
@@ -27,16 +28,67 @@ export function selectQualityTier(signals: QualitySignals): SceneQuality {
   return tier === 'mobile' ? { tier, dpr: 1 } : { tier, dpr: [1, 1.5] };
 }
 
-function canRenderWebGL(): boolean {
+export function createWebGLCapabilityDetector(probe: () => boolean): () => boolean {
+  let cached: boolean | undefined;
+  return () => {
+    if (cached === undefined) cached = probe();
+    return cached;
+  };
+}
+
+function probeWebGLCapability(): boolean {
   if (typeof window === 'undefined' || typeof document === 'undefined') return false;
   if (navigator.userAgent.toLowerCase().includes('jsdom')) return false;
 
+  const canvas = document.createElement('canvas');
+  let context: WebGLRenderingContext | WebGL2RenderingContext | null = null;
   try {
-    const canvas = document.createElement('canvas');
-    return Boolean(canvas.getContext('webgl2') ?? canvas.getContext('webgl'));
+    context = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+    return context !== null;
   } catch {
     return false;
+  } finally {
+    const loseContext = context?.getExtension('WEBGL_lose_context') as { loseContext?(): void } | null | undefined;
+    loseContext?.loseContext?.();
+    canvas.width = 0;
+    canvas.height = 0;
   }
+}
+
+const detectWebGLCapability = createWebGLCapabilityDetector(probeWebGLCapability);
+
+export interface SceneStatusInput {
+  webGLAvailable: boolean;
+  renderFailed: boolean;
+  rendererCreated: boolean;
+  assetsActive: boolean;
+  assetsLoaded: number;
+  assetsTotal: number;
+  assetErrors: number;
+}
+
+export function getRaceSceneStatus(input: SceneStatusInput): string {
+  if (!input.webGLAvailable) return 'Preparing the grid · accessible race view';
+  if (input.renderFailed) return '3D renderer unavailable · accessible race view';
+  if (input.assetErrors > 0 && !input.assetsActive) return 'Rendering with procedural asset fallback';
+  if (
+    !input.rendererCreated
+    || input.assetsActive
+    || input.assetsTotal === 0
+    || input.assetsLoaded < input.assetsTotal
+  ) return 'Rendering Monaco race scene';
+  return 'Ready · 22 cars on the Monaco circuit';
+}
+
+export class SceneRenderBoundary extends Component<{
+  children: ReactNode;
+  fallback: ReactNode;
+  onError?(): void;
+}, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(_error: Error, _info: ErrorInfo) { this.props.onError?.(); }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 
 function SimulationClock() {
@@ -46,8 +98,10 @@ function SimulationClock() {
 }
 
 export function RaceScene() {
-  const webGLAvailable = canRenderWebGL();
-  const [sceneReady, setSceneReady] = useState(false);
+  const [webGLAvailable] = useState(detectWebGLCapability);
+  const [rendererCreated, setRendererCreated] = useState(false);
+  const [renderFailed, setRenderFailed] = useState(false);
+  const { active: assetsActive, loaded: assetsLoaded, total: assetsTotal, errors: assetErrors } = useProgress();
   const [detectedQuality] = useState<SceneQualityTier>(() => selectQualityTier({
     viewportWidth: typeof window === 'undefined' ? 1280 : window.innerWidth,
     coarsePointer: typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true,
@@ -60,44 +114,62 @@ export function RaceScene() {
     coarsePointer: detectedQuality === 'mobile',
     override: qualityOverride === 'auto' ? detectedQuality : qualityOverride,
   });
+  const sceneStatus = getRaceSceneStatus({
+    webGLAvailable,
+    renderFailed,
+    rendererCreated,
+    assetsActive,
+    assetsLoaded,
+    assetsTotal,
+    assetErrors: assetErrors.length,
+  });
 
   return (
     <section className="race-viewport" aria-label="3D race viewport">
       <p className="race-viewport__status" role="status" aria-live="polite">
-        {webGLAvailable
-          ? sceneReady ? 'Ready · 22 cars on the Monaco circuit' : 'Loading Monaco race scene'
-          : <><span>Preparing the grid</span> · accessible race view</>}
+        {webGLAvailable ? sceneStatus : <><span>Preparing the grid</span> · accessible race view</>}
       </p>
       {webGLAvailable ? (
-        <Canvas
-          className="race-canvas"
-          aria-hidden="true"
-          dpr={quality.dpr}
-          shadows={quality.tier === 'high'}
-          camera={{ position: [116, 88, 138], fov: 38, near: 0.2, far: 520 }}
-          gl={{
-            antialias: quality.tier === 'high',
-            alpha: false,
-            powerPreference: quality.tier === 'high' ? 'high-performance' : 'low-power',
-          }}
-          onCreated={({ camera }) => {
-            camera.lookAt(new Vector3(-8, 3, -18));
-            setSceneReady(true);
-          }}
-          onPointerMissed={() => selectDriver(null)}
+        <SceneRenderBoundary
+          key={quality.tier}
+          fallback={<div className="race-viewport__fallback" aria-hidden="true" />}
+          onError={() => setRenderFailed(true)}
         >
-          <Environment quality={quality.tier} />
-          <CarField quality={quality.tier} />
-          <RaceEffects />
-          <SimulationClock />
-        </Canvas>
+          <Canvas
+            className="race-canvas"
+            aria-hidden="true"
+            fallback={<div className="race-viewport__fallback" aria-hidden="true" />}
+            dpr={quality.dpr}
+            shadows={quality.tier === 'high'}
+            camera={{ position: [116, 88, 138], fov: 38, near: 0.2, far: 520 }}
+            gl={{
+              antialias: quality.tier === 'high',
+              alpha: false,
+              powerPreference: quality.tier === 'high' ? 'high-performance' : 'low-power',
+            }}
+            onCreated={({ camera }) => {
+              camera.lookAt(new Vector3(-8, 3, -18));
+              setRendererCreated(true);
+            }}
+            onPointerMissed={() => selectDriver(null)}
+          >
+            <Environment quality={quality.tier} />
+            <CarField quality={quality.tier} />
+            <RaceEffects />
+            <SimulationClock />
+          </Canvas>
+        </SceneRenderBoundary>
       ) : <div className="race-viewport__fallback" aria-hidden="true" />}
       <label className="race-quality">
         <span>Scene detail</span>
         <select
           aria-label="Scene detail"
           value={qualityOverride}
-          onChange={(event) => setQualityOverride(event.target.value as SceneQualityOverride)}
+          onChange={(event) => {
+            setRenderFailed(false);
+            setRendererCreated(false);
+            setQualityOverride(event.target.value as SceneQualityOverride);
+          }}
         >
           <option value="auto">Auto ({detectedQuality})</option>
           <option value="high">High</option>

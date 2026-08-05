@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
-import { Component, Suspense, useMemo, useRef, type ReactNode } from 'react';
+import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   Group,
   Mesh,
@@ -16,6 +16,7 @@ import { useRaceStore } from '../store/race-store';
 import { MONACO_TRACK } from '../track/monaco-track';
 import { createSplineTrack } from '../track/spline-track';
 import type { SceneQualityTier } from './RaceScene';
+import { cloneSceneWithOwnedMaterials } from './scene-resources';
 
 const TRACK = createSplineTrack(MONACO_TRACK);
 const RETIREMENT_PRESENTATION_TICKS = 80;
@@ -28,14 +29,21 @@ export interface CarTrackSample {
   line: TrackLine;
 }
 
+export function getPitSplineProgress(car: CarState): number {
+  const pitSpan = (MONACO_TRACK.pitExit - MONACO_TRACK.pitEntry + 1) % 1;
+  const distanceFromEntry = (car.distance - MONACO_TRACK.pitEntry + 1) % 1;
+  const authoritativeProgress = Math.min(1, Math.max(0, distanceFromEntry / pitSpan));
+  const stateBand = car.pitState === 'entry' ? [0, 0.18]
+    : car.pitState === 'lane' ? [0.18, 0.46]
+      : car.pitState === 'stopped' ? [0.46, 0.58]
+        : car.pitState === 'exit' ? [0.58, 1]
+          : [0, 1];
+  return stateBand[0] + authoritativeProgress * (stateBand[1] - stateBand[0]);
+}
+
 export function getCarTrackSample(car: CarState): CarTrackSample {
   if (car.targetLine === 'pit' || car.pitState !== 'track') {
-    const pitDistance = car.pitState === 'entry' ? 0.08
-      : car.pitState === 'lane' ? 0.3
-        : car.pitState === 'stopped' ? 0.5
-          : car.pitState === 'exit' ? 0.82
-            : 0;
-    return { distance: pitDistance, lateral: 0, line: 'pit' };
+    return { distance: getPitSplineProgress(car), lateral: 0, line: 'pit' };
   }
 
   return {
@@ -100,7 +108,7 @@ function AnimatedCar({ car, selected, selectDriver, model }: CarProps) {
           <meshBasicMaterial color="#fff3bd" transparent opacity={0.9} depthWrite={false} />
         </mesh>
       )}
-      {model ? <primitive object={model} /> : (
+      {model ? <primitive object={model} dispose={null} /> : (
         <group>
           <mesh castShadow position={[0, 0.48, 0]}>
             <boxGeometry args={[1.35, 0.36, 3.4]} />
@@ -133,28 +141,27 @@ function LoadedTeamCar({ car, selected, selectDriver }: CarProps) {
   const livery = useTexture(ASSETS.teamTexture(team.id));
   livery.colorSpace = SRGBColorSpace;
 
-  const clone = useMemo(() => {
-    const next = gltf.scene.clone(true);
-    next.traverse((object) => {
-      if (!(object instanceof Mesh)) return;
-      const source = Array.isArray(object.material) ? object.material[0] : object.material;
-      const material = source instanceof MeshStandardMaterial
-        ? source.clone()
-        : new MeshStandardMaterial({ color: team.color });
+  const cloneResources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (ownedMaterial) => {
+      if (!(ownedMaterial instanceof MeshStandardMaterial)) return;
+      const material = ownedMaterial;
       if (material.color.getHSL({ h: 0, s: 0, l: 0 }).l > 0.25) {
         material.color.set(team.color);
         material.map = livery;
       }
       material.roughness = 0.42;
       material.metalness = 0.12;
-      object.material = material;
+    }), [gltf.scene, livery, team.color]);
+
+  useEffect(() => () => cloneResources.dispose(), [cloneResources]);
+  useEffect(() => {
+    cloneResources.scene.traverse((object) => {
+      if (!(object instanceof Mesh)) return;
       object.castShadow = true;
       object.receiveShadow = true;
     });
-    return next;
-  }, [gltf.scene, livery, team.color]);
+  }, [cloneResources]);
 
-  return <AnimatedCar car={car} selected={selected} selectDriver={selectDriver} model={clone} />;
+  return <AnimatedCar car={car} selected={selected} selectDriver={selectDriver} model={cloneResources.scene} />;
 }
 
 class CarAssetBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {

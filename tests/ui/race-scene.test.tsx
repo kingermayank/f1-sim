@@ -1,9 +1,18 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three';
+import { vi } from 'vitest';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
+import type { ReactNode } from 'react';
 import { App } from '../../src/app/App';
-import { getCarTrackSample, shouldPresentCar } from '../../src/scene/CarField';
-import { selectQualityTier } from '../../src/scene/RaceScene';
+import { getCarTrackSample, getPitSplineProgress, shouldPresentCar } from '../../src/scene/CarField';
+import {
+  createWebGLCapabilityDetector,
+  getRaceSceneStatus,
+  SceneRenderBoundary,
+  selectQualityTier,
+} from '../../src/scene/RaceScene';
 import { EFFECT_POOL_CAPACITY } from '../../src/scene/RaceEffects';
+import { cloneSceneWithOwnedMaterials } from '../../src/scene/scene-resources';
 import type { CarState } from '../../src/simulation/events';
 
 it('exposes an accessible race viewport and loading status', () => {
@@ -21,11 +30,18 @@ const baseCar: CarState = {
 };
 
 it('routes pit cars to the pit spline and retires cars after an incident grace period', () => {
-  expect(getCarTrackSample({ ...baseCar, pitState: 'stopped', targetLine: 'pit' })).toEqual({
-    distance: 0.5,
-    lateral: 0,
-    line: 'pit',
-  });
+  const pitCars = [
+    { ...baseCar, distance: 0.915, pitState: 'entry' as const, targetLine: 'pit' as const },
+    { ...baseCar, distance: 0.94, pitState: 'entry' as const, targetLine: 'pit' as const },
+    { ...baseCar, distance: 0.98, pitState: 'lane' as const, targetLine: 'pit' as const },
+    { ...baseCar, distance: 0.01, pitState: 'stopped' as const, targetLine: 'pit' as const },
+    { ...baseCar, distance: 0.06, pitState: 'exit' as const, targetLine: 'pit' as const },
+  ];
+  const pitProgress = pitCars.map(getPitSplineProgress);
+  expect(new Set(pitProgress).size).toBe(pitCars.length);
+  expect(pitProgress).toEqual([...pitProgress].sort((a, b) => a - b));
+  expect(pitCars.map((car) => getCarTrackSample(car).distance)).toEqual(pitProgress);
+  expect(pitCars.every((car) => getCarTrackSample(car).line === 'pit')).toBe(true);
   expect(getCarTrackSample(baseCar).line).toBe('attack');
 
   const retired = { ...baseCar, status: 'retired' as const, speed: 0, retirementTick: 500 };
@@ -35,6 +51,29 @@ it('routes pit cars to the pit spline and retires cars after an incident grace p
 
 it('keeps lightweight incident pools bounded', () => {
   expect(EFFECT_POOL_CAPACITY).toEqual({ smoke: 32, sparks: 64, debris: 24 });
+});
+
+it('disposes cloned materials without disposing shared asset geometry or source materials', () => {
+  const geometry = new BoxGeometry();
+  const sourceMaterial = new MeshStandardMaterial();
+  const source = new Group();
+  source.add(new Mesh(geometry, sourceMaterial));
+  const geometryDispose = vi.spyOn(geometry, 'dispose');
+  const sourceMaterialDispose = vi.spyOn(sourceMaterial, 'dispose');
+
+  const resources = cloneSceneWithOwnedMaterials(source);
+  const clonedMesh = resources.scene.children[0] as Mesh;
+  const clonedMaterial = clonedMesh.material as MeshStandardMaterial;
+  const clonedMaterialDispose = vi.spyOn(clonedMaterial, 'dispose');
+  const parent = new Group();
+  parent.add(resources.scene);
+
+  resources.dispose();
+
+  expect(resources.scene.parent).toBeNull();
+  expect(clonedMaterialDispose).toHaveBeenCalledOnce();
+  expect(sourceMaterialDispose).not.toHaveBeenCalled();
+  expect(geometryDispose).not.toHaveBeenCalled();
 });
 
 it('uses a capped mobile quality tier and honors a user override', () => {
@@ -50,6 +89,35 @@ it('uses a capped mobile quality tier and honors a user override', () => {
     dpr: [1, 1.5],
     tier: 'high',
   });
+});
+
+it('probes WebGL capability once and keeps loading status truthful until assets settle', () => {
+  const probe = vi.fn(() => true);
+  const detect = createWebGLCapabilityDetector(probe);
+  expect(detect()).toBe(true);
+  expect(detect()).toBe(true);
+  expect(probe).toHaveBeenCalledOnce();
+
+  expect(getRaceSceneStatus({
+    webGLAvailable: true, renderFailed: false, rendererCreated: true,
+    assetsActive: false, assetsLoaded: 0, assetsTotal: 0, assetErrors: 0,
+  })).toMatch(/rendering|loading/i);
+  expect(getRaceSceneStatus({
+    webGLAvailable: true, renderFailed: false, rendererCreated: true,
+    assetsActive: false, assetsLoaded: 13, assetsTotal: 13, assetErrors: 0,
+  })).toMatch(/^ready/i);
+});
+
+it('replaces render-tree crashes with the accessible procedural fallback', () => {
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  function BrokenScene(): ReactNode { throw new Error('renderer failed'); }
+  render(
+    <SceneRenderBoundary fallback={<div data-testid="scene-fallback" />}>
+      <BrokenScene />
+    </SceneRenderBoundary>,
+  );
+  expect(screen.getByTestId('scene-fallback')).toBeVisible();
+  consoleError.mockRestore();
 });
 
 it('exposes all 22 cars as driver-selectable controls without WebGL', () => {
