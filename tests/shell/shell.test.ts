@@ -4,9 +4,12 @@ import { DRIVER_PROFILES } from '../../src/content/driver-profiles';
 import { QUIZ_QUESTIONS, explanationFor } from '../../src/content/quiz';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
 import {
-  DEFAULT_PROGRESS, readProgress, recordMatchedDriver, recordQuizResult, writeProgress,
+  DEFAULT_PROGRESS, readProgress, recordMatchedDriver, recordPrediction, recordQuizResult, writeProgress,
 } from '../../src/progress/progress-store';
 import { parseHash, routeHref } from '../../src/shell/router';
+import {
+  MATCH_QUESTIONS, MAX_PREDICTION_SCORE, dailySeed, matchDriver, scorePrediction,
+} from '../../src/content/match';
 
 describe('router', () => {
   it('maps hashes to routes', () => {
@@ -128,5 +131,78 @@ describe('progress store', () => {
 
     expect(readProgress(null)).toEqual(DEFAULT_PROGRESS);
     expect(() => writeProgress(DEFAULT_PROGRESS, null)).not.toThrow();
+  });
+});
+
+describe('find my driver', () => {
+  it('matches a driver from the simulation ratings for every answer path', () => {
+    for (const question of MATCH_QUESTIONS) {
+      for (const option of question.options) {
+        const result = matchDriver([option]);
+        expect(result).not.toBeNull();
+        expect(DRIVERS_2026.some((driver) => driver.id === result!.driverId)).toBe(true);
+        expect(result!.affinity).toBeGreaterThan(0);
+        expect(result!.affinity).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('returns null when nothing has been answered', () => {
+    expect(matchDriver([])).toBeNull();
+  });
+
+  it('is deterministic for the same answers', () => {
+    const answers = MATCH_QUESTIONS.map((question) => question.options[0]);
+    expect(matchDriver(answers)).toEqual(matchDriver(answers));
+  });
+
+  it('sends opposite answers to different drivers', () => {
+    const aggressive = matchDriver(MATCH_QUESTIONS.map((question) => question.options[0]));
+    const measured = matchDriver(MATCH_QUESTIONS.map((question) => question.options[1]));
+    expect(aggressive!.driverId).not.toBe(measured!.driverId);
+  });
+});
+
+describe('podium prediction scoring', () => {
+  const podium = ['verstappen', 'norris', 'leclerc'];
+
+  it('awards the most for an exact call', () => {
+    expect(scorePrediction(podium, podium)).toBe(MAX_PREDICTION_SCORE);
+  });
+
+  it('gives partial credit for the right drivers in the wrong order', () => {
+    const score = scorePrediction(['norris', 'verstappen', 'leclerc'], podium);
+    expect(score).toBeGreaterThan(0);
+    expect(score).toBeLessThan(MAX_PREDICTION_SCORE);
+  });
+
+  it('scores nothing for a completely wrong podium', () => {
+    expect(scorePrediction(['alonso', 'stroll', 'gasly'], podium)).toBe(0);
+  });
+
+  it('gives a fresh seed each day so there is a reason to return', () => {
+    const first = dailySeed(new Date('2026-08-06T10:00:00Z'));
+    expect(dailySeed(new Date('2026-08-06T22:00:00Z'))).toBe(first);
+    expect(dailySeed(new Date('2026-08-07T10:00:00Z'))).not.toBe(first);
+  });
+});
+
+describe('prediction persistence', () => {
+  it('tracks streaks and resets them on a blank', () => {
+    const storage = memoryStorage();
+    recordPrediction({ seed: 'a', picks: ['verstappen'], score: 5 }, storage);
+    expect(readProgress(storage).predictionStreak).toBe(1);
+    recordPrediction({ seed: 'b', picks: ['norris'], score: 2 }, storage);
+    expect(readProgress(storage).predictionStreak).toBe(2);
+    recordPrediction({ seed: 'c', picks: ['alonso'], score: 0 }, storage);
+    const progress = readProgress(storage);
+    expect(progress.predictionStreak).toBe(0);
+    expect(progress.bestPredictionScore).toBe(5);
+  });
+
+  it('ignores a malformed stored prediction', () => {
+    const storage = memoryStorage();
+    storage.setItem('apex.progress.v1', JSON.stringify({ version: 1, lastPrediction: { seed: 5 } }));
+    expect(readProgress(storage).lastPrediction).toBeNull();
   });
 });

@@ -7,6 +7,13 @@
  */
 export const PROGRESS_STORAGE_KEY = 'apex.progress.v1';
 
+export interface PredictionRecord {
+  /** Seed the prediction was made against, so a result can be recomputed. */
+  seed: string;
+  picks: string[];
+  score: number;
+}
+
 export interface Progress {
   version: 1;
   /** Best quiz score so far, out of the number of questions answered. */
@@ -14,6 +21,11 @@ export interface Progress {
   quizAttempts: number;
   /** Driver id chosen by Find My Driver. */
   matchedDriverId: string | null;
+  /** Most recent podium prediction, so a repeat visit shows the result. */
+  lastPrediction: PredictionRecord | null;
+  /** Consecutive predictions that scored at least one point. */
+  predictionStreak: number;
+  bestPredictionScore: number;
 }
 
 export const DEFAULT_PROGRESS: Progress = {
@@ -21,6 +33,9 @@ export const DEFAULT_PROGRESS: Progress = {
   bestQuizScore: 0,
   quizAttempts: 0,
   matchedDriverId: null,
+  lastPrediction: null,
+  predictionStreak: 0,
+  bestPredictionScore: 0,
 };
 
 interface Storage {
@@ -43,6 +58,9 @@ export function readProgress(storage: Storage | null = browserStorage()): Progre
       bestQuizScore: Number.isFinite(parsed.bestQuizScore) ? Number(parsed.bestQuizScore) : 0,
       quizAttempts: Number.isFinite(parsed.quizAttempts) ? Number(parsed.quizAttempts) : 0,
       matchedDriverId: typeof parsed.matchedDriverId === 'string' ? parsed.matchedDriverId : null,
+      lastPrediction: isPrediction(parsed.lastPrediction) ? parsed.lastPrediction : null,
+      predictionStreak: Number.isFinite(parsed.predictionStreak) ? Number(parsed.predictionStreak) : 0,
+      bestPredictionScore: Number.isFinite(parsed.bestPredictionScore) ? Number(parsed.bestPredictionScore) : 0,
     };
   } catch {
     return DEFAULT_PROGRESS;
@@ -60,6 +78,35 @@ export function recordQuizResult(score: number, storage: Storage | null = browse
     ...current,
     bestQuizScore: Math.max(current.bestQuizScore, score),
     quizAttempts: current.quizAttempts + 1,
+  };
+  writeProgress(next, storage);
+  return next;
+}
+
+function isPrediction(value: unknown): value is PredictionRecord {
+  if (!value || typeof value !== 'object') return false;
+  const record = value as Partial<PredictionRecord>;
+  return typeof record.seed === 'string'
+    && Array.isArray(record.picks)
+    && record.picks.every((pick) => typeof pick === 'string')
+    && Number.isFinite(record.score);
+}
+
+/**
+ * Stores a podium prediction result. The streak counts consecutive predictions
+ * that scored anything at all, so a run of near-misses still feels like
+ * progress; a blank resets it.
+ */
+export function recordPrediction(
+  record: PredictionRecord,
+  storage: Storage | null = browserStorage(),
+): Progress {
+  const current = readProgress(storage);
+  const next: Progress = {
+    ...current,
+    lastPrediction: record,
+    predictionStreak: record.score > 0 ? current.predictionStreak + 1 : 0,
+    bestPredictionScore: Math.max(current.bestPredictionScore, record.score),
   };
   writeProgress(next, storage);
   return next;

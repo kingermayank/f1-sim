@@ -43,6 +43,7 @@
   margin-left: auto; font-family: var(--font-body); font-weight: 800; font-size: .82rem;
   padding: .45rem .85rem; border-radius: 6px; background: var(--signal); color: #07100d; text-decoration: none;
 }
+.shell-nav__cta:hover { background: #e8ff7a; color: #07100d; }
 
 /* ---------------------------------------------------------------- layout -- */
 .shell-view { max-width: 1180px; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 4rem; }
@@ -64,8 +65,19 @@
   padding: .55rem 1rem; border-radius: 6px; border: 1px solid var(--line-2, rgb(255 255 255 / 22%));
   background: transparent; color: var(--text); text-decoration: none; cursor: pointer; display: inline-block;
 }
-.shell-btn:hover { background: rgb(255 255 255 / 6%); }
+/* Only the outline variant lightens on hover. A bare `.shell-btn:hover` rule
+   outranks `.shell-btn--primary` on specificity and used to strip the lime fill,
+   leaving near-black text on a dark panel. */
+.shell-btn:not(.shell-btn--primary):hover { background: rgb(255 255 255 / 10%); border-color: rgb(255 255 255 / 40%); }
 .shell-btn--primary { background: var(--signal); border-color: var(--signal); color: #07100d; font-weight: 800; }
+.shell-btn--primary:hover, .shell-btn--primary:focus-visible { background: #e8ff7a; border-color: #e8ff7a; color: #07100d; }
+/* A disabled button states WHY it is disabled ("Pick 3 more"), so it has to stay
+   readable. The global 50% dimming turned the lime fill olive under dark text;
+   swap to a muted surface with light text instead of fading it out. */
+.shell-btn:disabled {
+  opacity: 1; cursor: not-allowed;
+  background: rgb(255 255 255 / 7%); border-color: rgb(255 255 255 / 18%); color: var(--muted);
+}
 .shell-tag {
   display: inline-block; font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em;
   text-transform: uppercase; padding: .2rem .5rem; border-radius: 999px;
@@ -94,7 +106,7 @@
 .circuit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(198px, 1fr)); gap: .8rem; }
 .circuit-card { border: 1px solid var(--line); border-radius: .6rem; padding: .85rem; background: #080d15; text-decoration: none; color: inherit; display: block; }
 .circuit-card:hover { border-color: var(--signal); }
-.circuit-card.is-locked { opacity: .5; }
+.circuit-card.is-locked { opacity: .72; }
 .circuit-card h2 { font-family: var(--font-body); font-weight: 700; font-size: .95rem; margin: .5rem 0 .15rem; }
 .circuit-card__meta { font-family: var(--font-mono); font-size: .7rem; color: var(--muted); margin: 0 0 .45rem; letter-spacing: .04em; }
 .circuit-card__map { height: 92px; display: grid; place-items: center; }
@@ -117,7 +129,8 @@
   font-family: var(--font-body); font-size: .78rem; padding: .35rem .6rem; border-radius: 5px;
   border: 1px solid rgb(255 255 255 / 18%); background: transparent; color: var(--muted); cursor: pointer;
 }
-.corner-picker button.is-active { color: var(--text); border-color: var(--signal); background: rgb(219 255 74 / 10%); }
+.corner-picker button:hover { color: var(--text); border-color: rgb(255 255 255 / 40%); }
+.corner-picker button.is-active { color: var(--text); border-color: var(--signal); background: rgb(219 255 74 / 16%); }
 
 .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem; margin: 0; }
 .spec-grid div { border: 1px solid var(--line); border-radius: .4rem; padding: .55rem .65rem; background: rgb(255 255 255 / 3%); }
@@ -145,6 +158,26 @@
 
 /* ------------------------------------------------------------------ quiz -- */
 .quiz { margin-bottom: 1rem; }
+.shell-view > .panel + .panel { margin-top: 1rem; }
+
+/* ------------------------------------------------------- predict / match -- */
+.predict-slots { list-style: none; margin: .9rem 0 0; padding: 0; display: grid; gap: .35rem; }
+.predict-slots li { display: flex; align-items: center; gap: .6rem; border: 1px solid var(--line); border-radius: .4rem; padding: .45rem .6rem; background: rgb(255 255 255 / 3%); }
+.predict-slots__pos { font-family: var(--font-mono); font-size: .78rem; color: var(--signal); min-width: 2rem; }
+.predict-slots__name { font-size: .9rem; }
+.predict-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: .4rem; margin-top: .9rem; }
+.predict-pick {
+  position: relative; font-family: var(--font-body); font-weight: 800; font-size: .85rem;
+  padding: .5rem .3rem; border-radius: .4rem; cursor: pointer; color: var(--text);
+  border: 1px solid rgb(255 255 255 / 18%); border-bottom: 3px solid var(--team);
+  background: rgb(255 255 255 / 4%);
+}
+.predict-pick:hover:not(:disabled) { background: rgb(255 255 255 / 10%); border-color: rgb(255 255 255 / 40%); }
+/* Chosen state must not rely on colour alone — the order badge carries it too. */
+.predict-pick.is-chosen { background: rgb(219 255 74 / 16%); border-color: var(--signal); color: var(--text); }
+.predict-pick:disabled { opacity: .85; cursor: default; }
+.predict-pick__abbr { display: block; letter-spacing: .04em; }
+.predict-pick__order { display: block; font-family: var(--font-mono); font-size: .68rem; color: var(--signal); margin-top: .15rem; }
 .quiz h2 { font-size: 1.2rem; margin-bottom: .5rem; }
 .quiz__lede { margin-bottom: .8rem; }
 .quiz__best { font-family: var(--font-mono); font-size: .85rem; color: var(--signal); margin: 0 0 .8rem; }
@@ -156,7 +189,8 @@
   background: rgb(255 255 255 / 3%); color: var(--text); cursor: pointer;
 }
 .quiz__option:hover:not(:disabled) { border-color: var(--signal); background: rgb(219 255 74 / 8%); }
-.quiz__option:disabled { cursor: default; }
+.quiz__option:disabled { cursor: default; opacity: 1; }
+.quiz__option.is-correct, .quiz__option.is-wrong { opacity: 1; color: var(--text); }
 .quiz__option.is-correct { border-color: var(--signal); background: rgb(219 255 74 / 14%); }
 .quiz__option.is-wrong { border-color: var(--coral, #ff604d); background: rgb(255 96 77 / 12%); }
 .quiz__feedback { margin-top: .9rem; border-top: 1px solid var(--line); padding-top: .8rem; }
@@ -189,6 +223,7 @@
 }
 .explain-panel__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; }
 .explain-panel__head h2 { font-family: var(--font-body); font-weight: 800; font-size: .95rem; margin: 0; }
+.explain-panel__off:hover { color: var(--text); border-color: rgb(255 255 255 / 45%); }
 .explain-panel__off {
   font-family: var(--font-body); font-size: .72rem; padding: .25rem .5rem; border-radius: 5px;
   border: 1px solid rgb(255 255 255 / 22%); background: transparent; color: var(--muted); cursor: pointer;

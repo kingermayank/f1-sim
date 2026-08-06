@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { QUIZ_QUESTIONS, explanationFor } from '../content/quiz';
 import { GLOSSARY } from '../explain/glossary';
 import { recordQuizResult, readProgress } from '../progress/progress-store';
+import { FindDriverView, PredictView } from './PlayView';
 
 type Phase = 'intro' | 'asking' | 'done';
 
@@ -91,7 +92,7 @@ export function LearnView() {
               })}
             </ul>
             {picked !== null && (
-              <div className="quiz__feedback">
+              <div className="quiz__feedback" role="status">
                 <p className={picked === question.answer ? 'is-correct' : 'is-wrong'}>
                   {picked === question.answer ? 'Correct.' : 'Not quite.'}
                 </p>
@@ -122,6 +123,9 @@ export function LearnView() {
           </>
         )}
       </section>
+
+      <PredictView />
+      <FindDriverView />
 
       <section className="panel" aria-label="Glossary">
         <h2>Glossary</h2>
