@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CIRCUITS, PLAYABLE_CIRCUITS, findCircuit } from '../../src/content/circuits';
-import { DRIVER_PROFILES } from '../../src/content/driver-profiles';
+import { CALENDAR_2026, completedRounds, findRound, nextRound } from '../../src/content/calendar-2026';
+import { DRIVER_PROFILES, FULL_GRID_2026 } from '../../src/content/driver-profiles';
 import { QUIZ_QUESTIONS, explanationFor } from '../../src/content/quiz';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
 import {
@@ -36,10 +37,6 @@ describe('router', () => {
 });
 
 describe('circuit content', () => {
-  it('marks exactly the circuits we have actually built as playable', () => {
-    expect(PLAYABLE_CIRCUITS.map((circuit) => circuit.id)).toEqual(['shanghai']);
-  });
-
   it('never presents an unbuilt circuit as playable, and gives it no fake outline', () => {
     for (const circuit of CIRCUITS.filter((entry) => entry.status !== 'playable')) {
       expect(circuit.outline, `${circuit.id} must not have a traced outline`).toBeUndefined();
@@ -204,5 +201,78 @@ describe('prediction persistence', () => {
     const storage = memoryStorage();
     storage.setItem('apex.progress.v1', JSON.stringify({ version: 1, lastPrediction: { seed: 5 } }));
     expect(readProgress(storage).lastPrediction).toBeNull();
+  });
+});
+
+describe('2026 calendar', () => {
+  it('matches the official 23-round season', () => {
+    expect(CALENDAR_2026).toHaveLength(23);
+    expect(CALENDAR_2026.map((round) => round.round)).toEqual(
+      Array.from({ length: 23 }, (_, index) => index + 1),
+    );
+  });
+
+  it('contains no Malaysian round, which OpenF1 lists in error', () => {
+    const names = CALENDAR_2026.map((round) => `${round.name} ${round.circuit} ${round.country}`.toLowerCase());
+    expect(names.some((name) => name.includes('malaysia') || name.includes('kuala lumpur'))).toBe(false);
+  });
+
+  it('lists rounds in chronological order with unique ids', () => {
+    const dates = CALENDAR_2026.map((round) => round.date);
+    expect([...dates].sort()).toEqual(dates);
+    expect(new Set(CALENDAR_2026.map((round) => round.id)).size).toBe(CALENDAR_2026.length);
+  });
+
+  it('keeps Shanghai as round 2 with the lap count the simulation races', () => {
+    const shanghai = findRound('shanghai')!;
+    expect(shanghai.round).toBe(2);
+    expect(shanghai.laps).toBe(56);
+    expect(shanghai.openF1MeetingKey).toBe(1280);
+  });
+
+  it('separates completed rounds from upcoming ones', () => {
+    const at = new Date('2026-08-06T00:00:00Z');
+    const done = completedRounds(at);
+    expect(done.some((round) => round.id === 'shanghai')).toBe(true);
+    expect(done.some((round) => round.id === 'monza')).toBe(false);
+    expect(nextRound(at)?.id).toBe('zandvoort');
+  });
+});
+
+describe('circuits derived from the calendar', () => {
+  it('exposes every real round, with only Shanghai playable', () => {
+    expect(CIRCUITS).toHaveLength(CALENDAR_2026.length);
+    expect(PLAYABLE_CIRCUITS.map((circuit) => circuit.id)).toEqual(['shanghai']);
+  });
+
+  it('carries real specifications for unbuilt rounds', () => {
+    const monaco = findCircuit('monaco')!;
+    expect(monaco.laps).toBe(78);
+    expect(monaco.status).toBe('planned');
+    expect(monaco.outline).toBeUndefined();
+  });
+});
+
+describe('full 2026 grid', () => {
+  it('lists all 22 real drivers across 11 teams', () => {
+    expect(FULL_GRID_2026).toHaveLength(22);
+    expect(new Set(FULL_GRID_2026.map((entry) => entry.team)).size).toBe(11);
+    expect(new Set(FULL_GRID_2026.map((entry) => entry.number)).size).toBe(22);
+  });
+
+  it('marks exactly the drivers our simulation races', () => {
+    const simulated = FULL_GRID_2026.filter((entry) => entry.simulated);
+    expect(simulated).toHaveLength(DRIVERS_2026.length);
+    for (const entry of simulated) {
+      const driver = DRIVERS_2026.find((candidate) => candidate.number === entry.number);
+      expect(driver, `#${entry.number} ${entry.name} should be on the simulated grid`).toBeDefined();
+      expect(driver!.name).toBe(entry.name);
+    }
+  });
+
+  it('keeps unsimulated drivers off the simulation grid', () => {
+    for (const entry of FULL_GRID_2026.filter((candidate) => !candidate.simulated)) {
+      expect(DRIVERS_2026.some((driver) => driver.number === entry.number)).toBe(false);
+    }
   });
 });

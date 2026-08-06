@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { CIRCUITS, findCircuit, PLAYABLE_CIRCUITS, type Circuit, type CornerNote } from '../content/circuits';
-import { DRIVER_PROFILES, STYLE_LABELS, findProfile } from '../content/driver-profiles';
+import { DRIVER_PROFILES, FULL_GRID_2026, STYLE_LABELS, findProfile } from '../content/driver-profiles';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { CircuitMap } from './CircuitMap';
+import { RaceResult } from './RaceResult';
 import { routeHref } from './router';
 
 const CAR_NAMES: Record<string, string> = {
@@ -78,7 +79,7 @@ function CircuitCard({ circuit }: { circuit: Circuit }) {
       </div>
       <h2>{circuit.name}</h2>
       <p className="circuit-card__meta">
-        {circuit.countryCode} · {circuit.lengthKm.toFixed(3)} km · {circuit.laps} laps
+        {circuit.round ? `R${circuit.round} · ` : ''}{circuit.countryCode} · {circuit.lengthKm.toFixed(3)} km · {circuit.laps} laps
       </p>
       <span className={playable ? 'shell-tag shell-tag--live' : 'shell-tag shell-tag--soon'}>
         {playable ? 'Playable' : 'Not built yet'}
@@ -98,8 +99,8 @@ export function CircuitsView() {
       <header className="shell-head">
         <h1>Circuits</h1>
         <p>
-          One circuit is fully built. The rest are listed honestly as placeholders — we would rather
-          show you what is missing than fake it.
+          The real {CIRCUITS.length}-round 2026 calendar. Shanghai is fully built and playable; the
+          rest carry their genuine specifications and are marked as not built rather than faked.
         </p>
       </header>
       <div className="circuit-grid">
@@ -129,7 +130,11 @@ export function CircuitView({ id }: { id?: string }) {
     <div className="shell-view">
       <header className="shell-head">
         <h1>{circuit.name}</h1>
-        <p>{circuit.country} · {circuit.status === 'playable' ? 'Playable now' : 'Not built yet'}</p>
+        <p>
+          {circuit.round ? `Round ${circuit.round} · ` : ''}{circuit.grandPrix ?? circuit.country}
+          {circuit.date ? ` · ${new Date(`${circuit.date}T00:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}` : ''}
+          {' · '}{circuit.status === 'playable' ? 'Playable now' : 'Not built yet'}
+        </p>
       </header>
 
       <div className="circuit-detail">
@@ -183,6 +188,7 @@ export function CircuitView({ id }: { id?: string }) {
               <a className="shell-btn shell-btn--primary" href={routeHref('race')}>Launch simulation</a>
             </div>
           )}
+          <RaceResult meetingKey={circuit.openF1MeetingKey} raceDate={circuit.date} />
         </div>
       </div>
     </div>
@@ -252,6 +258,25 @@ export function DriversView() {
         Styles above are editorial. The pace, overtaking and tyre-management ratings that actually
         drive the simulation live in the grid definition, so the two can never disagree.
       </p>
+
+      <section className="panel" aria-label="Full 2026 grid">
+        <h2>The full 2026 grid</h2>
+        <p>
+          Eleven teams and {FULL_GRID_2026.length} drivers are racing in 2026, verified against the
+          official entry list. We simulate the {FULL_GRID_2026.filter((entry) => entry.simulated).length}{' '}
+          drivers whose cars we hold licensed models for — the rest are listed here so the picture stays complete.
+        </p>
+        <ul className="grid-list">
+          {FULL_GRID_2026.map((entry) => (
+            <li key={entry.number} className={entry.simulated ? 'grid-list__row is-simulated' : 'grid-list__row'}>
+              <span className="grid-list__number">{entry.number}</span>
+              <span className="grid-list__name">{entry.name}</span>
+              <span className="grid-list__team">{entry.team}</span>
+              <span className="grid-list__flag">{entry.simulated ? 'Simulated' : 'Not simulated'}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

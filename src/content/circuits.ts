@@ -1,3 +1,4 @@
+import { CALENDAR_2026 } from './calendar-2026';
 import { SHANGHAI_RACE_LAPS, SHANGHAI_TRACK } from '../track/shanghai-track';
 
 export interface CornerNote {
@@ -23,6 +24,13 @@ export interface Circuit {
   outline?: string;
   summary?: string;
   corners?: CornerNote[];
+  /** Championship round number in the 2026 season. */
+  round?: number;
+  /** Race day, ISO date. */
+  date?: string;
+  grandPrix?: string;
+  /** Key for looking up real results and telemetry on OpenF1. */
+  openF1MeetingKey?: number;
 }
 
 /**
@@ -46,9 +54,8 @@ function traceOutline(points: readonly { x: number; z: number }[], samples = 120
 
 export const SHANGHAI_OUTLINE = traceOutline(SHANGHAI_TRACK.centerLine);
 
-export const CIRCUITS: readonly Circuit[] = [
-  {
-    id: 'shanghai',
+const SHANGHAI: Circuit = {
+  id: 'shanghai',
     name: 'Shanghai International Circuit',
     country: 'China',
     countryCode: 'CHN',
@@ -99,16 +106,33 @@ export const CIRCUITS: readonly Circuit[] = [
           'Heavy braking from very high speed into a slow corner. The classic passing spot, and the '
           + 'classic place to lock a front tyre and flat-spot it.',
       },
-    ],
-  },
-  { id: 'monza', name: 'Monza', country: 'Italy', countryCode: 'ITA', status: 'planned', lengthKm: 5.793, laps: 53, turns: 11 },
-  { id: 'monaco', name: 'Monaco', country: 'Monaco', countryCode: 'MON', status: 'planned', lengthKm: 3.337, laps: 78, turns: 19 },
-  { id: 'silverstone', name: 'Silverstone', country: 'United Kingdom', countryCode: 'GBR', status: 'planned', lengthKm: 5.891, laps: 52, turns: 18 },
-  { id: 'suzuka', name: 'Suzuka', country: 'Japan', countryCode: 'JPN', status: 'planned', lengthKm: 5.807, laps: 53, turns: 18 },
-  { id: 'spa', name: 'Spa-Francorchamps', country: 'Belgium', countryCode: 'BEL', status: 'planned', lengthKm: 7.004, laps: 44, turns: 19 },
-  { id: 'interlagos', name: 'Interlagos', country: 'Brazil', countryCode: 'BRA', status: 'planned', lengthKm: 4.309, laps: 71, turns: 15 },
-  { id: 'jeddah', name: 'Jeddah Corniche', country: 'Saudi Arabia', countryCode: 'KSA', status: 'planned', lengthKm: 6.174, laps: 50, turns: 27 },
-];
+  ],
+  grandPrix: 'Chinese Grand Prix',
+};
+
+/**
+ * The browsable circuit list is the real 2026 calendar. Every round is a real
+ * Grand Prix; only Shanghai is playable, because it is the only circuit we hold
+ * a track model and an authoritative spline for. The rest are listed with their
+ * genuine specifications and marked as not built rather than invented.
+ */
+export const CIRCUITS: readonly Circuit[] = CALENDAR_2026.map((round) => {
+  if (round.id === SHANGHAI.id) return { ...SHANGHAI, round: round.round, date: round.date, openF1MeetingKey: round.openF1MeetingKey };
+  return {
+    id: round.id,
+    name: round.circuit,
+    country: round.country,
+    countryCode: round.countryCode,
+    status: 'planned' as const,
+    lengthKm: round.lengthKm,
+    laps: round.laps,
+    turns: round.turns,
+    round: round.round,
+    date: round.date,
+    grandPrix: round.name,
+    openF1MeetingKey: round.openF1MeetingKey,
+  };
+});
 
 export function findCircuit(id: string | undefined): Circuit | undefined {
   return CIRCUITS.find((circuit) => circuit.id === id);
