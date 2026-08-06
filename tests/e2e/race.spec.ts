@@ -294,9 +294,9 @@ test('loads 14 drivers and supports following, cameras, pause, speeds, seeds, an
 
   if (testInfo.project.name.startsWith('mobile')) await page.getByRole('button', { name: 'Toggle timing tower' }).click();
   const currentTower = page.getByRole('region', { name: 'Race classification' });
-  const followKimi = currentTower.getByRole('button', { name: 'Follow Kimi Antonelli' });
+  const followKimi = currentTower.getByRole('button', { name: 'Follow Lewis Hamilton' });
   await followKimi.click();
-  await expect(page.getByRole('heading', { name: 'Kimi Antonelli' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Lewis Hamilton' })).toBeVisible();
   if (!testInfo.project.name.startsWith('mobile')) await expect(followKimi).toHaveAttribute('aria-current', 'true');
   await expect(page.locator('[data-driver-id="hamilton"]')).toHaveAttribute('aria-pressed', 'true');
 
@@ -317,7 +317,7 @@ test('loads 14 drivers and supports following, cameras, pause, speeds, seeds, an
   await page.evaluate(() => window.__RACE_DIAGNOSTICS__!.advanceRace(30));
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Replay seed' }).click();
-  await expect(page.getByLabel('Current lap')).toContainText('Lap 1 / 78');
+  await expect(page.getByLabel('Current lap')).toContainText('Lap 1 / 56');
   expect(await simulationSeed(page)).toBe(originalSeed);
 
   await page.getByRole('button', { name: 'Restart race' }).click();
@@ -330,7 +330,7 @@ test('loads 14 drivers and supports following, cameras, pause, speeds, seeds, an
   const credits = page.getByRole('dialog', { name: 'Credits and disclosure' });
   await expect(credits).toBeVisible();
   await expect(credits.getByText('Independent simulated broadcast')).toBeVisible();
-  await expect(credits.getByRole('link', { name: /license/i })).toHaveCount(13);
+  await expect(credits.getByRole('link', { name: /license/i })).toHaveCount(19);
   await page.keyboard.press('Escape');
   await expect(credits).toHaveCount(0);
 
@@ -365,13 +365,13 @@ test('finishes quickly through the diagnostics boundary and exposes replay actio
   await page.evaluate(() => window.__RACE_DIAGNOSTICS__!.finishRace());
   const finish = page.getByRole('dialog', { name: 'Race complete' });
   await expect(finish).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByLabel('Current lap')).toContainText('Lap 78 / 78');
-  await expect(finish.getByRole('table', { name: 'Final classification' }).getByRole('row')).toHaveCount(23);
+  await expect(page.getByLabel('Current lap')).toContainText('Lap 56 / 56');
+  await expect(finish.getByRole('table', { name: 'Final classification' }).getByRole('row')).toHaveCount(15);
 
   const seed = await simulationSeed(page);
   await finish.getByRole('button', { name: 'Replay this seed' }).click();
   await expect(finish).toHaveCount(0);
-  await expect(page.getByLabel('Current lap')).toContainText('Lap 1 / 78');
+  await expect(page.getByLabel('Current lap')).toContainText('Lap 1 / 56');
   expect(await simulationSeed(page)).toBe(seed);
 
   await page.evaluate(() => window.__RACE_DIAGNOSTICS__!.finishRace());
@@ -382,7 +382,7 @@ test('finishes quickly through the diagnostics boundary and exposes replay actio
 test('replays deterministic pit, safety-car, and incident delivery scenarios', async ({ page }, testInfo) => {
   const safetyCheckpoint = await page.evaluate(() => {
     const diagnostics = window.__RACE_DIAGNOSTICS__!;
-    diagnostics.restartRace('scenario-0');
+    diagnostics.restartRace('scenario-2');
     for (let second = 0; second < 400; second += 1) {
       diagnostics.advanceRace(1);
       const snapshot = diagnostics.snapshot();
@@ -401,7 +401,7 @@ test('replays deterministic pit, safety-car, and incident delivery scenarios', a
 
   const activePitCheckpoint = await page.evaluate(() => {
     const diagnostics = window.__RACE_DIAGNOSTICS__!;
-    diagnostics.restartRace('scenario-0');
+    diagnostics.restartRace('scenario-2');
     for (let second = 0; second < 400; second += 1) {
       diagnostics.advanceRace(1);
       const snapshot = diagnostics.snapshot();
@@ -417,7 +417,7 @@ test('replays deterministic pit, safety-car, and incident delivery scenarios', a
     return window.__RACE_DIAGNOSTICS__!.snapshot().scenario;
   });
   const replay = await page.evaluate(() => {
-    window.__RACE_DIAGNOSTICS__!.restartRace('scenario-0');
+    window.__RACE_DIAGNOSTICS__!.restartRace('scenario-2');
     window.__RACE_DIAGNOSTICS__!.finishRace();
     return window.__RACE_DIAGNOSTICS__!.snapshot().scenario;
   });
@@ -450,7 +450,7 @@ test('keeps canvas, listeners, audio, and effect pools steady over five restarts
   const listenerBaseline = await page.evaluate(() => window.__listenerAudit__!.active());
   const rendererBaseline = { ...baseline.renderer, drawCalls: 0 };
   expect(baseline).toMatchObject({
-    carCount: 22,
+    carCount: 14,
     canvasCount: 1,
     effects: { capacity: { smoke: 32, sparks: 64, debris: 24 }, active: 0 },
     audio: { contextState: 'running', ownedNodeCount: 10, ownedSourceCount: 4, transientNodeCount: 0 },
@@ -463,7 +463,7 @@ test('keeps canvas, listeners, audio, and effect pools steady over five restarts
   for (let restart = 0; restart < 5; restart += 1) {
     await page.getByRole('button', { name: 'Restart race' }).click();
     await page.getByRole('button', { name: 'Pause race' }).click();
-    await expect(page.getByLabel('Current lap')).toContainText('Lap 1 / 78');
+    await expect(page.getByLabel('Current lap')).toContainText('Lap 1 / 56');
     await expect.poll(() => runtime(page).then((value) => value.canvasCount)).toBe(1);
     const current = await runtime(page);
     expect(current.effects).toEqual(baseline.effects);
