@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>APEX — Product Concept & UI Prototype</title>
+<style>
+@font-face{font-family:'F1 Display';src:url('../../public/assets/fonts/formula1-display-regular.woff2') format('woff2'),url('/assets/fonts/formula1-display-regular.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'F1 Wide';src:url('../../public/assets/fonts/formula1-wide.woff2') format('woff2'),url('/assets/fonts/formula1-wide.woff2') format('woff2');font-weight:400 900;font-display:swap}
+@font-face{font-family:'MonoSpec';src:url('../../public/assets/fonts/monospec-variable.woff2') format('woff2-variations'),url('/assets/fonts/monospec-variable.woff2') format('woff2-variations');font-weight:100 900;font-display:swap}
+
+:root{
+  --ink:#05080d; --panel:#0a1019; --panel-2:#0e1622; --line:rgb(255 255 255/12%);
+  --line-2:rgb(255 255 255/22%); --text:#f6f7f9; --muted:#8e9aab; --muted-2:#6b7788;
+  --red:#e10600; --signal:#dbff4a; --cyan:#47c7fc; --amber:#ffb020;
+  --wide:'F1 Wide','F1 Display',Arial Narrow,sans-serif;
+  --disp:'F1 Display',Inter,system-ui,sans-serif;
+  --mono:'MonoSpec',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--disp);line-height:1.6;
+  background-image:radial-gradient(900px 500px at 80% -10%,rgb(225 6 0/14%),transparent 60%),radial-gradient(700px 400px at 0% 5%,rgb(71 199 252/8%),transparent 60%);
+  background-attachment:fixed}
+h1,h2,h3,h4{font-family:var(--wide);letter-spacing:.01em;line-height:1.1;margin:0}
+code,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+a{color:var(--signal)}
+
+/* ---------- doc chrome ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.25rem;
+  padding:.7rem clamp(1rem,4vw,2.5rem);background:rgb(5 8 13/86%);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:.6rem;font-family:var(--wide);font-size:1rem;letter-spacing:.06em}
+.brand i{width:26px;height:26px;border-radius:6px;background:var(--signal);color:#07100d;display:grid;place-items:center;
+  font-style:normal;font-weight:900;font-size:.8rem;transform:skew(-8deg)}
+.topnav{display:flex;gap:.35rem;flex-wrap:wrap;margin-left:auto}
+.topnav a{color:var(--muted);text-decoration:none;font-size:.72rem;letter-spacing:.11em;text-transform:uppercase;
+  padding:.4rem .6rem;border-radius:6px;border:1px solid transparent}
+.topnav a:hover{color:var(--text);border-color:var(--line-2);background:rgb(255 255 255/4%)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(1rem,4vw,2.5rem)}
+section{padding:clamp(2.5rem,6vw,4.5rem) 0;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:var(--signal);margin:0 0 .7rem}
+.lede{color:var(--muted);font-size:1.02rem;max-width:68ch}
+.grid{display:grid;gap:1rem}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.card{border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(160deg,var(--panel),rgb(6 10 16/85%));padding:1.1rem}
+.card h4{font-size:.9rem;margin-bottom:.4rem}
+.card p{margin:0;color:var(--muted);font-size:.87rem}
+.tag{display:inline-block;font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
+  padding:.18rem .45rem;border-radius:999px;border:1px solid var(--line-2);color:var(--muted)}
+.tag.live{color:var(--signal);border-color:rgb(219 255 74/45%);background:rgb(219 255 74/10%)}
+.tag.soon{color:var(--amber);border-color:rgb(255 176 32/40%);background:rgb(255 176 32/8%)}
+.tag.red{color:#ff8f8a;border-color:rgb(225 6 0/45%);background:rgb(225 6 0/12%)}
+
+/* ---------- hero ---------- */
+.hero{padding:clamp(3rem,9vw,6rem) 0 clamp(2rem,5vw,3.5rem)}
+.hero h1{font-size:clamp(2.6rem,8vw,5.2rem);text-transform:uppercase}
+.hero h1 span{color:var(--red)}
+.hero .sub{font-size:clamp(1rem,2.2vw,1.25rem);color:var(--muted);max-width:60ch;margin-top:1rem}
+.statrow{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1.6rem}
+.stat{border:1px solid var(--line);border-radius:var(--r);padding:.6rem .85rem;background:rgb(255 255 255/3%)}
+.stat b{display:block;font-family:var(--mono);font-size:1.15rem;color:var(--signal)}
+.stat small{color:var(--muted-2);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase}
+
+/* ---------- mockup shell ---------- */
+.mock{border:1px solid var(--line-2);border-radius:14px;overflow:hidden;background:#04070c;
+  box-shadow:0 30px 80px rgb(0 0 0/55%);margin-top:1.1rem}
+.mock-cap{display:flex;align-items:center;gap:.6rem;padding:.5rem .8rem;border-bottom:1px solid var(--line);
+  background:rgb(255 255 255/3%);font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.dot{width:9px;height:9px;border-radius:50%;background:#2a3442}
+.screen{background:linear-gradient(180deg,#070b12,#04070c);min-height:200px}
+.appnav{display:flex;align-items:center;gap:1.1rem;padding:.65rem 1rem;border-bottom:1px solid var(--line);background:rgb(255 255 255/2%)}
+.applogo{display:flex;align-items:center;gap:.5rem;font-family:var(--wide);font-size:.8rem;letter-spacing:.08em}
+.applogo i{width:22px;height:22px;border-radius:5px;background:var(--signal);color:#07100d;display:grid;place-items:center;font-style:normal;font-weight:900;font-size:.66rem;transform:skew(-8deg)}
+.appnav nav{display:flex;gap:.15rem;flex-wrap:wrap}
+.appnav nav a{font-family:var(--wide);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  text-decoration:none;padding:.35rem .6rem;border-radius:6px}
+.appnav nav a.on{color:var(--text);background:rgb(219 255 74/12%);box-shadow:inset 0 -2px 0 var(--signal)}
+.appnav .right{margin-left:auto;display:flex;gap:.4rem;align-items:center}
+.btn{font-family:var(--wide);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;padding:.4rem .75rem;
+  border-radius:6px;border:1px solid var(--line-2);background:transparent;color:var(--text);cursor:pointer}
+.btn.p{background:var(--signal);color:#07100d;border-color:var(--signal);font-weight:800}
+.btn.r{background:var(--red);border-color:var(--red);color:#fff;font-weight:800}
+.legend{display:flex;gap:1rem;padding:.5rem 1rem;border-top:1px solid var(--line);background:rgb(255 255 255/2%);
+  font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);flex-wrap:wrap}
+.legend b{color:var(--text);border:1px solid var(--line-2);border-radius:4px;padding:0 .3rem;margin-right:.3rem;font-weight:400}
+
+/* ---------- home mosaic ---------- */
+.mosaic{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:.7rem;padding:.85rem}
+.tile{position:relative;border:1px solid var(--line);border-radius:9px;overflow:hidden;min-height:120px;
+  background:linear-gradient(150deg,#111b28,#070c14);padding:.8rem;display:flex;flex-direction:column;justify-content:flex-end}
+.tile.feature{grid-row:span 2;min-height:250px;
+  background:linear-gradient(180deg,rgb(4 7 12/20%),rgb(4 7 12/92%)),linear-gradient(135deg,#1d3a52,#0a1622)}
+.tile h5{font-family:var(--wide);font-size:.9rem;margin:0 0 .2rem;text-transform:uppercase}
+.tile.feature h5{font-size:1.5rem}
+.tile p{margin:0;color:var(--muted);font-size:.72rem}
+.tile .badge{position:absolute;top:.6rem;left:.6rem}
+.tile .trk{position:absolute;inset:auto .6rem 3.6rem auto;width:78px;opacity:.5}
+.tile:hover{border-color:var(--line-2)}
+
+/* ---------- circuit cards ---------- */
+.circuits{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:.7rem;padding:.85rem}
+.circuit{border:1px solid var(--line);border-radius:9px;background:#080d15;padding:.7rem;position:relative}
+.circuit svg{width:100%;height:74px;display:block}
+.circuit .cn{font-family:var(--wide);font-size:.74rem;text-transform:uppercase;margin-top:.35rem}
+.circuit .cc{font-family:var(--mono);font-size:.62rem;color:var(--muted-2);letter-spacing:.08em}
+.circuit.locked{opacity:.42}
+.circuit.locked svg path{stroke:var(--muted-2)}
+.circuit.on{border-color:var(--signal);box-shadow:0 0 0 1px rgb(219 255 74/35%),0 10px 30px rgb(219 255 74/8%)}
+.circuit .lk{position:absolute;top:.5rem;right:.55rem;font-size:.7rem;color:var(--muted-2)}
+
+/* ---------- detail ---------- */
+.detail{display:grid;grid-template-columns:1.15fr .85fr;gap:.85rem;padding:.85rem}
+.detail .map{border:1px solid var(--line);border-radius:9px;background:#070c14;padding:1rem;position:relative}
+.detail .map svg{width:100%;height:auto;display:block}
+.hot{fill:var(--signal);stroke:#04070c;stroke-width:1.2}
+.hotlbl{font-family:var(--mono);font-size:3px;fill:var(--text)}
+.spec{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.spec div{border:1px solid var(--line);border-radius:8px;padding:.55rem .65rem;background:rgb(255 255 255/2%)}
+.spec small{display:block;font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-2)}
+.spec b{font-family:var(--mono);font-size:1rem}
+
+/* ---------- garage ---------- */
+.garage{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;padding:.85rem}
+.carcard{border:1px solid var(--line);border-radius:9px;background:#080d15;overflow:hidden}
+.carcard .swatch{height:52px;position:relative;background:linear-gradient(115deg,var(--c),#0a1019 78%)}
+.carcard .swatch::after{content:'';position:absolute;inset:auto 0 0 0;height:3px;background:var(--a)}
+.carcard .body{padding:.55rem .65rem}
+.carcard .tn{font-family:var(--wide);font-size:.72rem;text-transform:uppercase}
+.carcard .cs{font-family:var(--mono);font-size:.6rem;color:var(--muted-2)}
+
+/* ---------- drivers ---------- */
+.drivers{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:.6rem;padding:.85rem}
+.dv{border:1px solid var(--line);border-left:3px solid var(--c);border-radius:8px;background:#080d15;padding:.6rem}
+.dv .no{font-family:var(--mono);font-size:1.35rem;color:var(--muted-2);line-height:1}
+.dv .ab{font-family:var(--wide);font-size:.95rem;text-transform:uppercase;margin-top:.15rem}
+.dv .nm{font-size:.68rem;color:var(--muted)}
+.dv .tm{font-family:var(--mono);font-size:.57rem;color:var(--muted-2);letter-spacing:.06em;margin-top:.25rem}
+
+/* ---------- explain overlay ---------- */
+.explain{padding:.85rem;display:grid;grid-template-columns:1fr 300px;gap:.85rem}
+.vp{border:1px solid var(--line);border-radius:9px;background:linear-gradient(170deg,#16212e,#070c14);min-height:230px;position:relative;overflow:hidden}
+.vp .track-bg{position:absolute;inset:0;opacity:.16;display:grid;place-items:center}
+.vp .track-bg svg{width:70%}
+.bubble{position:absolute;border-radius:9px;border:1px solid rgb(219 255 74/45%);background:rgb(8 14 22/95%);
+  padding:.55rem .65rem;max-width:230px;box-shadow:0 12px 34px rgb(0 0 0/55%)}
+.bubble b{font-family:var(--wide);font-size:.7rem;text-transform:uppercase;color:var(--signal);display:block;margin-bottom:.15rem}
+.bubble p{margin:0;font-size:.72rem;color:var(--muted)}
+.jargon{border-bottom:1px dashed var(--signal);color:var(--text);cursor:help}
+.feed{border:1px solid var(--line);border-radius:9px;background:#080d15;padding:.7rem;display:flex;flex-direction:column;gap:.5rem}
+.ev{border-left:2px solid var(--line-2);padding-left:.55rem}
+.ev.hi{border-left-color:var(--signal)}
+.ev .t{font-family:var(--mono);font-size:.6rem;color:var(--muted-2)}
+.ev .m{font-size:.75rem}
+.ev .why{font-size:.68rem;color:var(--signal);margin-top:.15rem}
+
+/* ---------- misc ---------- */
+.flow{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;font-family:var(--mono);font-size:.72rem}
+.flow span{border:1px solid var(--line-2);border-radius:6px;padding:.3rem .55rem;background:rgb(255 255 255/3%)}
+.flow i{color:var(--muted-2);font-style:normal}
+table{width:100%;border-collapse:collapse;font-size:.84rem}
+th,td{text-align:left;padding:.55rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.63rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2)}
+.phase{font-family:var(--mono);font-size:.66rem;color:var(--signal)}
+ul.clean{margin:.5rem 0 0;padding-left:1.05rem;color:var(--muted);font-size:.88rem}
+ul.clean li{margin:.3rem 0}
+.q{border-left:3px solid var(--red);padding-left:.85rem;margin:.9rem 0}
+.q p{margin:0;color:var(--muted);font-size:.9rem}
+.footer{padding:2rem 0 3rem;color:var(--muted-2);font-size:.78rem}
+@media(max-width:820px){
+  .mosaic{grid-template-columns:1fr 1fr}.tile.feature{grid-row:auto}
+  .detail,.explain{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><i>A</i> APEX <span style="color:var(--muted-2);font-family:var(--mono);font-size:.66rem">CONCEPT v0.1</span></div>
+  <div class="topnav">
+    <a href="#gap">The Gap</a><a href="#who">Who</a><a href="#ia">Architecture</a>
+    <a href="#screens">Screens</a><a href="#system">Design System</a><a href="#sticky">Stickiness</a>
+    <a href="#roadmap">Roadmap</a><a href="#questions">Questions</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <p class="eyebrow">Product concept · UI prototype for review</p>
+    <h1>Formula 1,<br/>finally <span>legible</span>.</h1>
+    <p class="sub">A browsable home for circuits, cars and drivers — wrapped around the deterministic race
+      simulation we already built. Not another stats site. A place where a newcomer can watch a race unfold
+      and be told <em>why</em> it unfolded that way.</p>
+    <div class="statrow">
+      <div class="stat"><b>830M+</b><small>F1 followers, +64% vs 2018</small></div>
+      <div class="stat"><b>3 / 4</b><small>of new fans are women</small></div>
+      <div class="stat"><b>43%</b><small>of fanbase under 35</small></div>
+      <div class="stat"><b>16%</b><small>credit Drive to Survive</small></div>
+    </div>
+    <p style="color:var(--muted-2);font-size:.78rem;margin-top:.9rem">
+      Scope note: this document covers the surrounding experience only. The racing simulation is finished and unchanged.
+    </p>
+  </div>
+
+  <!-- THE GAP -->
+  <section id="gap">
+    <p class="eyebrow">01 — The opportunity</p>
+    <h2 style="font-size:clamp(1.5rem,3.6vw,2.2rem)">People arrive for the drama, then hit a wall.</h2>
+    <p class="lede">The audience grew 64% in seven years, and only 16% of new fans credit Drive to Survive —
+      39% came in through friends and family. They arrive through <em>people and stories</em>, not lap charts.
+      Then the sport hands them tyre compounds, delta times, undercuts and DRS detection points, and expects
+      them to keep up. That drop-off between "I love this" and "I understand this" is the whole opportunity.</p>
+
+    <div class="grid g3" style="margin-top:1.3rem">
+      <div class="card"><h4>What exists today</h4>
+        <p>Official timing apps built for people who already know the sport. Fantasy leagues for the committed.
+          YouTube explainers that are passive and never tied to a race you are watching.</p></div>
+      <div class="card"><h4>What is missing</h4>
+        <p>A live, visual, <em>replayable</em> race you can interrogate. Something that answers "why did he pit
+          just now?" at the moment you think it, not in a 12-minute video afterwards.</p></div>
+      <div class="card"><h4>Why we can do it</h4>
+        <p>Our simulation is deterministic and seeded. That means we can rewind it, annotate it, and re-run it
+          with one decision changed. A broadcast can never do that. That is our unfair advantage.</p></div>
+    </div>
+
+    <div class="card" style="margin-top:1rem;border-color:rgb(225 6 0/35%)">
+      <h4 style="color:#ff8f8a">The specific confusions to solve first</h4>
+      <p>Research consistently names the same culprits: <strong style="color:var(--text)">tyre strategy</strong>
+        (six compounds, degradation, why a slower tyre can win a race) and
+        <strong style="color:var(--text)">DRS</strong> (the one-second rule, detection points, why it is not a
+        "pass button"). Add the undercut, dirty air, and the difference between pace and position. Every one of
+        these is something our simulation already models — so we can show it rather than describe it.</p>
+    </div>
+  </section>
+
+  <!-- WHO -->
+  <section id="who">
+    <p class="eyebrow">02 — Who we are building for</p>
+    <h2 style="font-size:clamp(1.5rem,3.6vw,2.2rem)">Three people, one product.</h2>
+    <div class="grid g3" style="margin-top:1.2rem">
+      <div class="card">
+        <span class="tag red">Primary</span>
+        <h4 style="margin-top:.6rem">The Curious Newcomer</h4>
+        <p>Watched a race with a friend. Enjoyed it. Cannot tell you what a pit window is. Wants to not feel
+          stupid. <strong style="color:var(--text)">Needs:</strong> plain language, no jargon without a tooltip,
+          a reason to care about a specific driver.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Secondary</span>
+        <h4 style="margin-top:.6rem">The Returning Casual</h4>
+        <p>Watches maybe five races a season. Knows the names, not the strategy. <strong style="color:var(--text)">Needs:</strong>
+          fast catch-up, "what did I miss", and the ability to poke at a scenario without a 90-minute commitment.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Tertiary</span>
+        <h4 style="margin-top:.6rem">The Strategy Nerd</h4>
+        <p>Already knows everything. Here for the sandbox. <strong style="color:var(--text)">Needs:</strong>
+          determinism, seeds, the what-if engine, and shareable proof that their strategy call was right.</p>
+      </div>
+    </div>
+    <p class="lede" style="margin-top:1rem">The nerd is not the target, but the nerd is the distribution.
+      They make the what-if clips the newcomer sees. Build for the newcomer, arm the nerd.</p>
+  </section>
+
+  <!-- IA -->
+  <section id="ia">
+    <p class="eyebrow">03 — Information architecture</p>
+    <h2 style="font-size:clamp(1.5rem,3.6vw,2.2rem)">Structure</h2>
+    <p class="lede">Borrowed from the console-game pattern in your reference: a persistent top nav, a mosaic
+      dashboard home, and dense detail screens behind each entry. Familiar to gamers, and it scales to more
+      circuits without a redesign.</p>
+    <div class="flow" style="margin-top:1.1rem">
+      <span>Landing</span><i>→</i><span>Circuits</span><i>→</i><span>Circuit detail</span><i>→</i>
+      <span style="border-color:var(--signal);color:var(--signal)">Race simulation (built)</span><i>→</i>
+      <span>Race debrief</span><i>→</i><span>What-if re-run</span><i>→</i><span>Share</span>
+    </div>
+    <div class="grid g4" style="margin-top:1.1rem">
+      <div class="card"><h4>Home</h4><p>Mosaic dashboard. Featured circuit, continue-where-you-left-off, a
+        "learn one thing" card, latest what-if from the community.</p></div>
+      <div class="card"><h4>Circuits</h4><p>Grid of tracks. Shanghai live; the rest are honest placeholders
+        marked as coming.</p></div>
+      <div class="card"><h4>Garage</h4><p>The seven cars we hold real models for. Rotatable 3D viewer, spec
+        panel, plain-English "what makes this car different".</p></div>
+      <div class="card"><h4>Drivers</h4><p>All fourteen. Number, team, a personality hook, and their
+        simulated ratings so the sim is transparent rather than a black box.</p></div>
+    </div>
+  </section>
+
+  <!-- SCREENS -->
+  <section id="screens">
+    <p class="eyebrow">04 — Screens</p>
+    <h2 style="font-size:clamp(1.5rem,3.6vw,2.2rem)">The interface</h2>
+    <p class="lede">These are live HTML mockups, not images — real type, real team colours, and the real
+      Shanghai centreline traced from the model in our simulation. Layout only; not production code.</p>
+
+    <!-- HOME -->
+    <div class="mock">
+      <div class="mock-cap"><span class="dot"></span> 4.1 — Landing / Home</div>
+      <div class="screen">
+        <div class="appnav">
+          <div class="applogo"><i>A</i> APEX</div>
+          <nav><a class="on" href="#">Home</a><a href="#">Circuits</a><a href="#">Garage</a><a href="#">Drivers</a><a href="#">Learn</a></nav>
+          <div class="right"><button class="btn">Sign in</button><button class="btn p">Run a race</button></div>
+        </div>
+        <div class="mosaic">
+          <div class="tile feature">
+            <span class="badge tag live">● Playable now</span>
+            <svg class="trk" viewBox="0 0 100 100" style="inset:auto 1rem 5rem auto;width:110px;opacity:.35"><path d="M41.93 74.65 L27.53 78.17 L16.69 80.31 L10.61 76.68 L10.10 69.77 L16.09 68.35 L17.17 74.87 L22.19 72.34 L20.58 65.43 L13.16 57.17 L8.23 51.65 L4.57 45.24 L2.05 38.28 L0.00 31.29 L5.31 31.43 L9.95 37.15 L13.40 43.70 L17.36 49.93 L23.59 53.64 L30.66 52.50 L35.20 46.86 L38.90 40.56 L45.71 39.05 L50.64 44.05 L55.38 48.29 L59.76 42.86 L57.16 36.18 L51.38 26.68 L45.62 17.17 L41.79 10.86 L36.14 11.92 L30.84 8.75 L32.52 1.98 L39.26 0.00 L45.66 3.41 L49.92 9.45 L54.00 15.64 L58.07 21.83 L62.14 28.03 L66.21 34.22 L70.28 40.41 L74.35 46.60 L78.42 52.79 L82.50 58.98 L86.57 65.17 L90.64 71.36 L94.71 77.55 L98.78 83.74 L100.00 86.70 L94.32 84.77 L89.79 78.92 L85.62 72.79 L81.29 66.86 L74.33 66.79 L63.54 69.43 L52.73 72.05 L45.53 73.78 Z" fill="none" stroke="#dbff4a" stroke-width="1.6"/></svg>
+            <h5>Shanghai International Circuit</h5>
+            <p>56 laps · 5.451 km · 16 turns — watch the 2026 Chinese Grand Prix simulated, then ask it why.</p>
+            <div style="display:flex;gap:.4rem;margin-top:.6rem"><button class="btn r">Watch the race</button><button class="btn">Explore circuit</button></div>
+          </div>
+          <div class="tile"><span class="badge tag">Pick up</span><h5>Continue</h5><p>Lap 34 · Verstappen leads by 2.1s</p></div>
+          <div class="tile"><span class="badge tag soon">Daily</span><h5>Learn one thing</h5><p>Why a slower tyre sometimes wins the race.</p></div>
+          <div class="tile"><h5>Garage</h5><p>7 cars · rotate, compare, inspect</p></div>
+          <div class="tile"><h5>Drivers</h5><p>14 on the grid · find your driver</p></div>
+        </div>
+        <div class="legend"><span><b>↑↓</b>Navigate</span><span><b>↵</b>Select</span><span><b>E</b>Explain mode</span><span><b>?</b>Glossary</span></div>
+      </div>
+    </div>
+
+    <!-- CIRCUITS -->
+    <div class="mock">
+      <div class="mock-cap"><span class="dot"></span> 4.2 — Circuits browser · honest placeholders</div>
+      <div class="screen">
+        <div class="appnav">
+          <div class="applogo"><i>A</i> APEX</div>
+          <nav><a href="#">Home</a><a class="on" href="#">Circuits</a><a href="#">Garage</a><a href="#">Drivers</a><a href="#">Learn</a></nav>
+          <div class="right"><span class="tag">1 of 24 available</span></div>
+        </div>
+        <div class="circuits">
+          <div class="circuit on">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet"><path d="M41.93 74.65 L27.53 78.17 L16.69 80.31 L10.61 76.68 L10.10 69.77 L16.09 68.35 L17.17 74.87 L22.19 72.34 L20.58 65.43 L13.16 57.17 L8.23 51.65 L4.57 45.24 L2.05 38.28 L0.00 31.29 L5.31 31.43 L9.95 37.15 L13.40 43.70 L17.36 49.93 L23.59 53.64 L30.66 52.50 L35.20 46.86 L38.90 40.56 L45.71 39.05 L50.64 44.05 L55.38 48.29 L59.76 42.86 L57.16 36.18 L51.38 26.68 L45.62 17.17 L41.79 10.86 L36.14 11.92 L30.84 8.75 L32.52 1.98 L39.26 0.00 L45.66 3.41 L49.92 9.45 L54.00 15.64 L58.07 21.83 L62.14 28.03 L66.21 34.22 L70.28 40.41 L74.35 46.60 L78.42 52.79 L82.50 58.98 L86.57 65.17 L90.64 71.36 L94.71 77.55 L98.78 83.74 L100.00 86.70 L94.32 84.77 L89.79 78.92 L85.62 72.79 L81.29 66.86 L74.33 66.79 L63.54 69.43 L52.73 72.05 L45.53 73.78 Z" fill="none" stroke="#dbff4a" stroke-width="2.2" stroke-linejoin="round"/></svg>
+            <div class="cn">Shanghai</div><div class="cc">CHN · 5.451 KM · 56 LAPS</div>
+            <span class="tag live" style="margin-top:.35rem">● Playable</span>
+          </div>
+          <div class="circuit locked"><span class="lk">🔒</span><svg viewBox="0 0 100 100"><path d="M20 70 L20 30 L50 15 L80 30 L80 70 L50 85 Z" fill="none" stroke="#6b7788" stroke-width="2.2"/></svg><div class="cn">Monza</div><div class="cc">ITA · PLACEHOLDER</div><span class="tag soon" style="margin-top:.35rem">Planned</span></div>
+          <div class="circuit locked"><span class="lk">🔒</span><svg viewBox="0 0 100 100"><path d="M30 80 L15 55 L30 25 L60 15 L85 35 L70 65 L50 60 Z" fill="none" stroke="#6b7788" stroke-width="2.2"/></svg><div class="cn">Monaco</div><div class="cc">MON · PLACEHOLDER</div><span class="tag soon" style="margin-top:.35rem">Planned</span></div>
+          <div class="circuit locked"><span class="lk">🔒</span><svg viewBox="0 0 100 100"><path d="M25 75 L18 40 L45 18 L75 25 L85 55 L60 82 Z" fill="none" stroke="#6b7788" stroke-width="2.2"/></svg><div class="cn">Silverstone</div><div class="cc">GBR · PLACEHOLDER</div><span class="tag soon" style="margin-top:.35rem">Planned</span></div>
+          <div class="circuit locked"><span class="lk">🔒</span><svg viewBox="0 0 100 100"><path d="M20 60 L40 20 L70 20 L85 45 L65 80 L35 78 Z" fill="none" stroke="#6b7788" stroke-width="2.2"/></svg><div class="cn">Suzuka</div><div class="cc">JPN · PLACEHOLDER</div><span class="tag soon" style="margin-top:.35rem">Planned</span></div>
+          <div class="circuit locked"><span class="lk">🔒</span><svg viewBox="0 0 100 100"><path d="M22 50 L45 22 L78 30 L80 62 L52 82 L28 72 Z" fill="none" stroke="#6b7788" stroke-width="2.2"/></svg><div class="cn">Spa</div><div class="cc">BEL · PLACEHOLDER</div><span class="tag soon" style="margin-top:.35rem">Planned</span></div>
+        </div>
+        <div class="legend"><span>Placeholders are labelled, never faked — a locked card states plainly that the track is not built yet.</span></div>
+      </div>
+    </div>
+
+    <!-- CIRCUIT DETAIL -->
+    <div class="mock">
+      <div class="mock-cap"><span class="dot"></span> 4.3 — Circuit detail · Shanghai (real centreline from our model)</div>
+      <div class="screen">
+        <div class="appnav">
+          <div class="applogo"><i>A</i> APEX</div>
+          <nav><a href="#">Home</a><a class="on" href="#">Circuits</a><a href="#">Garage</a><a href="#">Drivers</a><a href="#">Learn</a></nav>
+          <div class="right"><button class="btn r">Launch simulation</button></div>
+        </div>
+        <div class="detail">
+          <div class="map">
+            <svg viewBox="-6 -6 112 112">
+              <path d="M41.93 74.65 L27.53 78.17 L16.69 80.31 L10.61 76.68 L10.10 69.77 L16.09 68.35 L17.17 74.87 L22.19 72.34 L20.58 65.43 L13.16 57.17 L8.23 51.65 L4.57 45.24 L2.05 38.28 L0.00 31.29 L5.31 31.43 L9.95 37.15 L13.40 43.70 L17.36 49.93 L23.59 53.64 L30.66 52.50 L35.20 46.86 L38.90 40.56 L45.71 39.05 L50.64 44.05 L55.38 48.29 L59.76 42.86 L57.16 36.18 L51.38 26.68 L45.62 17.17 L41.79 10.86 L36.14 11.92 L30.84 8.75 L32.52 1.98 L39.26 0.00 L45.66 3.41 L49.92 9.45 L54.00 15.64 L58.07 21.83 L62.14 28.03 L66.21 34.22 L70.28 40.41 L74.35 46.60 L78.42 52.79 L82.50 58.98 L86.57 65.17 L90.64 71.36 L94.71 77.55 L98.78 83.74 L100.00 86.70 L94.32 84.77 L89.79 78.92 L85.62 72.79 L81.29 66.86 L74.33 66.79 L63.54 69.43 L52.73 72.05 L45.53 73.78 Z"
+                fill="none" stroke="#dbff4a" stroke-width="2.4" stroke-linejoin="round"/>
+              <circle class="hot" cx="32.52" cy="1.98" r="2.6"/><text class="hotlbl" x="36" y="3">T1–4 spiral</text>
+              <circle class="hot" cx="90.64" cy="71.36" r="2.6"/><text class="hotlbl" x="72" y="78">Back straight</text>
+              <circle class="hot" cx="10.10" cy="69.77" r="2.6"/><text class="hotlbl" x="1" y="66">T13 hairpin</text>
+              <circle class="hot" cx="45.53" cy="73.78" r="2.6" style="fill:#e10600"/><text class="hotlbl" x="42" y="80">Start / finish</text>
+            </svg>
+            <p style="color:var(--muted);font-size:.74rem;margin:.6rem 0 0">Tap any marker for a plain-English note:
+              <em>"Turn 1 keeps tightening for almost 270°. Brake too late and you are still turning when the corner runs out."</em></p>
+          </div>
+          <div>
+            <h3 style="font-size:1.35rem;text-transform:uppercase">Shanghai</h3>
+            <p style="color:var(--muted);font-size:.8rem;margin:.2rem 0 .8rem">Chinese Grand Prix · 2026 season</p>
+            <div class="spec">
+              <div><small>Length</small><b>5.451 km</b></div>
+              <div><small>Laps</small><b>56</b></div>
+              <div><small>Turns</small><b>16</b></div>
+              <div><small>Longest straight</small><b>1.17 km</b></div>
+              <div><small>DRS zones</small><b>2</b></div>
+              <div><small>Grid</small><b>14 cars</b></div>
+            </div>
+            <div class="card" style="margin-top:.7rem;padding:.75rem">
+              <h4 style="font-size:.78rem">Why this track is interesting</h4>
+              <p style="font-size:.78rem">The opening corner spirals inward for nearly 270 degrees, so drivers are
+                still turning long after they expect to be done. Then a 1.17 km straight into a tight hairpin —
+                the single best overtaking spot of the lap. Those two features decide most races here.</p>
+            </div>
+            <div style="display:flex;gap:.4rem;margin-top:.7rem;flex-wrap:wrap">
+              <button class="btn r">Launch simulation</button>
+              <button class="btn">Compare a lap</button>
+            </div>
+          </div>
+        </div>
+        <div class="legend"><span><b>M</b>Map</span><span><b>S</b>Stats</span><span><b>↵</b>Launch</span></div>
+      </div>
+    </div>
+
+    <!-- GARAGE -->
+    <div class="mock">
+      <div class="mock-cap"><span class="dot"></span> 4.4 — Garage · the seven cars we hold real models for</div>
+      <div class="screen">
+        <div class="appnav">
+          <div class="applogo"><i>A</i> APEX</div>
+          <nav><a href="#">Home</a><a href="#">Circuits</a><a class="on" href="#">Garage</a><a href="#">Drivers</a><a href="#">Learn</a></nav>
+          <div class="right"><span class="tag">7 teams</span></div>
+        </div>
+        <div class="garage">
+          <div class="carcard" style="--c:#E80020;--a:#FFF200"><div class="swatch"></div><div class="body"><div class="tn">Ferrari</div><div class="cs">SF-25 · LEC / HAM</div></div></div>
+          <div class="carcard" style="--c:#FF8000;--a:#47C7FC"><div class="swatch"></div><div class="body"><div class="tn">McLaren</div><div class="cs">MCL39 · NOR / PIA</div></div></div>
+          <div class="carcard" style="--c:#3671C6;--a:#FCD700"><div class="swatch"></div><div class="body"><div class="tn">Red Bull Racing</div><div class="cs">RB21 · VER / HAD</div></div></div>
+          <div class="carcard" style="--c:#6692FF;--a:#FFFFFF"><div class="swatch"></div><div class="body"><div class="tn">Racing Bulls</div><div class="cs">VCARB01 · LAW / LIN</div></div></div>
+          <div class="carcard" style="--c:#FF87BC;--a:#2293D1"><div class="swatch"></div><div class="body"><div class="tn">Alpine</div><div class="cs">A525 · GAS / COL</div></div></div>
+          <div class="carcard" style="--c:#1868DB;--a:#00A0DE"><div class="swatch"></div><div class="body"><div class="tn">Williams</div><div class="cs">FW47 · SAI / ALB</div></div></div>
+          <div class="carcard" style="--c:#229971;--a:#CEDC00"><div class="swatch"></div><div class="body"><div class="tn">Aston Martin</div><div class="cs">AMR25 · ALO / STR</div></div></div>
+        </div>
+        <div class="legend"><span>Each card opens a rotatable 3D viewer using the optimized model already in the build (1–3 MB each).</span></div>
+      </div>
+    </div>
+
+    <!-- DRIVERS -->
+    <div class="mock">
+      <div class="mock-cap"><span class="dot"></span> 4.5 — Drivers · the entry point most newcomers actually use</div>
+      <div class="screen">
+        <div class="appnav">
+          <div class="applogo"><i>A</i> APEX</div>
+          <nav><a href="#">Home</a><a href="#">Circuits</a><a href="#">Garage</a><a class="on" href="#">Drivers</a><a href="#">Learn</a></nav>
+          <div class="right"><button class="btn p">Find my driver</button></div>
+        </div>
+        <div class="drivers">
+          <div class="dv" style="--c:#3671C6"><div class="no">3</div><div class="ab">VER</div><div class="nm">Max Verstappen</div><div class="tm">RED BULL · NED</div></div>
+          <div class="dv" style="--c:#E80020"><div class="no">16</div><div class="ab">LEC</div><div class="nm">Charles Leclerc</div><div class="tm">FERRARI · MON</div></div>
+          <div class="dv" style="--c:#E80020"><div class="no">44</div><div class="ab">HAM</div><div class="nm">Lewis Hamilton</div><div class="tm">FERRARI · GBR</div></div>
+          <div class="dv" style="--c:#FF8000"><div class="no">1</div><div class="ab">NOR</div><div class="nm">Lando Norris</div><div class="tm">MCLAREN · GBR</div></div>
+          <div class="dv" style="--c:#FF8000"><div class="no">81</div><div class="ab">PIA</div><div class="nm">Oscar Piastri</div><div class="tm">MCLAREN · AUS</div></div>
+          <div class="dv" style="--c:#229971"><div class="no">14</div><div class="ab">ALO</div><div class="nm">Fernando Alonso</div><div class="tm">ASTON MARTIN · ESP</div></div>
+          <div class="dv" style="--c:#1868DB"><div class="no">55</div><div class="ab">SAI</div><div class="nm">Carlos Sainz</div><div class="tm">WILLIAMS · ESP</div></div>
+          <div class="dv" style="--c:#FF87BC"><div class="no">10</div><div class="ab">GAS</div><div class="nm">Pierre Gasly</div><div class="tm">ALPINE · FRA</div></div>
+        </div>
+        <div style="padding:0 .85rem .85rem">
+          <div class="card" style="padding:.75rem">
+            <h4 style="font-size:.78rem">"Find my driver" — a 6-question personality match</h4>
+            <p style="font-size:.78rem">Most people pick a driver before they pick a team, and they pick on
+              personality. Aggressive overtaker or patient tyre manager? Veteran or rookie? Six taps and you leave
+              with someone to care about — which is the single strongest predictor that you will come back.</p>
+          </div>
+        </div>
+        <div class="legend"><span>Cards expose the same ratings the simulation uses, so the sim is transparent rather than a black box.</span></div>
+      </div>
+    </div>
+
+    <!-- EXPLAIN MODE -->
+    <div class="mock" style="border-color:rgb(219 255 74/40%)">
+      <div class="mock-cap" style="color:var(--signal)"><span class="dot" style="background:var(--signal)"></span> 4.6 — Explain Mode · the differentiator</div>
+      <div class="screen">
+        <div class="appnav">
+          <div class="applogo"><i>A</i> APEX</div>
+          <nav><a href="#">Home</a><a href="#">Circuits</a><a href="#">Garage</a><a href="#">Drivers</a><a href="#">Learn</a></nav>
+          <div class="right"><span class="tag live">● Explain mode ON</span><button class="btn">Turn off</button></div>
+        </div>
+        <div class="explain">
+          <div class="vp">
+            <div class="track-bg"><svg viewBox="0 0 100 100"><path d="M41.93 74.65 L27.53 78.17 L16.69 80.31 L10.61 76.68 L10.10 69.77 L16.09 68.35 L17.17 74.87 L22.19 72.34 L20.58 65.43 L13.16 57.17 L8.23 51.65 L4.57 45.24 L2.05 38.28 L0.00 31.29 L5.31 31.43 L9.95 37.15 L13.40 43.70 L17.36 49.93 L23.59 53.64 L30.66 52.50 L35.20 46.86 L38.90 40.56 L45.71 39.05 L50.64 44.05 L55.38 48.29 L59.76 42.86 L57.16 36.18 L51.38 26.68 L45.62 17.17 L41.79 10.86 L36.14 11.92 L30.84 8.75 L32.52 1.98 L39.26 0.00 L45.66 3.41 L49.92 9.45 L54.00 15.64 L58.07 21.83 L62.14 28.03 L66.21 34.22 L70.28 40.41 L74.35 46.60 L78.42 52.79 L82.50 58.98 L86.57 65.17 L90.64 71.36 L94.71 77.55 L98.78 83.74 L100.00 86.70 L94.32 84.77 L89.79 78.92 L85.62 72.79 L81.29 66.86 L74.33 66.79 L63.54 69.43 L52.73 72.05 L45.53 73.78 Z" fill="none" stroke="#dbff4a" stroke-width="2"/></svg></div>
+            <div class="bubble" style="top:1rem;left:1rem">
+              <b>Why he just pitted</b>
+              <p>Hamilton's tyres were <span class="jargon">degrading</span> 1.2s per lap. Staying out would have
+                cost more time than the 24-second pit stop. That trade is the whole game.</p>
+            </div>
+            <div class="bubble" style="bottom:1rem;right:1rem;border-color:rgb(71 199 252/45%)">
+              <b style="color:var(--cyan)">DRS armed</b>
+              <p>Norris is within one second at the detection point, so he may open his rear wing on the straight.
+                It is not a pass button — he still has to brake later than the car ahead.</p>
+            </div>
+          </div>
+          <div class="feed">
+            <div style="font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-2)">Race feed · plain English</div>
+            <div class="ev hi"><div class="t">LAP 18 · T14</div><div class="m">Norris passed Hadjar for P4</div>
+              <div class="why">Why: fresher tyres + DRS down the back straight.</div></div>
+            <div class="ev"><div class="t">LAP 17</div><div class="m">Hamilton pitted — Medium → Hard</div>
+              <div class="why">Why: an <span class="jargon">undercut</span> attempt on Leclerc.</div></div>
+            <div class="ev"><div class="t">LAP 14</div><div class="m">Yellow flag, sector 2</div>
+              <div class="why">Why: debris. Drivers must slow and cannot overtake.</div></div>
+            <div class="ev"><div class="t">LAP 9</div><div class="m">Verstappen extends lead to 3.4s</div>
+              <div class="why">Why: clean air. Following closely overheats tyres.</div></div>
+            <div style="margin-top:auto;display:flex;gap:.35rem"><button class="btn p" style="flex:1">Rewind &amp; change this</button></div>
+          </div>
+        </div>
+        <div class="legend"><span><b>E</b>Toggle explain</span><span><b>Space</b>Pause</span><span><b>?</b>Any underlined word</span><span><b>R</b>Rewind &amp; re-run</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DESIGN SYSTEM -->
+  <section id="system">
+    <p class="eyebrow">05 — Design system</p>
+    <h2 style="font-size:clamp(1.5rem,3.6vw,2.2rem)">Consistent with what we already built</h2>
+    <p class="lede">The simulation already ships Formula1 Display, Formula1 Wide and MonoSpec, plus a dark
+      charcoal palette and a lime signal colour. The landing experience reuses all of it, so the transition from
+      browsing into the race feels like one product.</p>
+    <div class="grid g2" style="margin-top:1.1rem">
+      <div class="card">
+        <h4>Type</h4>
+        <p style="margin-bottom:.5rem">Three roles, no more.</p>
+        <div style="font-family:var(--wide);font-size:1.5rem;text-transform:uppercase">Formula1 Wide</div>
+        <div style="color:var(--muted-2);font-size:.7rem;font-family:var(--mono)">Brand lockups and hero headings only — it is very wide and overflows tight slots.</div>
+        <div style="font-family:var(--disp);font-size:1.15rem;margin-top:.5rem">Formula1 Display — headings and UI</div>
+        <div style="font-family:var(--mono);font-size:1.05rem;margin-top:.5rem">MonoSpec 1234567890 — all timing</div>
+        <div style="color:var(--muted-2);font-size:.7rem;font-family:var(--mono)">Tabular figures so digits never jitter as they tick.</div>
+      </div>
+      <div class="card">
+        <h4>Colour</h4>
+        <p>Team colours are data, never decoration — each team's hex comes straight from the grid definition.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.6rem">
+          <span style="width:34px;height:34px;border-radius:6px;background:#05080d;border:1px solid var(--line-2)" title="Ink"></span>
+          <span style="width:34px;height:34px;border-radius:6px;background:#dbff4a" title="Signal"></span>
+          <span style="width:34px;height:34px;border-radius:6px;background:#e10600" title="F1 red"></span>
+          <span style="width:34px;height:34px;border-radius:6px;background:#E80020" title="Ferrari"></span>
+          <span style="width:34px;height:34px;border-radius:6px;background:#FF8000" title="McLaren"></span>
+          <span style="width:34px;height:34px;border-radius:6px;background:#3671C6" title="Red Bull"></span>
+          <span style="width:34px;height:34px;border-radius:6px;background:#229971" title="Aston"></span>
+          <span style="width:34px;height:34px;border-radius:6px;background:#1868DB" title="Williams"></span>
+          <span style="width:34px;height:34px;border-radius:6px;background:#FF87BC" title="Alpine"></span>
+        </div>
+        <p style="margin-top:.6rem;font-size:.8rem">Lime is reserved for "you can act here". Red is reserved for
+          race-critical and destructive actions. Nothing else competes.</p>
+      </div>
+    </div>
+    <div class="grid g4" style="margin-top:1rem">
+      <div class="card"><h4>Card mosaic</h4><p>Console-dashboard grid from your reference. Scales to more circuits without redesign.</p></div>
+      <div class="card"><h4>Button legend</h4><p>The persistent bottom hint bar. Cheap, and it makes the whole thing feel like a game rather than a website.</p></div>
+      <div class="card"><h4>Jargon underline</h4><p>Every sport term is a dashed-underline tooltip. One pattern, applied everywhere.</p></div>
+      <div class="card"><h4>Honest placeholders</h4><p>Unbuilt circuits say so. We never fake content we do not have.</p></div>
+    </div>
+  </section>
+
+  <!-- STICKINESS -->
+  <section id="sticky">
+    <p class="eyebrow">06 — Stickiness &amp; distribution</p>
+    <h2 style="font-size:clamp(1.5rem,3.6vw,2.2rem)">What makes someone come back, and what makes them post</h2>
+    <p class="lede">A landing page alone does not retain anyone. These are ranked by how much they lean on the
+      thing we uniquely have — a deterministic, rewindable race.</p>
+
+    <div class="grid g2" style="margin-top:1.1rem">
+      <div class="card" style="border-color:rgb(219 255 74/40%)">
+        <span class="tag live">Highest leverage</span>
+        <h4 style="margin-top:.55rem">1 · Rewrite the race</h4>
+        <p>Change one decision — pit two laps later, start on the hard tyre — and re-run. Because the sim is
+          seeded and deterministic, the counterfactual is real, not hand-waved. <strong style="color:var(--text)">
+          "I made Alonso win at Shanghai"</strong> is a genuinely shareable artefact, and no broadcast can produce it.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Retention</span>
+        <h4 style="margin-top:.55rem">2 · Explain Mode</h4>
+        <p>The reason a newcomer stays. Every event annotated with a plain-language "why". Toggleable, so the
+          nerd is never patronised. This is the feature the product is actually about.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Habit</span>
+        <h4 style="margin-top:.55rem">3 · Predict the podium</h4>
+        <p>Before the sim runs, call the top three. Get scored. A weekly streak gives a reason to return that
+          does not depend on the real race calendar — we can run a fresh seed any day.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Distribution</span>
+        <h4 style="margin-top:.55rem">4 · 30-second race recap card</h4>
+        <p>Auto-generated vertical summary: winner, the decisive moment, one stat. Built for the format where
+          F1 video views grew 54% year on year. Ship the share card and the loop closes itself.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Onboarding</span>
+        <h4 style="margin-top:.55rem">5 · Find my driver</h4>
+        <p>Six questions to a driver you care about. Most people pick a driver before a team, and caring about
+          someone is what converts a visit into a habit.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Depth</span>
+        <h4 style="margin-top:.55rem">6 · Corner-by-corner annotations</h4>
+        <p>Tap any corner for why it is hard and where passes happen. Turns a track map from decoration into
+          the reason the racing makes sense.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1rem">
+      <h4>The honest risk</h4>
+      <p>Everything above is downstream of one thing: the simulation has to produce races worth explaining. If
+        the racing is not dramatic, no amount of annotation saves it. Before building any of this, I would want
+        to watch ten generated races end-to-end and confirm they are actually interesting — overtakes in
+        plausible places, strategies that vary by seed, finishes that are not foregone. That is a cheap check
+        and it de-risks the entire roadmap.</p>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section id="roadmap">
+    <p class="eyebrow">07 — Sequencing</p>
+    <h2 style="font-size:clamp(1.5rem,3.6vw,2.2rem)">What I would build, in order</h2>
+    <table>
+      <thead><tr><th style="width:70px">Phase</th><th>Scope</th><th style="width:150px">Depends on</th></tr></thead>
+      <tbody>
+        <tr><td class="phase">P0</td>
+          <td><strong>The shell.</strong> Landing, circuits browser, circuit detail, garage, drivers, and routing
+            into the existing simulation. All static data we already hold. No new simulation work.</td>
+          <td>Nothing — can start now</td></tr>
+        <tr><td class="phase">P1</td>
+          <td><strong>Explain Mode + glossary.</strong> Annotate the existing event feed with plain-language
+            reasons; dashed-underline tooltips everywhere. The core value proposition.</td>
+          <td>Event feed (exists)</td></tr>
+        <tr><td class="phase">P2</td>
+          <td><strong>Rewrite the race.</strong> Rewind to a decision point, change one variable, re-run from the
+            same seed, diff the outcome. Plus the share card.</td>
+          <td>Deterministic engine (exists)</td></tr>
+        <tr><td class="phase">P3</td>
+          <td><strong>Habit loop.</strong> Predict-the-podium, streaks, "find my driver", daily seed.</td>
+          <td>Accounts / local storage</td></tr>
+        <tr><td class="phase">P4</td>
+          <td><strong>More circuits.</strong> Second track proves the pipeline generalises. Our track generator
+            already derives everything from the model, so a new circuit is mostly an asset problem.</td>
+          <td>Licensed track models</td></tr>
+      </tbody>
+    </table>
+    <p class="lede" style="margin-top:1rem">P0 is roughly a week of focused work and unblocks review of everything
+      else. P1 is where the product stops being a tech demo.</p>
+  </section>
+
+  <!-- QUESTIONS -->
+  <section id="questions">
+    <p class="eyebrow">08 — Before I build</p>
+    <h2 style="font-size:clamp(1.5rem,3.6vw,2.2rem)">Decisions I need from you</h2>
+
+    <div class="q"><p><strong style="color:var(--text)">1 · Name.</strong> "APEX" is a placeholder I used so the
+      mockups read as a product. Do you want a real name now, or keep it neutral?</p></div>
+    <div class="q"><p><strong style="color:var(--text)">2 · Real drivers and teams, or fictional?</strong> The
+      mockups use real 2026 names because the simulation does. That is fine for a private prototype, but names,
+      liveries and likenesses are licensed IP and this is already flagged in our credits as unverified. If this
+      ever goes public we should decide now: license it, or go fictional-but-plausible. It is much cheaper to
+      decide before we build a driver-led onboarding flow around real people.</p></div>
+    <div class="q"><p><strong style="color:var(--text)">3 · Accounts?</strong> Predictions and streaks need
+      persistence. Local storage only (no signup friction, no cross-device) or real accounts?</p></div>
+    <div class="q"><p><strong style="color:var(--text)">4 · Which single feature after P0?</strong> My strong
+      recommendation is Explain Mode — it is the reason to exist. But if virality is the priority, Rewrite the
+      Race is the more shareable one.</p></div>
+
+    <div class="card" style="margin-top:1.2rem;border-color:rgb(219 255 74/40%)">
+      <h4>My recommendation</h4>
+      <p>Build P0 as a static shell over what we already have, then P1 Explain Mode. Resist adding circuits until
+        one track is genuinely great — the second track multiplies asset cost without proving anything new. And
+        settle the licensing question before we build identity features around real drivers.</p>
+    </div>
+  </section>
+
+  <div class="footer">
+    <p><strong style="color:var(--text)">Sources for the figures used above:</strong>
+      <a href="https://corp.formula1.com/formula-1-2026-season-half-year-review/">F1 2026 half-year review</a> ·
+      <a href="https://www.motorsport.com/f1/news/staying-power-f1s-new-young-fans-are-committed-for-the-long-haul/10738590/">Motorsport.com on new-fan retention</a> ·
+      <a href="https://www.statista.com/statistics/1311012/drive-to-survive-new-fan-impact">Statista, Drive to Survive impact</a> ·
+      <a href="https://intothechicane.com/2025/12/27/press-f1-for-help-how-does-tyre-strategy-work-in-formula-1/">Into the Chicane, tyre strategy</a> ·
+      <a href="https://worldinsport.com/how-drs-works/">World in Sport, DRS explained</a> ·
+      <a href="https://intothepitlane.com/f1-terms-explained-must-know-f1-terminology-for-new-fans/">Into the Pit Lane, terminology for new fans</a>
+    </p>
+    <p>UI direction adapted from the F1 2019 interface catalogue at
+      <a href="https://interfaceingame.com/games/f1-2019/">Interface In Game</a> — console-dashboard mosaic,
+      persistent top nav, dense stat panels and a bottom button legend.</p>
+    <p style="margin-top:.8rem">Concept document · nothing here has been implemented · the racing simulation is unchanged.</p>
+  </div>
+
+</div>
+</body>
+</html>
