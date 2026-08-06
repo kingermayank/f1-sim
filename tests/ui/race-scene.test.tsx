@@ -26,6 +26,7 @@ import {
 } from '../../src/cameras/RaceCameras';
 
 it('exposes an accessible race viewport and loading status', () => {
+  window.location.hash = '#/race';
   render(<App />);
 
   expect(screen.getByRole('region', { name: '3D race viewport' })).toBeVisible();
@@ -158,6 +159,7 @@ it('replaces render-tree crashes with the accessible procedural fallback', () =>
 });
 
 it('exposes all 14 cars as driver-selectable controls without WebGL', () => {
+  window.location.hash = '#/race';
   render(<App />);
 
   const driverControls = screen.getAllByRole('button', { name: /select .* car/i });

@@ -185,7 +185,7 @@ test.beforeEach(async ({ page }) => {
     };
   });
 
-  await page.goto('/?diagnostics=1');
+  await page.goto('/?diagnostics=1#/race');
   await expect(page.getByRole('heading', { name: 'Shanghai 2026 Simulation' })).toBeAttached();
   await expect(page.getByRole('region', { name: '3D race viewport' })).toBeVisible();
   await expect(page.getByRole('status')).toHaveText('Ready · 14 cars on the Shanghai circuit', { timeout: 20_000 });

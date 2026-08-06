@@ -37,6 +37,8 @@ interface PersistedPreferences {
   effects: boolean;
   quality: QualityMode;
   cameraMode: CameraMode;
+  /** Explain Mode. Optional so preferences saved before it existed still load. */
+  explain?: boolean;
 }
 
 const DEFAULT_PREFERENCES: PersistedPreferences = {
@@ -47,6 +49,9 @@ const DEFAULT_PREFERENCES: PersistedPreferences = {
   effects: true,
   quality: 'auto',
   cameraMode: 'broadcast',
+  // Defaults on: the newcomer is the primary audience, and someone who already
+  // knows the sport can turn it off in one click.
+  explain: true,
 };
 
 export type ImmutableRaceEvent<T extends RaceEvent = RaceEvent> = T extends { driverIds: string[] }
@@ -62,6 +67,7 @@ export interface RaceStoreState {
   selectedDriverId: string | null;
   cameraMode: CameraMode;
   labelsEnabled: boolean;
+  explainEnabled: boolean;
   effectsEnabled: boolean;
   audioMuted: boolean;
   reducedMotion: boolean;
@@ -71,6 +77,7 @@ export interface RaceStoreState {
   setSpeed(speed: PlaybackSpeed): void;
   selectDriver(driverId: string | null): void;
   setCameraMode(cameraMode: CameraMode): void;
+  setExplainEnabled(enabled: boolean): void;
   toggleLabels(): void;
   toggleEffects(): void;
   toggleAudio(): void;
@@ -123,7 +130,7 @@ function readPreferences(storage: PreferenceStorage | null): PersistedPreference
       || typeof parsed.quality !== 'string' || !QUALITY_MODES.includes(parsed.quality as QualityMode)
       || typeof parsed.cameraMode !== 'string' || !isCameraMode(parsed.cameraMode)
     ) return DEFAULT_PREFERENCES;
-    return parsed as PersistedPreferences;
+    return { ...DEFAULT_PREFERENCES, ...parsed } as PersistedPreferences;
   } catch {
     return DEFAULT_PREFERENCES;
   }
@@ -150,6 +157,7 @@ export function createRaceStore(initialConfig: RaceConfig = DEFAULT_RACE_CONFIG,
         muted: state.audioMuted,
         reducedMotion: reducedMotionPreference,
         labels: state.labelsEnabled,
+        explain: state.explainEnabled,
         effects: state.effectsEnabled,
         quality: state.qualityMode,
         cameraMode: state.cameraMode,
@@ -178,6 +186,7 @@ export function createRaceStore(initialConfig: RaceConfig = DEFAULT_RACE_CONFIG,
       selectedDriverId: null,
       cameraMode: preferences.cameraMode,
       labelsEnabled: preferences.labels,
+      explainEnabled: preferences.explain ?? true,
       effectsEnabled: preferences.effects,
       audioMuted: preferences.muted,
       reducedMotion: reducedMotionPreference ?? options.prefersReducedMotion ?? false,
@@ -201,6 +210,10 @@ export function createRaceStore(initialConfig: RaceConfig = DEFAULT_RACE_CONFIG,
       },
       setCameraMode(cameraMode): void {
         if (isCameraMode(cameraMode)) { set({ cameraMode }); persistPreferences(); }
+      },
+      setExplainEnabled(enabled): void {
+        set({ explainEnabled: enabled });
+        persistPreferences();
       },
       toggleLabels(): void {
         set((state) => ({ labelsEnabled: !state.labelsEnabled }));

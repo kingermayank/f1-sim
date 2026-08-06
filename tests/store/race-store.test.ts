@@ -137,6 +137,7 @@ describe('raceStore', () => {
       effects: true,
       quality: 'high',
       cameraMode: 'overhead',
+      explain: true,
     });
   });
 
