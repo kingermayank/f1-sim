@@ -212,3 +212,58 @@ Run the full 22-car seed soak separately because it is intentionally expensive.
 - Do not load one heavyweight GLB per rendered car.
 - Do not delete or reset the existing dirty worktree.
 - Do not stop the user-visible server on port 5173 while they are testing.
+
+---
+
+# Delivered — 2026-08-05
+
+The Shanghai migration is complete and verified in a real browser.
+
+## What shipped
+
+| Area | Result |
+| --- | --- |
+| Circuit | Supplied Shanghai 2018 GLB, 92.81 MB → **14.85 MB**, visibly rendered |
+| Cars | 7 supplied team models, ~336 MB → **8.9 MB**, one load per team cloned per driver |
+| Spline | **Fitted to the model**, 5340 m vs the official 5451 m (−2.0%) |
+| Grid | **7 teams / 14 drivers**, 56 laps |
+| Cameras | Broadcast, Trackside, Aerial, Drone, Chase, Cockpit, Overhead, Free over 12 curated anchors |
+| Fonts | Formula1 Display + Wide, MonoSpec, self-hosted WOFF2 |
+| Gate | 116 unit tests, 10/10 E2E (desktop + mobile), asset verification, build — all pass |
+
+Repository renamed to `f1-simulation`; the worktree link was repaired with
+`git worktree repair`.
+
+## Nothing here was hand-authored from a picture of the circuit
+
+`npm run generate:track` regenerates `src/track/shanghai-track.ts` from the GLB.
+The centerline is fitted by marching a cursor around the model's painted track
+boundaries; the start/finish line, starting grid, pit lane, pit entry and pit
+exit are located from named geometry in the same mesh. Lap length is validated
+against the real circuit, which also confirms the model is authored in metres.
+
+## Open item — licensing gate is still OPEN
+
+None of the eight archives contained a licence file and no Sketchfab URLs were
+recorded, so every supplied model and font is listed in `src/assets/credits.json`
+as `UNVERIFIED` with the creator marked `UNRECORDED`. Cleared for local
+prototype use only.
+
+To close it, supply for each asset: Sketchfab page URL, creator, licence type.
+Then update `credits.json` and tighten `scripts/verify-assets.mjs` to reject
+`UNVERIFIED`.
+
+Separately, the circuit's own textures carry third-party sponsor marks (Rolex,
+Emirates, Pirelli, Heineken, Petronas, LG, Allianz). These are not
+project-original and are not covered by any verified licence — review or replace
+them with neutral boards before any public distribution.
+
+## Bugs found by running it, and fixed
+
+- Cloned scenes were detached during disposal; React StrictMode's
+  mount → cleanup → mount left the models orphaned, so they loaded with correct
+  transforms but never drew. This also affected Monaco, masked by `visible={false}`.
+- Camera far plane was 520 m and clipped away a 1.2 km circuit.
+- The quality tier was detected once and fed back into itself, so a window that
+  started narrow latched to mobile permanently and never loaded the real cars.
+- 1024 px car textures across seven models lost the WebGL context outright.
