@@ -23,7 +23,8 @@ html{scroll-behavior:smooth}
 body{margin:0;background:var(--ink);color:var(--text);font-family:var(--disp);line-height:1.6;
   background-image:radial-gradient(900px 500px at 80% -10%,rgb(225 6 0/14%),transparent 60%),radial-gradient(700px 400px at 0% 5%,rgb(71 199 252/8%),transparent 60%);
   background-attachment:fixed}
-h1,h2,h3,h4{font-family:var(--wide);letter-spacing:.01em;line-height:1.1;margin:0}
+h1,h2{font-family:var(--wide);letter-spacing:.01em;line-height:1.08;margin:0}
+h3,h4,h5{font-family:var(--disp);font-weight:700;letter-spacing:.005em;line-height:1.25;margin:0}
 code,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 a{color:var(--signal)}
 
@@ -47,9 +48,9 @@ section{padding:clamp(2.5rem,6vw,4.5rem) 0;border-bottom:1px solid var(--line)}
 .g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
 .g4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 .card{border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(160deg,var(--panel),rgb(6 10 16/85%));padding:1.1rem}
-.card h4{font-size:.9rem;margin-bottom:.4rem}
-.card p{margin:0;color:var(--muted);font-size:.87rem}
-.tag{display:inline-block;font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
+.card h4{font-size:.95rem;margin-bottom:.4rem}
+.card p{margin:0;color:var(--muted);font-size:.88rem}
+.tag{display:inline-block;font-family:var(--mono);font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;
   padding:.18rem .45rem;border-radius:999px;border:1px solid var(--line-2);color:var(--muted)}
 .tag.live{color:var(--signal);border-color:rgb(219 255 74/45%);background:rgb(219 255 74/10%)}
 .tag.soon{color:var(--amber);border-color:rgb(255 176 32/40%);background:rgb(255 176 32/8%)}
@@ -73,19 +74,19 @@ section{padding:clamp(2.5rem,6vw,4.5rem) 0;border-bottom:1px solid var(--line)}
 .dot{width:9px;height:9px;border-radius:50%;background:#2a3442}
 .screen{background:linear-gradient(180deg,#070b12,#04070c);min-height:200px}
 .appnav{display:flex;align-items:center;gap:1.1rem;padding:.65rem 1rem;border-bottom:1px solid var(--line);background:rgb(255 255 255/2%)}
-.applogo{display:flex;align-items:center;gap:.5rem;font-family:var(--wide);font-size:.8rem;letter-spacing:.08em}
+.applogo{display:flex;align-items:center;gap:.5rem;font-family:var(--wide);font-size:.85rem;letter-spacing:.06em}
 .applogo i{width:22px;height:22px;border-radius:5px;background:var(--signal);color:#07100d;display:grid;place-items:center;font-style:normal;font-weight:900;font-size:.66rem;transform:skew(-8deg)}
 .appnav nav{display:flex;gap:.15rem;flex-wrap:wrap}
-.appnav nav a{font-family:var(--wide);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+.appnav nav a{font-family:var(--disp);font-weight:700;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
   text-decoration:none;padding:.35rem .6rem;border-radius:6px}
 .appnav nav a.on{color:var(--text);background:rgb(219 255 74/12%);box-shadow:inset 0 -2px 0 var(--signal)}
 .appnav .right{margin-left:auto;display:flex;gap:.4rem;align-items:center}
-.btn{font-family:var(--wide);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;padding:.4rem .75rem;
+.btn{font-family:var(--disp);font-weight:700;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;padding:.4rem .75rem;
   border-radius:6px;border:1px solid var(--line-2);background:transparent;color:var(--text);cursor:pointer}
 .btn.p{background:var(--signal);color:#07100d;border-color:var(--signal);font-weight:800}
 .btn.r{background:var(--red);border-color:var(--red);color:#fff;font-weight:800}
 .legend{display:flex;gap:1rem;padding:.5rem 1rem;border-top:1px solid var(--line);background:rgb(255 255 255/2%);
-  font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);flex-wrap:wrap}
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2);flex-wrap:wrap}
 .legend b{color:var(--text);border:1px solid var(--line-2);border-radius:4px;padding:0 .3rem;margin-right:.3rem;font-weight:400}
 
 /* ---------- home mosaic ---------- */
@@ -94,9 +95,9 @@ section{padding:clamp(2.5rem,6vw,4.5rem) 0;border-bottom:1px solid var(--line)}
   background:linear-gradient(150deg,#111b28,#070c14);padding:.8rem;display:flex;flex-direction:column;justify-content:flex-end}
 .tile.feature{grid-row:span 2;min-height:250px;
   background:linear-gradient(180deg,rgb(4 7 12/20%),rgb(4 7 12/92%)),linear-gradient(135deg,#1d3a52,#0a1622)}
-.tile h5{font-family:var(--wide);font-size:.9rem;margin:0 0 .2rem;text-transform:uppercase}
-.tile.feature h5{font-size:1.5rem}
-.tile p{margin:0;color:var(--muted);font-size:.72rem}
+.tile h5{font-family:var(--disp);font-weight:700;font-size:.92rem;margin:0 0 .2rem;letter-spacing:.02em}
+.tile.feature h5{font-family:var(--wide);font-size:1.55rem;text-transform:uppercase;letter-spacing:.01em}
+.tile p{margin:0;color:var(--muted);font-size:.8rem}
 .tile .badge{position:absolute;top:.6rem;left:.6rem}
 .tile .trk{position:absolute;inset:auto .6rem 3.6rem auto;width:78px;opacity:.5}
 .tile:hover{border-color:var(--line-2)}
@@ -105,8 +106,8 @@ section{padding:clamp(2.5rem,6vw,4.5rem) 0;border-bottom:1px solid var(--line)}
 .circuits{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:.7rem;padding:.85rem}
 .circuit{border:1px solid var(--line);border-radius:9px;background:#080d15;padding:.7rem;position:relative}
 .circuit svg{width:100%;height:74px;display:block}
-.circuit .cn{font-family:var(--wide);font-size:.74rem;text-transform:uppercase;margin-top:.35rem}
-.circuit .cc{font-family:var(--mono);font-size:.62rem;color:var(--muted-2);letter-spacing:.08em}
+.circuit .cn{font-family:var(--disp);font-weight:700;font-size:.85rem;margin-top:.35rem;letter-spacing:.01em}
+.circuit .cc{font-family:var(--mono);font-size:.66rem;color:var(--muted);letter-spacing:.06em}
 .circuit.locked{opacity:.42}
 .circuit.locked svg path{stroke:var(--muted-2)}
 .circuit.on{border-color:var(--signal);box-shadow:0 0 0 1px rgb(219 255 74/35%),0 10px 30px rgb(219 255 74/8%)}
@@ -129,16 +130,16 @@ section{padding:clamp(2.5rem,6vw,4.5rem) 0;border-bottom:1px solid var(--line)}
 .carcard .swatch{height:52px;position:relative;background:linear-gradient(115deg,var(--c),#0a1019 78%)}
 .carcard .swatch::after{content:'';position:absolute;inset:auto 0 0 0;height:3px;background:var(--a)}
 .carcard .body{padding:.55rem .65rem}
-.carcard .tn{font-family:var(--wide);font-size:.72rem;text-transform:uppercase}
-.carcard .cs{font-family:var(--mono);font-size:.6rem;color:var(--muted-2)}
+.carcard .tn{font-family:var(--disp);font-weight:700;font-size:.86rem;letter-spacing:.01em}
+.carcard .cs{font-family:var(--mono);font-size:.66rem;color:var(--muted)}
 
 /* ---------- drivers ---------- */
 .drivers{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:.6rem;padding:.85rem}
 .dv{border:1px solid var(--line);border-left:3px solid var(--c);border-radius:8px;background:#080d15;padding:.6rem}
 .dv .no{font-family:var(--mono);font-size:1.35rem;color:var(--muted-2);line-height:1}
-.dv .ab{font-family:var(--wide);font-size:.95rem;text-transform:uppercase;margin-top:.15rem}
-.dv .nm{font-size:.68rem;color:var(--muted)}
-.dv .tm{font-family:var(--mono);font-size:.57rem;color:var(--muted-2);letter-spacing:.06em;margin-top:.25rem}
+.dv .ab{font-family:var(--disp);font-weight:800;font-size:1rem;letter-spacing:.04em;margin-top:.15rem}
+.dv .nm{font-size:.78rem;color:var(--muted)}
+.dv .tm{font-family:var(--mono);font-size:.64rem;color:var(--muted);letter-spacing:.04em;margin-top:.25rem}
 
 /* ---------- explain overlay ---------- */
 .explain{padding:.85rem;display:grid;grid-template-columns:1fr 300px;gap:.85rem}
@@ -147,15 +148,15 @@ section{padding:clamp(2.5rem,6vw,4.5rem) 0;border-bottom:1px solid var(--line)}
 .vp .track-bg svg{width:70%}
 .bubble{position:absolute;border-radius:9px;border:1px solid rgb(219 255 74/45%);background:rgb(8 14 22/95%);
   padding:.55rem .65rem;max-width:230px;box-shadow:0 12px 34px rgb(0 0 0/55%)}
-.bubble b{font-family:var(--wide);font-size:.7rem;text-transform:uppercase;color:var(--signal);display:block;margin-bottom:.15rem}
-.bubble p{margin:0;font-size:.72rem;color:var(--muted)}
+.bubble b{font-family:var(--disp);font-weight:800;font-size:.8rem;color:var(--signal);display:block;margin-bottom:.2rem;letter-spacing:.01em}
+.bubble p{margin:0;font-size:.8rem;color:var(--muted);line-height:1.5}
 .jargon{border-bottom:1px dashed var(--signal);color:var(--text);cursor:help}
 .feed{border:1px solid var(--line);border-radius:9px;background:#080d15;padding:.7rem;display:flex;flex-direction:column;gap:.5rem}
 .ev{border-left:2px solid var(--line-2);padding-left:.55rem}
 .ev.hi{border-left-color:var(--signal)}
-.ev .t{font-family:var(--mono);font-size:.6rem;color:var(--muted-2)}
-.ev .m{font-size:.75rem}
-.ev .why{font-size:.68rem;color:var(--signal);margin-top:.15rem}
+.ev .t{font-family:var(--mono);font-size:.65rem;color:var(--muted)}
+.ev .m{font-size:.82rem}
+.ev .why{font-size:.78rem;color:var(--signal);margin-top:.2rem;line-height:1.45}
 
 /* ---------- misc ---------- */
 .flow{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center;font-family:var(--mono);font-size:.72rem}
@@ -372,7 +373,7 @@ ul.clean li{margin:.3rem 0}
               <em>"Turn 1 keeps tightening for almost 270°. Brake too late and you are still turning when the corner runs out."</em></p>
           </div>
           <div>
-            <h3 style="font-size:1.35rem;text-transform:uppercase">Shanghai</h3>
+            <h3 style="font-family:var(--wide);font-size:1.6rem;text-transform:uppercase">Shanghai</h3>
             <p style="color:var(--muted);font-size:.8rem;margin:.2rem 0 .8rem">Chinese Grand Prix · 2026 season</p>
             <div class="spec">
               <div><small>Length</small><b>5.451 km</b></div>
@@ -383,8 +384,8 @@ ul.clean li{margin:.3rem 0}
               <div><small>Grid</small><b>14 cars</b></div>
             </div>
             <div class="card" style="margin-top:.7rem;padding:.75rem">
-              <h4 style="font-size:.78rem">Why this track is interesting</h4>
-              <p style="font-size:.78rem">The opening corner spirals inward for nearly 270 degrees, so drivers are
+              <h4 style="font-size:.92rem">Why this track is interesting</h4>
+              <p style="font-size:.85rem">The opening corner spirals inward for nearly 270 degrees, so drivers are
                 still turning long after they expect to be done. Then a 1.17 km straight into a tight hairpin —
                 the single best overtaking spot of the lap. Those two features decide most races here.</p>
             </div>
@@ -441,8 +442,8 @@ ul.clean li{margin:.3rem 0}
         </div>
         <div style="padding:0 .85rem .85rem">
           <div class="card" style="padding:.75rem">
-            <h4 style="font-size:.78rem">"Find my driver" — a 6-question personality match</h4>
-            <p style="font-size:.78rem">Most people pick a driver before they pick a team, and they pick on
+            <h4 style="font-size:.92rem">"Find my driver" — a 6-question personality match</h4>
+            <p style="font-size:.85rem">Most people pick a driver before they pick a team, and they pick on
               personality. Aggressive overtaker or patient tyre manager? Veteran or rookie? Six taps and you leave
               with someone to care about — which is the single strongest predictor that you will come back.</p>
           </div>
