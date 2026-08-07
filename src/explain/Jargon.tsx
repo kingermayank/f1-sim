@@ -22,7 +22,7 @@ export function Jargon({ term, children }: { term: string; children?: React.Reac
         className="jargon"
         aria-expanded={open}
         aria-describedby={open ? id : undefined}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setOpen(true)}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
