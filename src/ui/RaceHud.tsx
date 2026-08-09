@@ -11,7 +11,6 @@ import { Leaderboard } from './Leaderboard';
 import { PlaybackControls, PreferenceControls } from './PlaybackControls';
 import { TrackMap } from './TrackMap';
 import { formatDuration, titleCase } from './formatters';
-import { SHANGHAI_RACE_LAPS } from '../track/shanghai-track';
 
 export function RaceHud() {
   const [timingOpen, setTimingOpen] = useState(false);
@@ -48,7 +47,8 @@ export function RaceHud() {
   const selectDriver = useRaceStore((state) => state.selectDriver);
   const replaySeed = useRaceStore((state) => state.replaySeed);
   const restart = useRaceStore((state) => state.restart);
-  const currentLap = Math.min(SHANGHAI_RACE_LAPS, Math.max(1, ...snapshot.cars.map((car) => car.lap + 1)));
+  const totalLaps = useRaceStore((state) => state.config.laps);
+  const currentLap = Math.min(totalLaps, Math.max(1, ...snapshot.cars.map((car) => car.lap + 1)));
   const leader = getClassification(snapshot)[0];
   const leaderName = DRIVERS_2026.find((driver) => driver.id === leader?.driverId)?.name ?? '—';
   const closeTiming = () => {
@@ -61,7 +61,7 @@ export function RaceHud() {
         <div className="race-header__brand"><span className="race-header__mark" aria-hidden="true">SH</span><div><p>Shanghai · 2026</p><strong>Chinese Grand Prix</strong></div></div>
         <div className="race-state">
           <span className={`flag flag--${snapshot.flag}`} aria-label={`Race flag: ${titleCase(snapshot.flag)}`}><i aria-hidden="true" />{titleCase(snapshot.flag)}</span>
-          <strong aria-label="Current lap">Lap {currentLap} / {SHANGHAI_RACE_LAPS}</strong>
+          <strong aria-label="Current lap">Lap {currentLap} / {totalLaps}</strong>
           <span className="race-state__stat" aria-label="Elapsed simulation time"><small>Time</small>{formatDuration(snapshot.elapsedSeconds)}</span>
           <span className="race-state__stat" aria-label="Playback speed"><small>Speed</small>{speed}×</span>
           <span className="race-state__stat race-state__leader" aria-label="Race leader"><small>Leader</small>{leaderName}</span>

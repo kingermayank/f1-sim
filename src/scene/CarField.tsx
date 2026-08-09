@@ -24,6 +24,18 @@ const TRACK = createSplineTrack(SHANGHAI_TRACK);
 const RETIREMENT_PRESENTATION_TICKS = 80;
 /** Rolling radius used to convert travelled distance into wheel rotation. */
 const WHEEL_RADIUS_METRES = 0.36;
+/**
+ * Minimum on-screen separation between cars, as a fraction of a lap — roughly
+ * 30 m at Shanghai, about five car lengths.
+ *
+ * This is deliberately a PRESENTATION rule, not a simulation one. Two closely
+ * matched drivers can legitimately run a hundredth of a second apart, which is
+ * about a metre and renders as one car inside another. Holding them apart in
+ * the engine instead would rob the trailing car of real distance and change who
+ * finishes where, so the race stays authoritative and only the drawing is
+ * adjusted.
+ */
+const MINIMUM_VISUAL_GAP_LAPS = 0.0056;
 const TAU = Math.PI * 2;
 /** Real 2026-era F1 car length; Shanghai is authored in metres. */
 const CAR_LENGTH_METRES = 5.6;
@@ -135,6 +147,24 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
     if (!live) return;
 
     const sample = getCarTrackSample(live);
+
+    // Hold this car visually behind the one directly ahead so they never
+    // overlap. Each car resolves this independently from the same snapshot, so
+    // the result is stable and needs no cross-car coordination.
+    if (sample.line !== 'pit' && live.status === 'running') {
+      const ahead = raceStore.getState().snapshot.cars.find(
+        (candidate) => candidate.position === live.position - 1
+          && candidate.status === 'running'
+          && candidate.pitState === 'track',
+      );
+      if (ahead) {
+        const gap = (ahead.lap + ahead.distance) - (live.lap + live.distance);
+        if (gap >= 0 && gap < MINIMUM_VISUAL_GAP_LAPS) {
+          sample.distance = (sample.distance - (MINIMUM_VISUAL_GAP_LAPS - gap) + 1) % 1;
+        }
+      }
+    }
+
     const transform = TRACK.sample(sample.distance, sample.lateral, sample.line);
     const ahead = TRACK.sample(
       sample.line === 'pit' ? Math.min(1, sample.distance + 0.002) : (sample.distance + 0.002) % 1,

@@ -83,7 +83,7 @@ describe('RaceHud', () => {
     render(<RaceHud />);
 
     expect(screen.getByLabelText(/race flag/i)).toHaveTextContent('Green');
-    expect(screen.getByLabelText('Current lap')).toHaveTextContent('Lap 1 / 56');
+    expect(screen.getByLabelText('Current lap')).toHaveTextContent('Lap 1 / 20');
     expect(screen.getByLabelText('Simulation seed')).toHaveTextContent(DEFAULT_RACE_CONFIG.seed);
     await user.click(screen.getByRole('button', { name: 'Open more race information and preferences' }));
     const more = screen.getByRole('dialog', { name: 'More race information' });

@@ -8,6 +8,9 @@ import {
 } from '../../src/simulation/race-engine';
 import { SHANGHAI_TRACK } from '../../src/track/shanghai-track';
 
+/** Long-race mechanics need full distance; the default race is short by design. */
+const FULL_DISTANCE_LAPS = 56;
+
 describe('calculateTargetPace', () => {
   it('combines every pace factor', () => {
     expect(calculateTargetPace({
@@ -143,7 +146,7 @@ describe('RaceEngine', () => {
 
   it('evolves each car fuel factor as the field burns fuel', () => {
     const engine = createRaceEngine(
-      { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
+      { ...DEFAULT_RACE_CONFIG, laps: 56, incidents: false, safetyCars: false },
       SHANGHAI_TRACK,
       [DRIVERS_2026[0]!],
     );
@@ -164,13 +167,15 @@ describe('RaceEngine', () => {
       },
     };
     const engine = createRaceEngine(
-      { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
+      { ...DEFAULT_RACE_CONFIG, laps: FULL_DISTANCE_LAPS, incidents: false, safetyCars: false },
       SHANGHAI_TRACK,
       [controlledDriver],
       { controllers: { [controlledDriver.id]: controller } },
     );
 
-    engine.advance(0.01);
+    // How much real time makes one engine tick depends on how much race is
+    // fitted into the presentation window, so advance enough to guarantee one.
+    engine.advance(0.02);
 
     expect(decisions).toHaveLength(1);
     expect(decisions[0]).toBeGreaterThan(0.5);
@@ -200,7 +205,7 @@ describe('RaceEngine', () => {
 
   it('emits start, sector, lap, and finish events with realistic lap timing', () => {
     const engine = createRaceEngine(
-      { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
+      { ...DEFAULT_RACE_CONFIG, laps: 56, incidents: false, safetyCars: false },
       SHANGHAI_TRACK,
       DRIVERS_2026,
     );
@@ -220,9 +225,9 @@ describe('RaceEngine', () => {
       lapsPerDriver.set(event.driverId, (lapsPerDriver.get(event.driverId) ?? 0) + 1);
     }
     expect(lapsPerDriver.size).toBe(DRIVERS_2026.length);
-    expect(Math.max(...lapsPerDriver.values())).toBe(DEFAULT_RACE_CONFIG.laps);
+    expect(Math.max(...lapsPerDriver.values())).toBe(FULL_DISTANCE_LAPS);
     for (const laps of lapsPerDriver.values()) {
-      expect(laps).toBeGreaterThanOrEqual(DEFAULT_RACE_CONFIG.laps - 2);
+      expect(laps).toBeGreaterThanOrEqual(FULL_DISTANCE_LAPS - 2);
     }
     expect(finishEvents).toHaveLength(DRIVERS_2026.length);
     // Pit laps include Shanghai's long pit lane, so the outer band is wide; the
@@ -234,9 +239,9 @@ describe('RaceEngine', () => {
     expect(medianLapTime).toBeLessThan(100);
   });
 
-  it('finishes and classifies all 14 cars after 56 laps', () => {
+  it('finishes and classifies all 14 cars over the full distance', () => {
     const engine = createRaceEngine(
-      { ...DEFAULT_RACE_CONFIG, incidents: false, safetyCars: false },
+      { ...DEFAULT_RACE_CONFIG, laps: 56, incidents: false, safetyCars: false },
       SHANGHAI_TRACK,
       DRIVERS_2026,
     );
@@ -247,7 +252,7 @@ describe('RaceEngine', () => {
     expect(snapshot.phase).toBe('finished');
     expect(snapshot.cars).toHaveLength(14);
     expect(snapshot.cars.every((car) => car.status === 'finished')).toBe(true);
-    expect(snapshot.cars.every((car) => car.lap === DEFAULT_RACE_CONFIG.laps)).toBe(true);
+    expect(snapshot.cars.every((car) => car.lap === FULL_DISTANCE_LAPS)).toBe(true);
     expect(snapshot.cars.map((car) => car.position)).toEqual(
       Array.from({ length: 14 }, (_, index) => index + 1),
     );

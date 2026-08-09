@@ -25,7 +25,7 @@ describe('raceStore', () => {
   });
 
   it('publishes immutable snapshots and a bounded drained event feed', () => {
-    raceStore.getState().tick(60);
+    raceStore.getState().tick(180);
 
     const { eventFeed, snapshot } = raceStore.getState();
     expect(Object.isFrozen(snapshot)).toBe(true);

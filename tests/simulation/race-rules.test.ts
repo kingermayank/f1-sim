@@ -10,8 +10,16 @@ import { updateTire } from '../../src/simulation/tires';
 import { SHANGHAI_TRACK } from '../../src/track/shanghai-track';
 import { createSplineTrack } from '../../src/track/spline-track';
 
+/**
+ * The default race is deliberately short so it is watchable. These tests cover
+ * mechanics that need a full-length race — tyre degradation forcing a stop, a
+ * safety car, retirements — so they ask for that distance explicitly.
+ */
+const FULL_DISTANCE_LAPS = 56;
+
 const raceConfig = (seed: string, overrides: Partial<RaceConfig> = {}): RaceConfig => ({
   ...DEFAULT_RACE_CONFIG,
+  laps: FULL_DISTANCE_LAPS,
   seed,
   ...overrides,
 });
@@ -239,7 +247,8 @@ describe('integrated race rules', () => {
     let gapAtDeployment: number | undefined;
     let compressedGap: number | undefined;
 
-    for (let sample = 0; sample < 1_600; sample += 1) {
+    // The default race is shorter now, so each advance covers less of it.
+    for (let sample = 0; sample < 3_000; sample += 1) {
       engine.advance(0.25);
       const deployed = engine.drainEvents().some(
         (event) => event.type === 'flag' && event.flag === 'safety-car',

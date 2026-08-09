@@ -41,10 +41,10 @@ it('gives every driver their team display color and bounded ratings', () => {
   }
 });
 
-it('validates the 56-lap compressed default race', () => {
+it('validates the default watchable race', () => {
   expect(parseRaceConfig(DEFAULT_RACE_CONFIG)).toMatchObject({
-    laps: 56,
-    presentationMinutes: 6,
+    laps: 20,
+    presentationMinutes: 10,
     weather: 'sunny',
   });
   expect(parseRaceConfig({ ...DEFAULT_RACE_CONFIG, dynamicWeather: true }).dynamicWeather).toBe(true);
@@ -52,9 +52,9 @@ it('validates the 56-lap compressed default race', () => {
 
 it.each([
   [{ ...DEFAULT_RACE_CONFIG, seed: '' }],
-  [{ ...DEFAULT_RACE_CONFIG, laps: 77 }],
+  [{ ...DEFAULT_RACE_CONFIG, laps: 2 }],
   [{ ...DEFAULT_RACE_CONFIG, presentationMinutes: 4 }],
-  [{ ...DEFAULT_RACE_CONFIG, presentationMinutes: 9 }],
+  [{ ...DEFAULT_RACE_CONFIG, presentationMinutes: 16 }],
   [{ ...DEFAULT_RACE_CONFIG, weather: 'stormy' }],
 ])('rejects invalid race configuration %o', (input) => {
   expect(() => parseRaceConfig(input)).toThrow();
