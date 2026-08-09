@@ -14,7 +14,7 @@ import {
 import { ASSETS } from '../assets/asset-registry';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import type { CarState } from '../simulation/events';
-import { useRaceStore } from '../store/race-store';
+import { raceStore, useRaceStore } from '../store/race-store';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { createSplineTrack } from '../track/spline-track';
 import type { SceneQualityTier } from './RaceScene';
@@ -22,6 +22,9 @@ import { cloneSceneWithOwnedMaterials } from './scene-resources';
 
 const TRACK = createSplineTrack(SHANGHAI_TRACK);
 const RETIREMENT_PRESENTATION_TICKS = 80;
+/** Rolling radius used to convert travelled distance into wheel rotation. */
+const WHEEL_RADIUS_METRES = 0.36;
+const TAU = Math.PI * 2;
 /** Real 2026-era F1 car length; Shanghai is authored in metres. */
 const CAR_LENGTH_METRES = 5.6;
 const CLOSE_BATTLE_DISTANCE = 0.012;
@@ -87,21 +90,16 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
   const group = useRef<Group>(null);
   const driver = DRIVERS_2026.find((candidate) => candidate.id === car.driverId) ?? DRIVERS_2026[0];
   const team = TEAMS_2026.find((candidate) => candidate.id === driver.teamId) ?? TEAMS_2026[0];
-  const sample = getCarTrackSample(car);
-  const transform = TRACK.sample(sample.distance, sample.lateral, sample.line);
-  const ahead = TRACK.sample(Math.min(0.999, sample.distance + 0.002), sample.lateral, sample.line);
-  const wheelRotation = ((car.lap + car.distance) * SHANGHAI_TRACK.lengthMeters) / 0.43;
-  const steering = Math.atan2(
-    transform.tangent.clone().cross(ahead.tangent).y,
-    transform.tangent.dot(ahead.tangent),
-  );
-  const wheelMeshes = useMemo(() => {
-    const wheels: Mesh[] = [];
-    model?.traverse((object) => {
-      if (object instanceof Mesh && object.name.startsWith('wheel-')) wheels.push(object);
-    });
-    return wheels;
-  }, [model]);
+  // Sampled once for the initial placement only. Per-frame motion is driven
+  // imperatively below so that moving a car never re-renders React.
+  const initial = useMemo(() => {
+    const sample = getCarTrackSample(car);
+    return TRACK.sample(sample.distance, sample.lateral, sample.line);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const wheelAngle = useRef(0);
+  const lastPosition = useRef(new Vector3());
+  const wheelMeshes = useRef<Mesh[] | null>(null);
   const identifierTexture = useMemo(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -125,14 +123,56 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
   useEffect(() => () => identifierTexture.dispose(), [identifierTexture]);
 
   useFrame((_, delta) => {
-    if (!group.current) return;
-    const interpolation = 1 - Math.exp(-delta * 13);
-    group.current.position.lerp(transform.position, interpolation);
-    group.current.quaternion.slerp(transform.rotation, interpolation);
-    wheelMeshes.forEach((wheel) => {
-      wheel.rotation.y = wheelRotation;
-      if (wheel.name.includes('front')) wheel.rotation.z = steering * 2;
-    });
+    const object = group.current;
+    if (!object) return;
+
+    // Read the live car straight from the store. Subscribing to it would
+    // re-render fourteen components every frame, which was the source of the
+    // stutter: the smoothing below then chased a target that was already late.
+    const live = raceStore.getState().snapshot.cars.find(
+      (candidate) => candidate.driverId === driver.id,
+    );
+    if (!live) return;
+
+    const sample = getCarTrackSample(live);
+    const transform = TRACK.sample(sample.distance, sample.lateral, sample.line);
+    const ahead = TRACK.sample(
+      sample.line === 'pit' ? Math.min(1, sample.distance + 0.002) : (sample.distance + 0.002) % 1,
+      sample.lateral,
+      sample.line,
+    );
+
+    // Clamp delta so a dropped frame cannot teleport the car.
+    const step = Math.min(delta, 0.05);
+    const interpolation = 1 - Math.exp(-step * 13);
+    lastPosition.current.copy(object.position);
+    object.position.lerp(transform.position, interpolation);
+    object.quaternion.slerp(transform.rotation, interpolation);
+
+    if (wheelMeshes.current === null) {
+      const found: Mesh[] = [];
+      object.traverse((child) => {
+        if (child instanceof Mesh && child.name.startsWith('wheel-')) found.push(child);
+      });
+      wheelMeshes.current = found;
+    }
+
+    if (wheelMeshes.current.length > 0) {
+      // Spin the wheels from the distance actually covered on screen, wrapped to
+      // one turn. The previous version accumulated total race distance into a
+      // number in the hundreds of thousands of radians, which lost angular
+      // precision and strobed.
+      const travelled = object.position.distanceTo(lastPosition.current);
+      wheelAngle.current = (wheelAngle.current + travelled / WHEEL_RADIUS_METRES) % TAU;
+      const steering = Math.atan2(
+        transform.tangent.clone().cross(ahead.tangent).y,
+        transform.tangent.dot(ahead.tangent),
+      );
+      for (const wheel of wheelMeshes.current) {
+        wheel.rotation.y = wheelAngle.current;
+        if (wheel.name.includes('front')) wheel.rotation.z = steering * 2;
+      }
+    }
   });
 
   return (
@@ -140,8 +180,8 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
       ref={group}
       name={`car-${driver.id}`}
       userData={{ driverId: driver.id, teamId: driver.teamId }}
-      position={transform.position}
-      quaternion={transform.rotation}
+      position={initial.position}
+      quaternion={initial.rotation}
       onClick={(event) => {
         event.stopPropagation();
         selectDriver(driver.id);
@@ -183,7 +223,12 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
           <mesh position={[0, 0.9, 1.92]}><boxGeometry args={[1.82, 0.12, 0.3]} /><meshStandardMaterial color="#111519" roughness={0.8} /></mesh>
           <mesh position={[0, 0.76, 0.02]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.42, 0.055, 6, 14, Math.PI * 1.35]} /><meshStandardMaterial color="#111519" roughness={0.7} /></mesh>
           {[[-0.98, -1.35], [0.98, -1.35], [-0.98, 1.25], [0.98, 1.25]].map(([x, z], index) => (
-            <mesh key={index} position={[x, 0.4, z]} rotation={[Math.PI / 2, wheelRotation, z < 0 ? steering * 2 : 0]}>
+            <mesh
+              key={index}
+              name={`wheel-${z < 0 ? 'front' : 'rear'}-${index}`}
+              position={[x, 0.4, z]}
+              rotation={[Math.PI / 2, 0, 0]}
+            >
               <cylinderGeometry args={[0.47, 0.47, 0.34, 16]} />
               <meshStandardMaterial color="#080a0b" roughness={0.92} />
             </mesh>
@@ -271,12 +316,21 @@ function ProceduralCars({ cars, selectedDriverId, selectDriver, labelsEnabled }:
 }
 
 export function CarField({ quality }: { quality: SceneQualityTier }) {
-  const cars = useRaceStore((state) => state.snapshot.cars);
-  const tick = useRaceStore((state) => state.snapshot.tick);
+  // Subscribe to WHICH cars are on track, not to their moving state. This
+  // returns a plain string, so the component only re-renders when a car joins
+  // or leaves the field — not sixty times a second while they drive.
+  const visibleKey = useRaceStore((state) => state.snapshot.cars
+    .filter((car) => shouldPresentCar(car, state.snapshot.tick))
+    .map((car) => car.driverId)
+    .join(','));
   const selectedDriverId = useRaceStore((state) => state.selectedDriverId);
   const selectDriver = useRaceStore((state) => state.selectDriver);
   const labelsEnabled = useRaceStore((state) => state.labelsEnabled);
-  const visibleCars = cars.filter((car) => shouldPresentCar(car, tick));
+
+  const visibleCars = useMemo(() => {
+    const ids = new Set(visibleKey ? visibleKey.split(',') : []);
+    return raceStore.getState().snapshot.cars.filter((car) => ids.has(car.driverId));
+  }, [visibleKey]);
 
   if (quality === 'mobile') {
     return <ProceduralCars cars={visibleCars} selectedDriverId={selectedDriverId} selectDriver={selectDriver} labelsEnabled={labelsEnabled} />;

@@ -26,7 +26,8 @@ So at "1×" the cars are doing roughly **twelve times** real speed. A car at
 300 km/h is covering ~1000 m/s on screen. Nothing about that can look realistic —
 the wheels, the steering, the closing rate, all of it is running at 12×.
 
-**This is the single biggest cause of the "spinning extremely fast" look.**
+**This is the cause of the "spinning extremely fast" look** — though the fix is
+to tune the number for how it *looks*, not to restore real-world timing. See 1.1.
 
 ### 2. Wheel rotation accumulates into a huge number
 
@@ -61,19 +62,25 @@ cars cannot overlap; ours can.
 
 ## The fixes
 
-### 1.1 Decouple presentation speed from race length — *the big one*
+### 1.1 Treat speed and lap count as look-and-feel dials, not fidelity targets
 
-Stop compressing a full 56-lap race into six minutes. Instead:
+**Corrected after review.** The goal is not to mimic real Formula 1 timing. This
+is a virtual thing and it should be enjoyable to watch, not accurate to a
+stopwatch. Real lap counts, real durations and real speeds are explicitly not
+the target.
 
-- **A "race" is a short race.** For the game, 5–10 laps, run at **1×–3× real
-  speed**, not 12×. The racing looks right because it *is* roughly right.
-- Keep the full 56-lap championship distance as a separate "full distance"
-  option for people who want it, clearly labelled as time-compressed.
-- Playback speeds then mean what they say: 1× is real time.
+That simplifies this from a design problem to a tuning one:
 
-This is a config and framing change, not an engine rewrite. The engine is
-already deterministic and tick-based; we are changing how much race we ask it to
-fit into how much screen time.
+- Race length and playback speed become **dials we turn until the motion reads
+  well** on screen. No 56 laps, no six-minute window, no attempt to hit 1× real
+  time.
+- The one hard requirement is that whatever speed we choose, the motion at that
+  speed must be **smooth and readable** — which is what the rest of Part 1 is
+  actually about.
+
+So the 12× compression is not a bug to correct back to reality. It is simply a
+number that currently sits where the motion looks bad, and we move it to where
+the motion looks good.
 
 ### 1.2 Fixed-timestep simulation, interpolated rendering
 
@@ -118,9 +125,12 @@ Expected effect: the largest single win for both jitter and battery.
 - Frame-time budget already exists in the E2E suite; extend it to assert a
   minimum sustained FPS with all fourteen cars visible.
 
-**Order:** 1.3 (render path) → 1.2 (interpolation) → 1.1 (speed) → 1.4/1.5
-(feel). The first two remove jitter; the third makes it look real; the fourth
-makes it look *good*.
+**Order:** 1.3 (render path) → 1.2 (interpolation) → 1.4 (wheels and weight) →
+1.5 (spacing) → 1.1 (tune the speed dial last, once the motion underneath it is
+already smooth).
+
+The first two remove the jitter outright. The rest is about making the result
+pleasant to watch. Tuning speed first would only be guessing at a moving target.
 
 ---
 

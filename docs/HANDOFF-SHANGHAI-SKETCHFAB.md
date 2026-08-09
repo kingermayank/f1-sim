@@ -8,10 +8,10 @@ The simulation must remain deterministic, performant, accessible, and legally at
 
 ## Exact workspace
 
-- Repository root: `/Users/mayankkinger/Documents/Codex/2026-08-04/i`
-- Active implementation worktree: `/Users/mayankkinger/Documents/Codex/2026-08-04/i/.worktrees/feat-f1-simulation`
+- Repository root: `/Users/mayankkinger/Documents/Codex/2026-08-04/f1-simulation`
+- Active implementation worktree: `/Users/mayankkinger/Documents/Codex/2026-08-04/f1-simulation/.worktrees/feat-f1-simulation`
 - Active branch: `feat/f1-simulation`
-- Last committed revision at handoff: `6e55e97`
+- Current revision at the multi-track handoff: `8476e91`
 - Current local app: `http://127.0.0.1:5173/`
 - Approved design: `docs/superpowers/specs/2026-08-04-f1-monaco-dynamic-simulation-design.md`
 - Implementation plan: `docs/superpowers/plans/2026-08-04-f1-monaco-dynamic-simulation.md`
