@@ -337,6 +337,26 @@ describe('track pipeline CLI contract', () => {
     expect(optimized.stderr).toContain('warning-from-test-optimizer');
   });
 
+  it.each([
+    'optimize-track.mjs',
+    'generate-track.mjs',
+  ])('%s reports a missing injected optimizer through one JSON error envelope', (script) => {
+    const fixture = createSourceFixture();
+    const result = runCli(script, ['--circuit', 'suzuka'], pipelineEnv(fixture, {
+      TRACK_PIPELINE_TEST_OPTIMIZER: join(fixture.sourceRoot, 'missing-optimizer'),
+    }));
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).not.toBe('');
+    expect(parseOnlyEnvelope(result.stdout)).toMatchObject({
+      schemaVersion: 1,
+      ok: false,
+      command: script.startsWith('optimize') ? 'optimize' : 'generate',
+      error: { code: 'OPTIMIZER_MISSING' },
+    });
+    expect(result.stderr).toContain('missing-optimizer');
+  });
+
   it('requires an explicit circuit-scoped exception before generating an oversized track', () => {
     const fixture = createSourceFixture(createLargeSemanticGlb());
     const env = pipelineEnv(fixture, {

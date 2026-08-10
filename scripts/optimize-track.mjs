@@ -22,13 +22,23 @@ function isInsideTemporaryRoot(path) {
 
 function resolveOptimizer() {
   if (process.env.NODE_ENV === 'test' && process.env.TRACK_PIPELINE_TEST_OPTIMIZER) {
-    const candidate = realpathSync(resolve(process.env.TRACK_PIPELINE_TEST_OPTIMIZER));
+    let candidate;
+    try {
+      candidate = realpathSync(resolve(process.env.TRACK_PIPELINE_TEST_OPTIMIZER));
+    } catch {
+      throw new TrackPipelineError(
+        'OPTIMIZER_MISSING',
+        `Injected optimizer not found: ${resolve(process.env.TRACK_PIPELINE_TEST_OPTIMIZER)}`,
+      );
+    }
     if (isInsideTemporaryRoot(candidate)) return candidate;
+    throw new TrackPipelineError(
+      'UNSAFE_TEST_OPTIMIZER',
+      'TRACK_PIPELINE_TEST_OPTIMIZER must resolve beneath the operating-system temp directory',
+    );
   }
   return resolve(PROJECT_ROOT, 'node_modules/.bin/gltf-transform');
 }
-
-const GLTF_TRANSFORM = resolveOptimizer();
 
 function optimizerWarnings(result) {
   return [result.stdout, result.stderr]
@@ -39,16 +49,17 @@ function optimizerWarnings(result) {
 }
 
 export async function optimizeCircuit(id, source) {
+  const gltfTransform = resolveOptimizer();
+  if (!existsSync(gltfTransform)) {
+    throw new TrackPipelineError('OPTIMIZER_MISSING', `gltf-transform executable not found: ${gltfTransform}`);
+  }
   const staged = await stageTrackSource(id, source);
   const output = assertPathInside(TRACK_WORK_ROOT, resolve(TRACK_WORK_ROOT, id, 'optimized', `${id}.glb`));
   const temporary = `${output}.tmp-${process.pid}.glb`;
   mkdirSync(dirname(output), { recursive: true });
   rmSync(temporary, { force: true });
 
-  if (!existsSync(GLTF_TRANSFORM)) {
-    throw new TrackPipelineError('OPTIMIZER_MISSING', `gltf-transform executable not found: ${GLTF_TRANSFORM}`);
-  }
-  const optimized = spawnSync(GLTF_TRANSFORM, [
+  const optimized = spawnSync(gltfTransform, [
     'optimize',
     staged.output,
     temporary,
