@@ -1,9 +1,12 @@
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
 
 const manifestPath = resolve(process.env.ASSET_MANIFEST_PATH ?? 'src/assets/credits.json');
 const publicRoot = resolve(process.env.ASSET_PUBLIC_ROOT ?? 'public');
+const generatedTrackRoot = resolve(publicRoot, 'assets/models/tracks');
+const DEFAULT_TRACK_LIMIT_BYTES = 30_000_000;
 
 const COMPONENT_BYTES = new Map([
   [5120, 1], [5121, 1], [5122, 2], [5123, 2], [5125, 4], [5126, 4],
@@ -170,6 +173,10 @@ function validateGlb(bytes) {
   return validateGltfSemantics(gltf, binLength);
 }
 
+function sha256(bytes) {
+  return createHash('sha256').update(bytes).digest('hex');
+}
+
 function parseWebpDimensions(bytes) {
   if (bytes.length < 12 || bytes.subarray(0, 4).toString() !== 'RIFF' || bytes.subarray(8, 12).toString() !== 'WEBP') {
     return { error: 'invalid WebP header' };
@@ -272,6 +279,17 @@ if (manifest && !Array.isArray(manifest)) {
 if (Array.isArray(manifest)) {
   const ids = new Set();
   const runtimeFiles = new Set();
+  const generatedTracks = existsSync(generatedTrackRoot)
+    ? readdirSync(generatedTrackRoot, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.glb'))
+      .map((entry) => ({
+        id: entry.name.slice(0, -4),
+        runtimeFile: `/assets/models/tracks/${entry.name}`,
+        runtimePath: resolve(generatedTrackRoot, entry.name),
+        manifestPath: resolve(generatedTrackRoot, `${entry.name.slice(0, -4)}.manifest.json`),
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id))
+    : [];
   // Every team that races must have both a runtime car model and a livery
   // texture, so a missing model cannot silently fall back to procedural cars.
   const RACING_TEAMS = ['red-bull', 'ferrari', 'mclaren', 'aston-martin', 'alpine', 'williams', 'racing-bulls'];
@@ -282,9 +300,10 @@ if (Array.isArray(manifest)) {
     ...RACING_TEAMS.map((team) => `/assets/models/cars/${team}.glb`),
     ...RACING_TEAMS.map((team) => `/assets/textures/teams/${team}.webp`),
     ...FONTS.map((font) => `/assets/fonts/${font}.woff2`),
+    ...generatedTracks.map(({ runtimeFile }) => runtimeFile),
   ]);
 
-  const EXPECTED_ENTRIES = 2 + RACING_TEAMS.length * 2 + FONTS.length;
+  const EXPECTED_ENTRIES = 2 + RACING_TEAMS.length * 2 + FONTS.length + generatedTracks.length;
   if (manifest.length !== EXPECTED_ENTRIES) {
     problems.push(`Asset manifest must contain ${EXPECTED_ENTRIES} entries; found ${manifest.length}`);
   }
@@ -323,10 +342,11 @@ if (Array.isArray(manifest)) {
         if (runtimeFiles.has(asset.runtimeFile)) problems.push(`${label}: duplicate runtimeFile`);
         runtimeFiles.add(asset.runtimeFile);
         const bytes = readFileSync(runtimePath);
-        const limit = asset.runtimeFile.endsWith('shanghai-track.glb') ? 20_000_000
+        const limit = asset.runtimeFile.startsWith('/assets/models/tracks/') ? undefined
+          : asset.runtimeFile.endsWith('shanghai-track.glb') ? 20_000_000
           : asset.runtimeFile.startsWith('/assets/models/cars/') ? 4_000_000
           : asset.runtimeFile.endsWith('f1-car.glb') ? 2_000_000 : 300_000;
-        if (statSync(runtimePath).size > limit) problems.push(`${label}: runtime file exceeds ${limit} bytes`);
+        if (limit !== undefined && statSync(runtimePath).size > limit) problems.push(`${label}: runtime file exceeds ${limit} bytes`);
         if (asset.runtimeFile.endsWith('.glb')) {
           const problem = validateGlb(bytes);
           if (problem) problems.push(`${label}: ${problem}`);
@@ -347,6 +367,57 @@ if (Array.isArray(manifest)) {
 
   for (const runtimeFile of requiredRuntimeFiles) {
     if (!runtimeFiles.has(runtimeFile)) problems.push(`missing required runtime file: ${runtimeFile}`);
+  }
+
+  const creditsByRuntimeFile = new Map(manifest.map((asset) => [asset?.runtimeFile, asset]));
+  for (const track of generatedTracks) {
+    const bytes = readFileSync(track.runtimePath);
+    const semanticProblem = validateGlb(bytes);
+    if (semanticProblem) problems.push(`${track.id}: ${semanticProblem}`);
+
+    const credit = creditsByRuntimeFile.get(track.runtimeFile);
+    if (!credit) {
+      problems.push(`${track.id}: generated runtime track requires an explicit credit record`);
+      continue;
+    }
+    if (credit.circuitId !== track.id) problems.push(`${track.id}: credit circuitId does not match runtime track`);
+    if (!credit.sourceSha256) problems.push(`${track.id}: credit is missing sourceSha256`);
+
+    if (!existsSync(track.manifestPath)) {
+      problems.push(`${track.id}: generated manifest not found`);
+      continue;
+    }
+
+    let generatedManifest;
+    try {
+      generatedManifest = JSON.parse(readFileSync(track.manifestPath, 'utf8'));
+    } catch (error) {
+      problems.push(`${track.id}: unable to parse generated manifest: ${error.message}`);
+      continue;
+    }
+
+    if (generatedManifest?.schemaVersion !== 1) problems.push(`${track.id}: generated manifest has invalid schemaVersion`);
+    if (generatedManifest?.circuitId !== track.id) problems.push(`${track.id}: generated manifest circuitId does not match runtime track`);
+    if (generatedManifest?.source?.sha256 !== credit.sourceSha256) problems.push(`${track.id}: generated manifest source checksum does not match credit`);
+    if (generatedManifest?.output?.runtimeFile !== track.runtimeFile) problems.push(`${track.id}: generated manifest runtimeFile does not match credit`);
+    if (generatedManifest?.output?.bytes !== bytes.length) problems.push(`${track.id}: generated manifest byte count does not match runtime track`);
+    if (generatedManifest?.output?.sha256 !== sha256(bytes)) problems.push(`${track.id}: generated manifest output checksum does not match runtime track`);
+
+    const hasExceptionFields = credit.maxRuntimeBytes !== undefined || credit.runtimeSizeException !== undefined;
+    const validException = Number.isInteger(credit.maxRuntimeBytes)
+      && credit.maxRuntimeBytes > DEFAULT_TRACK_LIMIT_BYTES
+      && typeof credit.runtimeSizeException === 'string'
+      && credit.runtimeSizeException.trim().length > 0;
+    if (hasExceptionFields && !validException) {
+      problems.push(`${track.id}: runtime size exception must include maxRuntimeBytes above ${DEFAULT_TRACK_LIMIT_BYTES} and a rationale`);
+    }
+    const limit = validException ? credit.maxRuntimeBytes : DEFAULT_TRACK_LIMIT_BYTES;
+    if (bytes.length > limit) problems.push(`${track.id}: runtime file exceeds ${limit} bytes`);
+
+    const expectedException = validException ? credit.runtimeSizeException : null;
+    if (generatedManifest?.limits?.maxBytes !== limit || generatedManifest?.limits?.exception !== expectedException) {
+      problems.push(`${track.id}: generated manifest runtime limit does not match credit`);
+    }
   }
 }
 
