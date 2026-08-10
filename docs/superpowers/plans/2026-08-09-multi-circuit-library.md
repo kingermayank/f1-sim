@@ -232,8 +232,10 @@ git commit -m "feat: generalize circuit asset pipeline"
 - Create: `src/track/generated/{suzuka,melbourne,barcelona,spa,silverstone,singapore,red-bull-ring,austin,abu-dhabi,bahrain}-track.ts`
 - Create: `src/track/generated/<id>-manifest.json` for each circuit
 - Create: `public/assets/models/tracks/<id>.glb` for each circuit
+- Create: `public/assets/models/tracks/<id>.manifest.json` for each circuit
 - Create: `work/assets-source/tracks/<id>/optimization-notes.md` for each circuit
 - Modify: `src/track/circuit-registry.ts`
+- Modify: `src/assets/credits.json` with explicit `UNVERIFIED`, local-prototype-only entries
 - Test: `tests/track/generated-circuits.test.ts`
 
 **Interfaces:**
