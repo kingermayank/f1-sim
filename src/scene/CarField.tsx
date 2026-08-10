@@ -26,7 +26,7 @@ const RETIREMENT_PRESENTATION_TICKS = 80;
 const WHEEL_RADIUS_METRES = 0.36;
 /**
  * Minimum on-screen separation between cars, as a fraction of a lap — roughly
- * 30 m at Shanghai, about five car lengths.
+ * 105 m at Shanghai, roughly twenty car lengths.
  *
  * This is deliberately a PRESENTATION rule, not a simulation one. Two closely
  * matched drivers can legitimately run a hundredth of a second apart, which is
@@ -35,7 +35,40 @@ const WHEEL_RADIUS_METRES = 0.36;
  * finishes where, so the race stays authoritative and only the drawing is
  * adjusted.
  */
-const MINIMUM_VISUAL_GAP_LAPS = 0.0056;
+const MINIMUM_VISUAL_GAP_LAPS = 0.02;
+
+let spacingTick = -1;
+const spacingByDriver = new Map<string, number>();
+
+/**
+ * Rendered lap progress for a car, held at least one visual gap behind the car
+ * in front of it.
+ *
+ * The pass cascades: each car is spaced against the car ahead's ALREADY spaced
+ * position, so a train of three cannot collapse back together. It is computed
+ * once per simulation tick and shared, so every car sees the same answer
+ * without any cross-component coordination.
+ */
+function renderedProgress(driverId: string): number | undefined {
+  const snapshot = raceStore.getState().snapshot;
+  if (snapshot.tick !== spacingTick) {
+    spacingTick = snapshot.tick;
+    spacingByDriver.clear();
+
+    const running = snapshot.cars
+      .filter((car) => car.status === 'running' && car.pitState === 'track')
+      .sort((a, b) => (b.lap + b.distance) - (a.lap + a.distance));
+
+    let previous = Number.POSITIVE_INFINITY;
+    for (const car of running) {
+      const actual = car.lap + car.distance;
+      const held = Math.min(actual, previous - MINIMUM_VISUAL_GAP_LAPS);
+      spacingByDriver.set(car.driverId, held);
+      previous = held;
+    }
+  }
+  return spacingByDriver.get(driverId);
+}
 const TAU = Math.PI * 2;
 /** Real 2026-era F1 car length; Shanghai is authored in metres. */
 const CAR_LENGTH_METRES = 5.6;
@@ -148,21 +181,10 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
 
     const sample = getCarTrackSample(live);
 
-    // Hold this car visually behind the one directly ahead so they never
-    // overlap. Each car resolves this independently from the same snapshot, so
-    // the result is stable and needs no cross-car coordination.
-    if (sample.line !== 'pit' && live.status === 'running') {
-      const ahead = raceStore.getState().snapshot.cars.find(
-        (candidate) => candidate.position === live.position - 1
-          && candidate.status === 'running'
-          && candidate.pitState === 'track',
-      );
-      if (ahead) {
-        const gap = (ahead.lap + ahead.distance) - (live.lap + live.distance);
-        if (gap >= 0 && gap < MINIMUM_VISUAL_GAP_LAPS) {
-          sample.distance = (sample.distance - (MINIMUM_VISUAL_GAP_LAPS - gap) + 1) % 1;
-        }
-      }
+    // Hold cars visually apart so they never draw on top of each other.
+    const spaced = renderedProgress(live.driverId);
+    if (spaced !== undefined && sample.line !== 'pit') {
+      sample.distance = ((spaced % 1) + 1) % 1;
     }
 
     const transform = TRACK.sample(sample.distance, sample.lateral, sample.line);

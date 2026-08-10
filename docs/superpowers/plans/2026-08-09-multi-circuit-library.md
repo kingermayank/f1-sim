@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Preserve the current clean `feat/f1-simulation` branch and existing Shanghai implementation.
+- Preserve the existing Shanghai implementation and unrelated in-progress user changes on `feat/f1-simulation`.
 - Never preload all circuit GLBs; load only the selected venue and dispose the previous venue.
 - Preserve original ZIPs under `work/assets-source/tracks/`; runtime derivatives belong under `public/assets/models/tracks/`.
 - Keep one authoritative spline per visible circuit and validate visual/simulation alignment.
@@ -128,7 +128,7 @@ const LOADERS = {
     return {
       id: 'shanghai',
       laps: SHANGHAI_RACE_LAPS,
-      assetUrl: '/assets/models/tracks/shanghai.glb',
+      assetUrl: '/assets/models/shanghai-track.glb',
       track: SHANGHAI_TRACK,
     };
   },
@@ -177,17 +177,21 @@ git commit -m "refactor: add lazy circuit runtime contract"
 
 ```js
 // scripts/track-sources.mjs
+import { resolve } from 'node:path';
+
+const SOURCE_ROOT = process.env.TRACK_SOURCE_ROOT ?? '/Users/mayankkinger/Downloads';
+
 export const TRACK_SOURCES = Object.freeze({
-  suzuka: { archive: '/Users/mayankkinger/Downloads/suzuka-circuit-2001-layout.zip', model: 'source/suzukibananini.glb' },
-  melbourne: { archive: '/Users/mayankkinger/Downloads/albert-park-circuit-melbourne-2018-layout.zip', model: 'source/melbourne.glb' },
-  barcelona: { archive: '/Users/mayankkinger/Downloads/barcelona-catalunya-grand-prix-2023-layout.zip', model: 'source/untitled.glb' },
-  spa: { archive: '/Users/mayankkinger/Downloads/circuit-de-spa-francorchamps-2022-layout.zip', model: 'source/spa.glb' },
-  silverstone: { archive: '/Users/mayankkinger/Downloads/silverstone-circuit-2024-layout.zip', model: 'source/silverstone.glb' },
-  singapore: { archive: '/Users/mayankkinger/Downloads/marina-bay-street-circuit.zip', model: 'source/singapore.glb' },
-  'red-bull-ring': { archive: '/Users/mayankkinger/Downloads/redbull-ring-2025-layout.zip', model: 'source/redbullring.glb' },
-  austin: { archive: '/Users/mayankkinger/Downloads/austin-circuit-of-the-americas-2012-layout.zip', model: 'source/Untitled_compressed.glb' },
-  'abu-dhabi': { archive: '/Users/mayankkinger/Downloads/yas-marina-circuit-abu-dhabi-2021-layout.zip', model: 'source/abudhabi_compressed.glb' },
-  bahrain: { archive: '/Users/mayankkinger/Downloads/bahrain-international-circuit.zip', model: 'source/bahrain.glb' },
+  suzuka: { archive: resolve(SOURCE_ROOT, 'suzuka-circuit-2001-layout.zip'), model: 'source/suzukibananini.glb' },
+  melbourne: { archive: resolve(SOURCE_ROOT, 'albert-park-circuit-melbourne-2018-layout.zip'), model: 'source/melbourne.glb' },
+  barcelona: { archive: resolve(SOURCE_ROOT, 'barcelona-catalunya-grand-prix-2023-layout.zip'), model: 'source/untitled.glb' },
+  spa: { archive: resolve(SOURCE_ROOT, 'circuit-de-spa-francorchamps-2022-layout.zip'), model: 'source/spa.glb' },
+  silverstone: { archive: resolve(SOURCE_ROOT, 'silverstone-circuit-2024-layout.zip'), model: 'source/silverstone.glb' },
+  singapore: { archive: resolve(SOURCE_ROOT, 'marina-bay-street-circuit.zip'), model: 'source/singapore.glb' },
+  'red-bull-ring': { archive: resolve(SOURCE_ROOT, 'redbull-ring-2025-layout.zip'), model: 'source/redbullring.glb' },
+  austin: { archive: resolve(SOURCE_ROOT, 'austin-circuit-of-the-americas-2012-layout.zip'), model: 'source/Untitled_compressed.glb' },
+  'abu-dhabi': { archive: resolve(SOURCE_ROOT, 'yas-marina-circuit-abu-dhabi-2021-layout.zip'), model: 'source/abudhabi_compressed.glb' },
+  bahrain: { archive: resolve(SOURCE_ROOT, 'bahrain-international-circuit.zip'), model: 'source/bahrain.glb' },
 });
 ```
 
@@ -238,7 +242,7 @@ git commit -m "feat: generalize circuit asset pipeline"
 
 - [ ] **Step 1: Write the invariant matrix test**
 
-For every supplied ID, assert: closed center/attack/defend lines, open pit line, at least 22 grid slots, exactly three ordered sector boundaries, at least one passing/yellow/speed-limit zone, at least six named camera anchors, finite transforms, and fitted length within 5% of the corresponding circuit metadata.
+For every supplied ID, assert: closed center/attack/defend lines, open pit line, at least `DRIVERS_2026.length` grid slots (target 22 where the source geometry supports it), exactly three ordered sector boundaries, at least one passing/yellow/speed-limit zone, at least six named camera anchors, finite transforms, and fitted length within 5% of the corresponding circuit metadata.
 
 - [ ] **Step 2: Generate one circuit at a time**
 
@@ -376,7 +380,7 @@ git commit -m "feat: make cameras and HUD circuit-aware"
 
 - [ ] **Step 1: Add the browser matrix**
 
-For every playable circuit on desktop and a rotating mobile subset, assert: exact ready status, correct name/laps/map, 22 selectable cars, camera target in frame, 0.25x/0.5x behavior, zero asset/request/page errors, and one canvas.
+For every playable circuit on desktop and a rotating mobile subset, assert: exact ready status, correct name/laps/map, `DRIVERS_2026.length` selectable cars, camera target in frame, 0.25x/0.5x behavior, zero asset/request/page errors, and one canvas.
 
 - [ ] **Step 2: Verify lazy loading and cleanup**
 

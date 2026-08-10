@@ -225,7 +225,7 @@ describe('integrated race rules', () => {
 
   it('keeps a retired car terminal for the remainder of the race', () => {
     const engine = createRaceEngine(
-      raceConfig('scenario-2'),
+      raceConfig('scenario-0'),
       SHANGHAI_TRACK,
       DRIVERS_2026,
     );
@@ -243,7 +243,7 @@ describe('integrated race rules', () => {
   });
 
   it('emits safety-car transitions and compresses active-car gaps', () => {
-    const engine = createRaceEngine(raceConfig('scenario-2'), SHANGHAI_TRACK, DRIVERS_2026);
+    const engine = createRaceEngine(raceConfig('scenario-0'), SHANGHAI_TRACK, DRIVERS_2026);
     let gapAtDeployment: number | undefined;
     let compressedGap: number | undefined;
 

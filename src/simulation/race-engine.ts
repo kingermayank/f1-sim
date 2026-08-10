@@ -499,11 +499,23 @@ export function createRaceEngine(
       penaltyTicks: runtime.penaltyTicks,
     });
     const suggestedPace = calculateTargetPace({
-      basePace: 0.92 + driver.ratings.pace * 0.08,
+      // Pace spread across the field. At 0.92 + pace * 0.08 the whole grid sat
+      // within about 1.5% of each other, so fourteen cars stayed packed into a
+      // fraction of a lap and rendered as one long train no matter how the
+      // renderer spaced them. A wider spread lets the field string out around
+      // the circuit the way a real race does.
+      basePace: 0.80 + driver.ratings.pace * 0.20,
       consistencyNoise: prng.range(-noiseRange, noiseRange),
       tireGrip: currentTire.grip * weatherGrip,
       fuelFactor: car.fuelFactor,
-      trafficFactor: context.gapSeconds < 1.1 ? 0.99 : 1,
+      // Dirty air. A 1% penalty was too weak to matter, so a following car
+      // simply sat on the gearbox of the one ahead and the pair travelled as a
+      // single unit. Scaling the penalty with proximity makes a trapped car
+      // genuinely lose ground, which is both what really happens and what makes
+      // the field string out instead of running nose to tail.
+      trafficFactor: context.gapSeconds < 1.6
+        ? 0.955 + Math.min(context.gapSeconds, 1.6) * 0.028
+        : 1,
       slipstreamFactor: context.gapSeconds < 0.75 && state.flag === 'green' ? 1.004 : 1,
       damageFactor: 1 - car.damage * 0.55,
       flagFactor: (state.flag === 'green' ? 1 : state.flag === 'yellow' ? 0.7 : 0.55)
