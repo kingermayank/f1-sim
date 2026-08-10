@@ -50,9 +50,16 @@ it('validates the default watchable race', () => {
   expect(parseRaceConfig({ ...DEFAULT_RACE_CONFIG, dynamicWeather: true }).dynamicWeather).toBe(true);
 });
 
+it.each([1, 56, 100])('accepts a supported circuit lap count of %i', (laps) => {
+  expect(parseRaceConfig({ ...DEFAULT_RACE_CONFIG, laps }).laps).toBe(laps);
+});
+
+it.each([0, 56.5, 101])('rejects an unsupported circuit lap count of %s', (laps) => {
+  expect(() => parseRaceConfig({ ...DEFAULT_RACE_CONFIG, laps })).toThrow();
+});
+
 it.each([
   [{ ...DEFAULT_RACE_CONFIG, seed: '' }],
-  [{ ...DEFAULT_RACE_CONFIG, laps: 2 }],
   [{ ...DEFAULT_RACE_CONFIG, presentationMinutes: 4 }],
   [{ ...DEFAULT_RACE_CONFIG, presentationMinutes: 16 }],
   [{ ...DEFAULT_RACE_CONFIG, weather: 'stormy' }],

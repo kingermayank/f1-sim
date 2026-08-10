@@ -3,7 +3,7 @@ import type { RaceConfig } from './race-types';
 
 const raceConfigSchema = z.object({
   seed: z.string().min(1),
-  laps: z.number().int().min(3).max(78),
+  laps: z.number().int().min(1).max(100),
   presentationMinutes: z.number().min(5).max(15),
   weather: z.enum(['sunny', 'cloudy', 'rain']),
   dynamicWeather: z.boolean().optional(),
