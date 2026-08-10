@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  copyFileSync,
   createReadStream,
   createWriteStream,
   existsSync,
@@ -7,9 +8,11 @@ import {
   renameSync,
   rmSync,
   statSync,
+  utimesSync,
 } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { Logger, NodeIO, getBounds } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -26,7 +29,13 @@ import {
   runJsonCommand,
 } from './track-sources.mjs';
 
-const MAX_ZIP_ENTRY_BYTES = 512 * 1024 * 1024;
+const DEFAULT_MAX_ZIP_ENTRY_BYTES = 512 * 1024 * 1024;
+const testMaxZipEntryBytes = process.env.NODE_ENV === 'test'
+  ? Number(process.env.TRACK_PIPELINE_TEST_MAX_ZIP_ENTRY_BYTES)
+  : Number.NaN;
+const MAX_ZIP_ENTRY_BYTES = Number.isSafeInteger(testMaxZipEntryBytes) && testMaxZipEntryBytes > 0
+  ? testMaxZipEntryBytes
+  : DEFAULT_MAX_ZIP_ENTRY_BYTES;
 
 export async function sha256File(path) {
   const hash = createHash('sha256');
@@ -37,6 +46,21 @@ export async function sha256File(path) {
 function archiveState(path) {
   const stat = statSync(path);
   return { bytes: stat.size, mtimeMs: stat.mtimeMs };
+}
+
+async function preserveArchiveCopy(archive, output) {
+  const temporary = `${output}.tmp-${process.pid}`;
+  const sourceStat = statSync(archive);
+  mkdirSync(dirname(output), { recursive: true });
+  rmSync(temporary, { force: true });
+  try {
+    copyFileSync(archive, temporary);
+    utimesSync(temporary, sourceStat.atimeMs / 1_000, sourceStat.mtimeMs / 1_000);
+    renameSync(temporary, output);
+  } catch (error) {
+    rmSync(temporary, { force: true });
+    throw error;
+  }
 }
 
 function assertArchiveAndEntry(source) {
@@ -76,9 +100,26 @@ async function extractZipEntry(archive, entry, output) {
       accept();
     });
   });
+  let extractedBytes = 0;
+  const sizeLimit = new Transform({
+    transform(chunk, _encoding, callback) {
+      extractedBytes += chunk.length;
+      if (extractedBytes > MAX_ZIP_ENTRY_BYTES) {
+        callback(new TrackPipelineError(
+          'SOURCE_MODEL_TOO_LARGE',
+          `Source model exceeds ${MAX_ZIP_ENTRY_BYTES} bytes`,
+        ));
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
 
   try {
-    await Promise.all([pipeline(child.stdout, createWriteStream(temporary, { flags: 'wx' })), completed]);
+    await Promise.all([
+      pipeline(child.stdout, sizeLimit, createWriteStream(temporary, { flags: 'wx' })),
+      completed,
+    ]);
     if (exitCode !== 0) {
       throw new TrackPipelineError('SOURCE_EXTRACTION_FAILED', Buffer.concat(stderr).toString('utf8').trim() || `unzip exited ${exitCode}`);
     }
@@ -87,6 +128,8 @@ async function extractZipEntry(archive, entry, output) {
     }
     renameSync(temporary, output);
   } catch (error) {
+    child.kill('SIGKILL');
+    await completed.catch(() => {});
     rmSync(temporary, { force: true });
     throw error;
   }
@@ -96,11 +139,16 @@ export async function stageTrackSource(id, source) {
   assertArchiveAndEntry(source);
   const stateBefore = archiveState(source.archive);
   const sourceSha256 = await sha256File(source.archive);
+  const archiveCopy = assertPathInside(
+    TRACK_WORK_ROOT,
+    resolve(TRACK_WORK_ROOT, id, 'original', basename(source.archive)),
+  );
   const output = assertPathInside(
     TRACK_WORK_ROOT,
     resolve(TRACK_WORK_ROOT, id, 'original', source.model),
   );
 
+  await preserveArchiveCopy(source.archive, archiveCopy);
   await extractZipEntry(source.archive, source.model, output);
 
   const stateAfter = archiveState(source.archive);
@@ -109,7 +157,7 @@ export async function stageTrackSource(id, source) {
     throw new TrackPipelineError('SOURCE_ARCHIVE_MUTATED', `Source archive changed while processing: ${source.archive}`);
   }
 
-  return { output, sourceSha256 };
+  return { archiveCopy, output, sourceSha256 };
 }
 
 async function createIo() {
@@ -174,6 +222,7 @@ export async function analyzeCircuit(id, source) {
     circuitId: id,
     source: {
       archive: source.archive,
+      stagedArchive: staged.archiveCopy,
       model: source.model,
       sha256: staged.sourceSha256,
     },

@@ -21,6 +21,18 @@ function isNonNegativeInteger(value) {
 }
 
 function validateGltfSemantics(gltf, binLength) {
+  if (gltf?.asset?.version !== '2.0') return 'GLB is missing asset.version 2.0';
+
+  const nodes = gltf.nodes ?? [];
+  const scenes = gltf.scenes ?? [];
+  const defaultScene = gltf.scene ?? 0;
+  if (!Array.isArray(nodes) || nodes.length === 0
+    || !Array.isArray(scenes) || scenes.length === 0
+    || !Number.isInteger(defaultScene) || !scenes[defaultScene]
+    || !Array.isArray(scenes[defaultScene].nodes) || scenes[defaultScene].nodes.length === 0) {
+    return 'GLB must contain a usable scene and node graph';
+  }
+
   if (!Array.isArray(gltf.buffers) || gltf.buffers.length === 0) return 'GLB must contain at least one buffer';
 
   // Meshopt-compressed runtime models carry a second, zero-filled "fallback"
@@ -111,6 +123,7 @@ function validateGltfSemantics(gltf, binLength) {
 
   const meshes = gltf.meshes ?? [];
   if (!Array.isArray(meshes)) return 'invalid GLB meshes';
+  const nonEmptyMeshes = new Set();
   for (const [meshIndex, mesh] of meshes.entries()) {
     if (!Array.isArray(mesh?.primitives)) return `mesh ${meshIndex} has invalid primitives`;
     for (const [primitiveIndex, primitive] of mesh.primitives.entries()) {
@@ -125,6 +138,7 @@ function validateGltfSemantics(gltf, binLength) {
         if (attributeCount === undefined) attributeCount = count;
         else if (attributeCount !== count) return `mesh ${meshIndex} primitive ${primitiveIndex} has mismatched attribute counts`;
       }
+      if (attributeCount > 0) nonEmptyMeshes.add(meshIndex);
       if (primitive.indices !== undefined) {
         const accessor = accessors[primitive.indices];
         if (!Number.isInteger(primitive.indices) || !accessor) return `mesh ${meshIndex} primitive ${primitiveIndex} references an invalid index accessor`;
@@ -133,6 +147,37 @@ function validateGltfSemantics(gltf, binLength) {
         }
       }
     }
+  }
+  if (nonEmptyMeshes.size === 0) return 'GLB must contain at least one non-empty mesh primitive';
+
+  const reachableMeshes = new Set();
+  const visited = new Set();
+  const active = new Set();
+  const visitNode = (nodeIndex) => {
+    if (!Number.isInteger(nodeIndex) || !nodes[nodeIndex]) return `scene references invalid node ${nodeIndex}`;
+    if (active.has(nodeIndex)) return `node graph contains a cycle at node ${nodeIndex}`;
+    if (visited.has(nodeIndex)) return undefined;
+    visited.add(nodeIndex);
+    active.add(nodeIndex);
+    const node = nodes[nodeIndex];
+    if (node.mesh !== undefined) {
+      if (!Number.isInteger(node.mesh) || !meshes[node.mesh]) return `node ${nodeIndex} references an invalid mesh`;
+      reachableMeshes.add(node.mesh);
+    }
+    if (node.children !== undefined && !Array.isArray(node.children)) return `node ${nodeIndex} has invalid children`;
+    for (const child of node.children ?? []) {
+      const problem = visitNode(child);
+      if (problem) return problem;
+    }
+    active.delete(nodeIndex);
+    return undefined;
+  };
+  for (const nodeIndex of scenes[defaultScene].nodes) {
+    const problem = visitNode(nodeIndex);
+    if (problem) return problem;
+  }
+  if (![...reachableMeshes].some((meshIndex) => nonEmptyMeshes.has(meshIndex))) {
+    return 'usable scene graph must reference a non-empty mesh primitive';
   }
   return undefined;
 }
@@ -310,15 +355,18 @@ if (Array.isArray(manifest)) {
 
   for (const [index, asset] of manifest.entries()) {
     const label = asset?.id || `entry ${index + 1}`;
+    const isGeneratedTrackCredit = asset?.runtimeFile?.startsWith('/assets/models/tracks/');
 
     if (!asset?.id) problems.push(`${label}: missing id`);
     else if (ids.has(asset.id)) problems.push(`${label}: duplicate id`);
     else ids.add(asset.id);
 
-    for (const field of [
-      'id', 'title', 'creator', 'source', 'license', 'licenseUrl',
+    const requiredFields = [
+      'id', 'title', 'creator', 'source', 'license',
       'downloadedAt', 'originalFile', 'runtimeFile', 'modifications',
-    ]) {
+      ...(isGeneratedTrackCredit ? [] : ['licenseUrl']),
+    ];
+    for (const field of requiredFields) {
       if (!asset?.[field]) problems.push(`${label}: missing ${field}`);
     }
 
@@ -382,6 +430,13 @@ if (Array.isArray(manifest)) {
     }
     if (credit.circuitId !== track.id) problems.push(`${track.id}: credit circuitId does not match runtime track`);
     if (!credit.sourceSha256) problems.push(`${track.id}: credit is missing sourceSha256`);
+    const creditIsUnverified = credit.license === 'UNVERIFIED' && credit.publicationAllowed === false;
+    if (!creditIsUnverified) {
+      problems.push(`${track.id}: supplied local prototype credit must remain UNVERIFIED with publicationAllowed false`);
+    }
+    if (credit.licenseUrl || credit.sourcePage) {
+      problems.push(`${track.id}: UNVERIFIED local prototype credit must not fabricate a license or source page URL`);
+    }
 
     if (!existsSync(track.manifestPath)) {
       problems.push(`${track.id}: generated manifest not found`);
@@ -402,6 +457,18 @@ if (Array.isArray(manifest)) {
     if (generatedManifest?.output?.runtimeFile !== track.runtimeFile) problems.push(`${track.id}: generated manifest runtimeFile does not match credit`);
     if (generatedManifest?.output?.bytes !== bytes.length) problems.push(`${track.id}: generated manifest byte count does not match runtime track`);
     if (generatedManifest?.output?.sha256 !== sha256(bytes)) problems.push(`${track.id}: generated manifest output checksum does not match runtime track`);
+    const generatedLicensing = generatedManifest?.licensing;
+    const manifestIsUnverified = generatedLicensing?.status === 'UNVERIFIED'
+      && generatedLicensing?.usage === 'local-prototype-only'
+      && generatedLicensing?.publishingAllowed === false
+      && generatedLicensing?.sourcePage === null
+      && generatedLicensing?.licenseUrl === null;
+    if (!manifestIsUnverified) {
+      problems.push(`${track.id}: generated manifest must mark the supplied track UNVERIFIED and local-prototype-only`);
+    }
+    if (creditIsUnverified && manifestIsUnverified) {
+      problems.push(`${track.id}: publishing blocked while license status is UNVERIFIED`);
+    }
 
     const hasExceptionFields = credit.maxRuntimeBytes !== undefined || credit.runtimeSizeException !== undefined;
     const validException = Number.isInteger(credit.maxRuntimeBytes)
@@ -415,7 +482,11 @@ if (Array.isArray(manifest)) {
     if (bytes.length > limit) problems.push(`${track.id}: runtime file exceeds ${limit} bytes`);
 
     const expectedException = validException ? credit.runtimeSizeException : null;
-    if (generatedManifest?.limits?.maxBytes !== limit || generatedManifest?.limits?.exception !== expectedException) {
+    const expectedExceptionCircuitId = validException ? track.id : null;
+    if (generatedManifest?.limits?.defaultMaxBytes !== DEFAULT_TRACK_LIMIT_BYTES
+      || generatedManifest?.limits?.maxBytes !== limit
+      || generatedManifest?.limits?.exception !== expectedException
+      || generatedManifest?.limits?.exceptionCircuitId !== expectedExceptionCircuitId) {
       problems.push(`${track.id}: generated manifest runtime limit does not match credit`);
     }
   }

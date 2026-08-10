@@ -33,6 +33,36 @@ function readGlbJson(glb: Buffer): { json: Record<string, any>; text: string; st
   throw new Error('GLB has no JSON chunk');
 }
 
+function rewriteGlbJson(glb: Buffer, mutate: (json: Record<string, any>) => void): Buffer {
+  const { json } = readGlbJson(glb);
+  mutate(json);
+  const encoded = Buffer.from(JSON.stringify(json));
+  const paddedJson = Buffer.concat([encoded, Buffer.alloc((4 - (encoded.length % 4)) % 4, 0x20)]);
+  let offset = 12;
+  let bin = Buffer.alloc(0);
+  while (offset < glb.length) {
+    const length = glb.readUInt32LE(offset);
+    const type = glb.subarray(offset + 4, offset + 8).toString();
+    if (type === 'BIN\0') bin = Buffer.from(glb.subarray(offset + 8, offset + 8 + length));
+    offset += 8 + length;
+  }
+  const totalLength = 12 + 8 + paddedJson.length + (bin.length > 0 ? 8 + bin.length : 0);
+  const rewritten = Buffer.alloc(totalLength);
+  rewritten.write('glTF', 0);
+  rewritten.writeUInt32LE(2, 4);
+  rewritten.writeUInt32LE(totalLength, 8);
+  rewritten.writeUInt32LE(paddedJson.length, 12);
+  rewritten.write('JSON', 16);
+  paddedJson.copy(rewritten, 20);
+  if (bin.length > 0) {
+    const binHeader = 20 + paddedJson.length;
+    rewritten.writeUInt32LE(bin.length, binHeader);
+    rewritten.write('BIN\0', binHeader + 4);
+    bin.copy(rewritten, binHeader + 8);
+  }
+  return rewritten;
+}
+
 /**
  * Finds an accessor whose `byteOffset` can be inflated in place — same digit
  * count, larger value — so it reads past the end of its bufferView. Deriving
@@ -96,6 +126,19 @@ describe('asset verifier binary validation', () => {
     const invalidCount = verify(fixture.manifestPath, fixture.publicRoot);
     expect(invalidCount.status).toBe(1);
     expect(invalidCount.stderr).toMatch(/accessor \d+ exceeds bufferView byteLength/);
+
+    for (const [mutate, expected] of [
+      [(json: Record<string, any>) => { delete json.asset.version; }, /missing asset\.version/],
+      [(json: Record<string, any>) => { json.scenes = []; }, /usable scene/],
+      [(json: Record<string, any>) => { json.meshes = []; }, /non-empty mesh primitive/],
+    ] as const) {
+      cpSync('public', fixture.publicRoot, { recursive: true, force: true });
+      const semanticallyEmpty = rewriteGlbJson(readFileSync(glbPath), mutate);
+      writeFileSync(glbPath, semanticallyEmpty);
+      const invalidSemantics = verify(fixture.manifestPath, fixture.publicRoot);
+      expect(invalidSemantics.status).toBe(1);
+      expect(invalidSemantics.stderr).toMatch(expected);
+    }
 
     cpSync('public', fixture.publicRoot, { recursive: true, force: true });
     const webpPath = join(fixture.publicRoot, 'assets/textures/teams/ferrari.webp');

@@ -1,5 +1,6 @@
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   renameSync,
   rmSync,
@@ -21,12 +22,101 @@ import { optimizeCircuit } from './optimize-track.mjs';
 
 export const DEFAULT_TRACK_LIMIT_BYTES = 30_000_000;
 
-export async function generateCircuit(id, source) {
+function publishPair(temporaryOutput, output, temporaryManifest, manifestPath) {
+  const backupOutput = `${output}.backup-${process.pid}`;
+  const backupManifest = `${manifestPath}.backup-${process.pid}`;
+  let outputBackedUp = false;
+  let manifestBackedUp = false;
+  let outputPublished = false;
+  let manifestPublished = false;
+  rmSync(backupOutput, { force: true });
+  rmSync(backupManifest, { force: true });
+
+  try {
+    assertPathInside(TRACK_PUBLIC_ROOT, output);
+    assertPathInside(TRACK_PUBLIC_ROOT, manifestPath);
+    if (existsSync(output)) {
+      renameSync(output, backupOutput);
+      outputBackedUp = true;
+    }
+    if (existsSync(manifestPath)) {
+      renameSync(manifestPath, backupManifest);
+      manifestBackedUp = true;
+    }
+
+    renameSync(temporaryOutput, output);
+    outputPublished = true;
+    if (process.env.NODE_ENV === 'test' && process.env.TRACK_PIPELINE_TEST_FAIL_PUBLISH_AFTER_MODEL === '1') {
+      throw new Error('Injected paired-publication failure');
+    }
+    renameSync(temporaryManifest, manifestPath);
+    manifestPublished = true;
+
+    rmSync(backupOutput, { force: true });
+    rmSync(backupManifest, { force: true });
+  } catch (error) {
+    let rollbackError;
+    try {
+      if (outputPublished) rmSync(output, { force: true });
+      if (manifestPublished) rmSync(manifestPath, { force: true });
+      if (outputBackedUp) renameSync(backupOutput, output);
+      if (manifestBackedUp) renameSync(backupManifest, manifestPath);
+    } catch (caught) {
+      rollbackError = caught;
+    }
+    const detail = rollbackError
+      ? `${error instanceof Error ? error.message : String(error)}; rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`
+      : error instanceof Error ? error.message : String(error);
+    throw new TrackPipelineError('PUBLISH_FAILED', `Unable to publish track model and manifest together: ${detail}`);
+  } finally {
+    rmSync(temporaryOutput, { force: true });
+    rmSync(temporaryManifest, { force: true });
+  }
+}
+
+function resolveGenerateArgs(args) {
+  const { id, source } = resolveCircuitArgs(args.slice(0, 2));
+  if (args.length === 2) return { id, source, sizeException: null };
+  if (args.length !== 6
+    || args[2] !== '--max-runtime-bytes'
+    || args[4] !== '--runtime-size-exception') {
+    throw new TrackPipelineError(
+      'INVALID_ARGUMENTS',
+      'Expected: --circuit <circuit-id> [--max-runtime-bytes <bytes> --runtime-size-exception <rationale>]',
+    );
+  }
+  const maxBytes = Number(args[3]);
+  const rationale = args[5]?.trim();
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= DEFAULT_TRACK_LIMIT_BYTES || !rationale) {
+    throw new TrackPipelineError(
+      'INVALID_RUNTIME_SIZE_EXCEPTION',
+      `Runtime size exception must include a max above ${DEFAULT_TRACK_LIMIT_BYTES} bytes and a rationale`,
+    );
+  }
+  return { id, source, sizeException: { circuitId: id, maxBytes, rationale } };
+}
+
+export async function generateCircuit(id, source, sizeException = null) {
   const optimized = await optimizeCircuit(id, source);
-  if (optimized.output.bytes > DEFAULT_TRACK_LIMIT_BYTES) {
+  if (optimized.output.bytes > DEFAULT_TRACK_LIMIT_BYTES && !sizeException) {
     throw new TrackPipelineError(
       'RUNTIME_LIMIT_EXCEEDED',
       `${id} runtime model exceeds ${DEFAULT_TRACK_LIMIT_BYTES} bytes; document an explicit exception before registration`,
+    );
+  }
+  if (sizeException && sizeException.circuitId !== id) {
+    throw new TrackPipelineError('INVALID_RUNTIME_SIZE_EXCEPTION', 'Runtime size exception must match the requested circuit');
+  }
+  if (sizeException && optimized.output.bytes <= DEFAULT_TRACK_LIMIT_BYTES) {
+    throw new TrackPipelineError(
+      'RUNTIME_SIZE_EXCEPTION_NOT_REQUIRED',
+      `${id} is within the default ${DEFAULT_TRACK_LIMIT_BYTES}-byte limit`,
+    );
+  }
+  if (sizeException && optimized.output.bytes > sizeException.maxBytes) {
+    throw new TrackPipelineError(
+      'RUNTIME_EXCEPTION_LIMIT_EXCEEDED',
+      `${id} runtime model exceeds its documented ${sizeException.maxBytes}-byte exception`,
     );
   }
 
@@ -47,6 +137,7 @@ export async function generateCircuit(id, source) {
     circuitId: id,
     source: {
       archive: source.archive,
+      stagedArchive: optimized.source.stagedArchive,
       model: source.model,
       sha256: optimized.source.sha256,
     },
@@ -56,8 +147,17 @@ export async function generateCircuit(id, source) {
       sha256: outputSha256,
     },
     limits: {
-      maxBytes: DEFAULT_TRACK_LIMIT_BYTES,
-      exception: null,
+      defaultMaxBytes: DEFAULT_TRACK_LIMIT_BYTES,
+      maxBytes: sizeException?.maxBytes ?? DEFAULT_TRACK_LIMIT_BYTES,
+      exception: sizeException?.rationale ?? null,
+      exceptionCircuitId: sizeException?.circuitId ?? null,
+    },
+    licensing: {
+      status: 'UNVERIFIED',
+      usage: 'local-prototype-only',
+      publishingAllowed: false,
+      sourcePage: null,
+      licenseUrl: null,
     },
     inspection: {
       bounds: optimized.bounds,
@@ -69,8 +169,7 @@ export async function generateCircuit(id, source) {
     },
   };
   writeFileSync(temporaryManifest, `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' });
-  renameSync(temporaryOutput, output);
-  renameSync(temporaryManifest, manifestPath);
+  publishPair(temporaryOutput, output, temporaryManifest, manifestPath);
 
   return {
     circuitId: id,
@@ -92,8 +191,8 @@ export async function generateCircuit(id, source) {
 }
 
 export async function generateTrack(args = process.argv.slice(2)) {
-  const { id, source } = resolveCircuitArgs(args);
-  return generateCircuit(id, source);
+  const { id, source, sizeException } = resolveGenerateArgs(args);
+  return generateCircuit(id, source, sizeException);
 }
 
 if (isMainModule(import.meta.url)) {

@@ -1,5 +1,7 @@
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, relative, resolve } from 'node:path';
+import { basename, dirname, relative, resolve } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
 const SOURCE_ROOT = process.env.TRACK_SOURCE_ROOT ?? '/Users/mayankkinger/Downloads';
 
@@ -22,8 +24,30 @@ export const TRACK_SOURCES = Object.freeze({
 });
 
 export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-export const TRACK_WORK_ROOT = resolve(PROJECT_ROOT, 'work/assets-source/tracks');
-export const TRACK_PUBLIC_ROOT = resolve(PROJECT_ROOT, 'public/assets/models/tracks');
+
+function isPathInsideOrEqual(root, candidate) {
+  const child = relative(root, candidate);
+  return child === '' || (child !== '..' && !child.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`));
+}
+
+let testOutputRootError;
+
+function resolveTestOutputRoot() {
+  if (process.env.NODE_ENV !== 'test' || !process.env.TRACK_PIPELINE_TEST_ROOT) return undefined;
+  try {
+    const candidate = realpathSync(resolve(process.env.TRACK_PIPELINE_TEST_ROOT));
+    const temporaryRoot = realpathSync(tmpdir());
+    if (isPathInsideOrEqual(temporaryRoot, candidate)) return candidate;
+    testOutputRootError = 'TRACK_PIPELINE_TEST_ROOT must resolve beneath the operating-system temp directory';
+  } catch (error) {
+    testOutputRootError = `Unable to resolve TRACK_PIPELINE_TEST_ROOT: ${error instanceof Error ? error.message : String(error)}`;
+  }
+  return undefined;
+}
+
+export const TRACK_OUTPUT_ROOT = resolveTestOutputRoot() ?? realpathSync(PROJECT_ROOT);
+export const TRACK_WORK_ROOT = resolve(TRACK_OUTPUT_ROOT, 'work/assets-source/tracks');
+export const TRACK_PUBLIC_ROOT = resolve(TRACK_OUTPUT_ROOT, 'public/assets/models/tracks');
 
 export class TrackPipelineError extends Error {
   constructor(code, message) {
@@ -34,6 +58,9 @@ export class TrackPipelineError extends Error {
 }
 
 export function resolveCircuitArgs(args) {
+  if (testOutputRootError) {
+    throw new TrackPipelineError('UNSAFE_TEST_OUTPUT_ROOT', testOutputRootError);
+  }
   if (args.length !== 2 || args[0] !== '--circuit' || !args[1]) {
     throw new TrackPipelineError('INVALID_ARGUMENTS', 'Expected exactly: --circuit <circuit-id>');
   }
@@ -46,11 +73,28 @@ export function resolveCircuitArgs(args) {
 }
 
 export function assertPathInside(root, candidate) {
-  const child = relative(root, candidate);
-  if (child === '' || child === '..' || child.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || resolve(candidate) !== candidate) {
+  const lexicalEscape = candidate === root || !isPathInsideOrEqual(root, candidate) || resolve(candidate) !== candidate;
+  const canonicalRoot = canonicalizeWithMissing(root);
+  const canonicalCandidate = canonicalizeWithMissing(candidate);
+  const canonicalEscape = !isPathInsideOrEqual(TRACK_OUTPUT_ROOT, canonicalRoot)
+    || canonicalRoot === canonicalCandidate
+    || !isPathInsideOrEqual(canonicalRoot, canonicalCandidate);
+  if (lexicalEscape || canonicalEscape) {
     throw new TrackPipelineError('UNSAFE_OUTPUT_PATH', `Output path must remain beneath ${root}`);
   }
   return candidate;
+}
+
+function canonicalizeWithMissing(path) {
+  let ancestor = resolve(path);
+  const missing = [];
+  while (!existsSync(ancestor)) {
+    const parent = dirname(ancestor);
+    if (parent === ancestor) break;
+    missing.unshift(basename(ancestor));
+    ancestor = parent;
+  }
+  return resolve(realpathSync(ancestor), ...missing);
 }
 
 export function isMainModule(metaUrl) {

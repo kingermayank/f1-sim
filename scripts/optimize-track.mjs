@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 import {
@@ -13,7 +14,29 @@ import {
 } from './track-sources.mjs';
 import { inspectTrackGlb, sha256File, stageTrackSource } from './analyze-track-geometry.mjs';
 
-const GLTF_TRANSFORM = resolve(PROJECT_ROOT, 'node_modules/.bin/gltf-transform');
+function isInsideTemporaryRoot(path) {
+  const temporaryRoot = realpathSync(tmpdir());
+  const child = relative(temporaryRoot, path);
+  return child !== '..' && !child.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`);
+}
+
+function resolveOptimizer() {
+  if (process.env.NODE_ENV === 'test' && process.env.TRACK_PIPELINE_TEST_OPTIMIZER) {
+    const candidate = realpathSync(resolve(process.env.TRACK_PIPELINE_TEST_OPTIMIZER));
+    if (isInsideTemporaryRoot(candidate)) return candidate;
+  }
+  return resolve(PROJECT_ROOT, 'node_modules/.bin/gltf-transform');
+}
+
+const GLTF_TRANSFORM = resolveOptimizer();
+
+function optimizerWarnings(result) {
+  return [result.stdout, result.stderr]
+    .flatMap((diagnostic) => diagnostic?.split(/\r?\n/u) ?? [])
+    .map((diagnostic) => diagnostic.trim())
+    .filter(Boolean)
+    .map((diagnostic) => `Optimizer: ${diagnostic}`);
+}
 
 export async function optimizeCircuit(id, source) {
   const staged = await stageTrackSource(id, source);
@@ -41,6 +64,7 @@ export async function optimizeCircuit(id, source) {
   });
   if (optimized.stdout?.trim()) console.error(optimized.stdout.trim());
   if (optimized.stderr?.trim()) console.error(optimized.stderr.trim());
+  const diagnostics = optimizerWarnings(optimized);
   if (optimized.error) {
     rmSync(temporary, { force: true });
     throw new TrackPipelineError('OPTIMIZATION_FAILED', optimized.error.message);
@@ -56,10 +80,12 @@ export async function optimizeCircuit(id, source) {
     circuitId: id,
     source: {
       archive: source.archive,
+      stagedArchive: staged.archiveCopy,
       model: source.model,
       sha256: staged.sourceSha256,
     },
     ...inspection,
+    warnings: [...inspection.warnings, ...diagnostics],
     output: {
       path: output,
       bytes: statSync(output).size,

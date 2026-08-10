@@ -1,11 +1,16 @@
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
+  readdirSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -38,9 +43,6 @@ function archiveSnapshot(path: string) {
 }
 
 const temporaryRoots: string[] = [];
-const SUZUKA_WORK_ROOT = resolve('work/assets-source/tracks/suzuka');
-const SUZUKA_PUBLIC_MODEL = resolve('public/assets/models/tracks/suzuka.glb');
-const SUZUKA_PUBLIC_MANIFEST = resolve('public/assets/models/tracks/suzuka.manifest.json');
 
 function runCli(script: string, args: string[] = [], env: NodeJS.ProcessEnv = process.env) {
   return spawnSync('node', [`scripts/${script}`, ...args], { encoding: 'utf8', env });
@@ -52,19 +54,46 @@ function parseOnlyEnvelope(stdout: string) {
   return JSON.parse(lines[0]);
 }
 
-function createSourceFixture() {
+function createSourceFixture(model = createSemanticTrackGlb()) {
   const root = mkdtempSync(join(tmpdir(), 'track-pipeline-'));
   temporaryRoots.push(root);
   const modelDirectory = join(root, 'source');
   mkdirSync(modelDirectory);
-  writeFileSync(join(modelDirectory, 'suzukibananini.glb'), createSemanticTrackGlb());
+  writeFileSync(join(modelDirectory, 'suzukibananini.glb'), model);
   const archive = join(root, 'suzuka-circuit-2001-layout.zip');
   const zipped = spawnSync('zip', ['-q', archive, 'source/suzukibananini.glb'], {
     cwd: root,
     encoding: 'utf8',
   });
   expect(zipped.status, zipped.stderr).toBe(0);
-  return { archive, sourceRoot: root };
+  const outputRoot = join(root, 'output');
+  mkdirSync(outputRoot);
+  return { archive, outputRoot: realpathSync(outputRoot), sourceRoot: root };
+}
+
+function createWarningOptimizer(fixture: ReturnType<typeof createSourceFixture>) {
+  const optimizer = join(fixture.sourceRoot, 'fixture-optimizer.mjs');
+  writeFileSync(optimizer, [
+    '#!/usr/bin/env node',
+    "import { copyFileSync } from 'node:fs';",
+    "copyFileSync(process.argv[3], process.argv[4]);",
+    "console.error('warning-from-test-optimizer');",
+  ].join('\n'));
+  chmodSync(optimizer, 0o755);
+  return optimizer;
+}
+
+function pipelineEnv(
+  fixture: ReturnType<typeof createSourceFixture>,
+  overrides: NodeJS.ProcessEnv = {},
+) {
+  return {
+    ...process.env,
+    NODE_ENV: 'test',
+    TRACK_SOURCE_ROOT: fixture.sourceRoot,
+    TRACK_PIPELINE_TEST_ROOT: fixture.outputRoot,
+    ...overrides,
+  };
 }
 
 function createSemanticTrackGlb() {
@@ -165,9 +194,6 @@ function createLargeSemanticGlb(byteLength = 30_000_004) {
 }
 
 afterEach(() => {
-  rmSync(SUZUKA_WORK_ROOT, { recursive: true, force: true });
-  rmSync(SUZUKA_PUBLIC_MODEL, { force: true });
-  rmSync(SUZUKA_PUBLIC_MANIFEST, { force: true });
   while (temporaryRoots.length) rmSync(temporaryRoots.pop()!, { recursive: true, force: true });
 });
 
@@ -192,6 +218,192 @@ describe('track source inventory', () => {
 });
 
 describe('track pipeline CLI contract', () => {
+  it('uses an isolated temp output sandbox only in test mode', () => {
+    const testRoot = mkdtempSync(join(tmpdir(), 'track-output-root-'));
+    temporaryRoots.push(testRoot);
+    const canonicalTestRoot = realpathSync(testRoot);
+    const probe = [
+      "import('./scripts/track-sources.mjs')",
+      "  .then(({ TRACK_WORK_ROOT, TRACK_PUBLIC_ROOT }) => console.log(JSON.stringify({ TRACK_WORK_ROOT, TRACK_PUBLIC_ROOT })))",
+      "  .catch((error) => { console.error(error); process.exit(1); });",
+    ].join('\n');
+
+    const isolated = spawnSync('node', ['--input-type=module', '--eval', probe], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        NODE_ENV: 'test',
+        TRACK_PIPELINE_TEST_ROOT: testRoot,
+      },
+    });
+    expect(isolated.status, isolated.stderr).toBe(0);
+    expect(JSON.parse(isolated.stdout)).toEqual({
+      TRACK_WORK_ROOT: join(canonicalTestRoot, 'work/assets-source/tracks'),
+      TRACK_PUBLIC_ROOT: join(canonicalTestRoot, 'public/assets/models/tracks'),
+    });
+
+    const production = spawnSync('node', ['--input-type=module', '--eval', probe], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        TRACK_PIPELINE_TEST_ROOT: testRoot,
+      },
+    });
+    expect(production.status, production.stderr).toBe(0);
+    expect(JSON.parse(production.stdout)).toEqual({
+      TRACK_WORK_ROOT: resolve('work/assets-source/tracks'),
+      TRACK_PUBLIC_ROOT: resolve('public/assets/models/tracks'),
+    });
+
+    const unsafeTestOverride = spawnSync('node', ['--input-type=module', '--eval', probe], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        NODE_ENV: 'test',
+        TRACK_PIPELINE_TEST_ROOT: resolve('.'),
+      },
+    });
+    expect(unsafeTestOverride.status, unsafeTestOverride.stderr).toBe(0);
+    expect(JSON.parse(unsafeTestOverride.stdout)).toEqual({
+      TRACK_WORK_ROOT: resolve('work/assets-source/tracks'),
+      TRACK_PUBLIC_ROOT: resolve('public/assets/models/tracks'),
+    });
+    const refusedOverride = runCli('analyze-track-geometry.mjs', ['--circuit', 'not-a-circuit'], {
+      ...process.env,
+      NODE_ENV: 'test',
+      TRACK_PIPELINE_TEST_ROOT: resolve('.'),
+    });
+    expect(refusedOverride.status).toBe(1);
+    expect(parseOnlyEnvelope(refusedOverride.stdout)).toMatchObject({
+      schemaVersion: 1,
+      ok: false,
+      command: 'analyze',
+      error: { code: 'UNSAFE_TEST_OUTPUT_ROOT' },
+    });
+  });
+
+  it('rejects a symlinked output ancestor that escapes the configured root', () => {
+    const fixture = createSourceFixture();
+    const tracksRoot = join(fixture.outputRoot, 'work/assets-source/tracks');
+    const escapedRoot = join(fixture.sourceRoot, 'escaped-output');
+    mkdirSync(tracksRoot, { recursive: true });
+    mkdirSync(escapedRoot);
+    symlinkSync(escapedRoot, join(tracksRoot, 'suzuka'));
+
+    const analyzed = runCli('analyze-track-geometry.mjs', ['--circuit', 'suzuka'], pipelineEnv(fixture));
+    expect(analyzed.status).toBe(1);
+    expect(parseOnlyEnvelope(analyzed.stdout)).toMatchObject({
+      schemaVersion: 1,
+      ok: false,
+      command: 'analyze',
+      error: { code: 'UNSAFE_OUTPUT_PATH' },
+    });
+    expect(readdirSync(escapedRoot)).toEqual([]);
+  });
+
+  it('stops oversized ZIP extraction while streaming and removes the partial model', () => {
+    const fixture = createSourceFixture();
+    const sourceBefore = archiveSnapshot(fixture.archive);
+    const analyzed = runCli('analyze-track-geometry.mjs', ['--circuit', 'suzuka'], pipelineEnv(fixture, {
+      TRACK_PIPELINE_TEST_MAX_ZIP_ENTRY_BYTES: '64',
+    }));
+
+    expect(analyzed.status).toBe(1);
+    expect(parseOnlyEnvelope(analyzed.stdout)).toMatchObject({
+      schemaVersion: 1,
+      ok: false,
+      command: 'analyze',
+      error: { code: 'SOURCE_MODEL_TOO_LARGE' },
+    });
+    const extractedModel = join(
+      fixture.outputRoot,
+      'work/assets-source/tracks/suzuka/original/source/suzukibananini.glb',
+    );
+    expect(existsSync(extractedModel)).toBe(false);
+    expect(archiveSnapshot(fixture.archive)).toEqual(sourceBefore);
+  });
+
+  it('includes optimizer diagnostics in the JSON warnings while keeping one stdout envelope', () => {
+    const fixture = createSourceFixture();
+    const optimized = runCli('optimize-track.mjs', ['--circuit', 'suzuka'], pipelineEnv(fixture, {
+      TRACK_PIPELINE_TEST_OPTIMIZER: createWarningOptimizer(fixture),
+    }));
+
+    expect(optimized.status, optimized.stderr).toBe(0);
+    const envelope = parseOnlyEnvelope(optimized.stdout);
+    expect(envelope).toMatchObject({ schemaVersion: 1, ok: true, command: 'optimize' });
+    expect(envelope.data.warnings).toContain('Optimizer: warning-from-test-optimizer');
+    expect(optimized.stderr).toContain('warning-from-test-optimizer');
+  });
+
+  it('requires an explicit circuit-scoped exception before generating an oversized track', () => {
+    const fixture = createSourceFixture(createLargeSemanticGlb());
+    const env = pipelineEnv(fixture, {
+      TRACK_PIPELINE_TEST_OPTIMIZER: createWarningOptimizer(fixture),
+    });
+    const publicTrackRoot = join(fixture.outputRoot, 'public/assets/models/tracks');
+
+    const rejected = runCli('generate-track.mjs', ['--circuit', 'suzuka'], env);
+    expect(rejected.status).toBe(1);
+    expect(parseOnlyEnvelope(rejected.stdout)).toMatchObject({
+      schemaVersion: 1,
+      ok: false,
+      command: 'generate',
+      error: { code: 'RUNTIME_LIMIT_EXCEEDED' },
+    });
+    expect(existsSync(join(publicTrackRoot, 'suzuka.glb'))).toBe(false);
+
+    const rationale = 'Landmark geometry is required for this local prototype circuit.';
+    const maxBytes = 30_100_000;
+    const generated = runCli('generate-track.mjs', [
+      '--circuit', 'suzuka',
+      '--max-runtime-bytes', String(maxBytes),
+      '--runtime-size-exception', rationale,
+    ], env);
+    expect(generated.status, generated.stderr).toBe(0);
+    const envelope = parseOnlyEnvelope(generated.stdout);
+    expect(envelope).toMatchObject({ schemaVersion: 1, ok: true, command: 'generate' });
+    const manifest = JSON.parse(readFileSync(join(publicTrackRoot, 'suzuka.manifest.json'), 'utf8'));
+    expect(manifest).toMatchObject({
+      circuitId: 'suzuka',
+      limits: {
+        defaultMaxBytes: 30_000_000,
+        maxBytes,
+        exception: rationale,
+        exceptionCircuitId: 'suzuka',
+      },
+    });
+  }, 45_000);
+
+  it('restores the prior model and manifest if paired publication is interrupted', () => {
+    const fixture = createSourceFixture();
+    const optimizer = createWarningOptimizer(fixture);
+    const env = pipelineEnv(fixture, { TRACK_PIPELINE_TEST_OPTIMIZER: optimizer });
+    const generated = runCli('generate-track.mjs', ['--circuit', 'suzuka'], env);
+    expect(generated.status, generated.stderr).toBe(0);
+    const publicTrackRoot = join(fixture.outputRoot, 'public/assets/models/tracks');
+    const runtimePath = join(publicTrackRoot, 'suzuka.glb');
+    const manifestPath = join(publicTrackRoot, 'suzuka.manifest.json');
+    const runtimeBefore = readFileSync(runtimePath);
+    const manifestBefore = readFileSync(manifestPath);
+
+    const interrupted = runCli('generate-track.mjs', ['--circuit', 'suzuka'], {
+      ...env,
+      TRACK_PIPELINE_TEST_FAIL_PUBLISH_AFTER_MODEL: '1',
+    });
+    expect(interrupted.status).toBe(1);
+    expect(parseOnlyEnvelope(interrupted.stdout)).toMatchObject({
+      schemaVersion: 1,
+      ok: false,
+      command: 'generate',
+      error: { code: 'PUBLISH_FAILED' },
+    });
+    expect(readFileSync(runtimePath)).toEqual(runtimeBefore);
+    expect(readFileSync(manifestPath)).toEqual(manifestBefore);
+    expect(readdirSync(publicTrackRoot).sort()).toEqual(['suzuka.glb', 'suzuka.manifest.json']);
+  }, 30_000);
+
   it.each([
     'analyze-track-geometry.mjs',
     'optimize-track.mjs',
@@ -211,13 +423,15 @@ describe('track pipeline CLI contract', () => {
   it('analyzes, optimizes, and generates one source while preserving the archive and output boundaries', () => {
     const fixture = createSourceFixture();
     const sourceBefore = archiveSnapshot(fixture.archive);
-    const env = { ...process.env, TRACK_SOURCE_ROOT: fixture.sourceRoot };
+    const env = pipelineEnv(fixture);
+    const workRoot = join(fixture.outputRoot, 'work/assets-source/tracks');
+    const publicTrackRoot = join(fixture.outputRoot, 'public/assets/models/tracks');
 
     const analyzed = runCli('analyze-track-geometry.mjs', ['--circuit', 'suzuka'], env);
     expect(analyzed.status, analyzed.stderr).toBe(0);
     const analyzeEnvelope = parseOnlyEnvelope(analyzed.stdout);
     expect(analyzeEnvelope).toMatchObject({ schemaVersion: 1, ok: true, command: 'analyze' });
-    expectPipelineData(analyzeEnvelope.data, 'suzuka', resolve('work/assets-source/tracks'));
+    expectPipelineData(analyzeEnvelope.data, 'suzuka', workRoot);
     expect(analyzeEnvelope.data.detected).toEqual({
       road: ['main-road'],
       pit: ['pit-lane'],
@@ -228,19 +442,19 @@ describe('track pipeline CLI contract', () => {
     expect(optimized.status, optimized.stderr).toBe(0);
     const optimizeEnvelope = parseOnlyEnvelope(optimized.stdout);
     expect(optimizeEnvelope).toMatchObject({ schemaVersion: 1, ok: true, command: 'optimize' });
-    expectPipelineData(optimizeEnvelope.data, 'suzuka', resolve('work/assets-source/tracks'));
+    expectPipelineData(optimizeEnvelope.data, 'suzuka', workRoot);
 
     const generated = runCli('generate-track.mjs', ['--circuit', 'suzuka'], env);
     expect(generated.status, generated.stderr).toBe(0);
     const generateEnvelope = parseOnlyEnvelope(generated.stdout);
     expect(generateEnvelope).toMatchObject({ schemaVersion: 1, ok: true, command: 'generate' });
-    expectPipelineData(generateEnvelope.data, 'suzuka', resolve('public/assets/models/tracks'));
+    expectPipelineData(generateEnvelope.data, 'suzuka', publicTrackRoot);
 
-    const runtime = readFileSync(SUZUKA_PUBLIC_MODEL);
+    const runtime = readFileSync(join(publicTrackRoot, 'suzuka.glb'));
     expect(runtime.subarray(0, 4).toString()).toBe('glTF');
     expect(runtime.readUInt32LE(4)).toBe(2);
     expect(runtime.readUInt32LE(8)).toBe(runtime.length);
-    const manifest = JSON.parse(readFileSync(SUZUKA_PUBLIC_MANIFEST, 'utf8'));
+    const manifest = JSON.parse(readFileSync(join(publicTrackRoot, 'suzuka.manifest.json'), 'utf8'));
     expect(manifest).toMatchObject({
       schemaVersion: 1,
       circuitId: 'suzuka',
@@ -250,7 +464,18 @@ describe('track pipeline CLI contract', () => {
         bytes: runtime.length,
         sha256: createHash('sha256').update(runtime).digest('hex'),
       },
+      licensing: {
+        status: 'UNVERIFIED',
+        usage: 'local-prototype-only',
+        publishingAllowed: false,
+        sourcePage: null,
+        licenseUrl: null,
+      },
     });
+    const stagedArchive = join(workRoot, 'suzuka/original/suzuka-circuit-2001-layout.zip');
+    const stagedArchiveSnapshot = archiveSnapshot(stagedArchive);
+    expect(stagedArchiveSnapshot).toMatchObject({ bytes: sourceBefore.bytes, sha256: sourceBefore.sha256 });
+    expect(Math.abs(stagedArchiveSnapshot.mtimeMs - sourceBefore.mtimeMs)).toBeLessThan(1);
     expect(archiveSnapshot(fixture.archive)).toEqual(sourceBefore);
   }, 30_000);
 });
@@ -258,7 +483,7 @@ describe('track pipeline CLI contract', () => {
 describe('runtime track asset verification', () => {
   it('requires matching credits/manifests and enforces the 30 MB limit unless an exception is explicit', () => {
     const fixture = createSourceFixture();
-    const env = { ...process.env, TRACK_SOURCE_ROOT: fixture.sourceRoot };
+    const env = pipelineEnv(fixture);
     const generated = runCli('generate-track.mjs', ['--circuit', 'suzuka'], env);
     expect(generated.status, generated.stderr).toBe(0);
 
@@ -266,6 +491,11 @@ describe('runtime track asset verification', () => {
     temporaryRoots.push(verificationRoot);
     const publicRoot = join(verificationRoot, 'public');
     cpSync('public', publicRoot, { recursive: true });
+    cpSync(
+      join(fixture.outputRoot, 'public/assets/models/tracks'),
+      join(publicRoot, 'assets/models/tracks'),
+      { recursive: true },
+    );
     const manifestPath = join(verificationRoot, 'credits.json');
     const baseCredits = JSON.parse(readFileSync('src/assets/credits.json', 'utf8'));
     writeFileSync(manifestPath, JSON.stringify(baseCredits));
@@ -283,16 +513,26 @@ describe('runtime track asset verification', () => {
       creator: 'UNRECORDED - local prototype source',
       source: 'User-supplied Sketchfab archive',
       sourceSha256: generatedManifest.source.sha256,
-      license: 'UNVERIFIED - local prototype use only',
-      licenseUrl: 'https://sketchfab.com/licenses',
+      license: 'UNVERIFIED',
+      publicationAllowed: false,
       downloadedAt: '2026-08-09 (supplied by the project owner)',
       originalFile: fixture.archive,
       runtimeFile: '/assets/models/tracks/suzuka.glb',
       modifications: 'Generated with scripts/generate-track.mjs for local prototype use.',
     };
+    writeFileSync(manifestPath, JSON.stringify([...baseCredits, {
+      ...trackCredit,
+      license: 'CC-BY-4.0',
+      publicationAllowed: true,
+    }]));
+    const fabricatedLicense = verifyAssets(manifestPath, publicRoot);
+    expect(fabricatedLicense.status).toBe(1);
+    expect(fabricatedLicense.stderr).toMatch(/suzuka.*must remain UNVERIFIED/iu);
+
     writeFileSync(manifestPath, JSON.stringify([...baseCredits, trackCredit]));
     const matching = verifyAssets(manifestPath, publicRoot);
-    expect(matching.status, matching.stderr).toBe(0);
+    expect(matching.status).toBe(1);
+    expect(matching.stderr).toMatch(/suzuka.*publishing blocked.*UNVERIFIED/iu);
 
     rmSync(generatedManifestPath);
     const missingManifest = verifyAssets(manifestPath, publicRoot);
@@ -331,9 +571,16 @@ describe('runtime track asset verification', () => {
     }]));
     writeFileSync(generatedManifestPath, JSON.stringify({
       ...largeManifest,
-      limits: { maxBytes: largeRuntime.length, exception },
+      limits: {
+        defaultMaxBytes: 30_000_000,
+        maxBytes: largeRuntime.length,
+        exception,
+        exceptionCircuitId: 'suzuka',
+      },
     }));
     const documentedException = verifyAssets(manifestPath, publicRoot);
-    expect(documentedException.status, documentedException.stderr).toBe(0);
+    expect(documentedException.status).toBe(1);
+    expect(documentedException.stderr).toMatch(/suzuka.*publishing blocked.*UNVERIFIED/iu);
+    expect(documentedException.stderr).not.toMatch(/runtime (?:file|limit)/iu);
   }, 45_000);
 });
