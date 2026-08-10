@@ -14,7 +14,7 @@
 - Never preload all circuit GLBs; load only the selected venue and dispose the previous venue.
 - Preserve original ZIPs under `work/assets-source/tracks/`; runtime derivatives belong under `public/assets/models/tracks/`.
 - Keep one authoritative spline per visible circuit and validate visual/simulation alignment.
-- Use each venue's configured race lap count; remove the current `laps: 56` literal restriction.
+- Support each venue's configured race lap count without forcing the watchable 20-lap default back to full-distance pacing.
 - Every circuit needs a center/attack/defend line, pit line, grid, sectors, zones, map outline, and camera anchors before it is marked playable.
 - Unverified Sketchfab assets may be used only in the local prototype and must remain visibly marked `UNVERIFIED`; do not publish them.
 - Keep 0.25x, 0.5x, 1x, 2x, 4x, and 8x playback.
@@ -144,7 +144,7 @@ export function loadCircuitRuntime(id: PlayableCircuitId): Promise<CircuitRuntim
 
 - [ ] **Step 4: Generalize lap validation**
 
-Change `RaceConfig.laps` from literal `56` to `number`. Validate with `z.number().int().min(1).max(100)` and keep Shanghai's default at 56. Add tests that accept a known circuit lap count and reject zero, fractional, and over-100 values.
+Keep `RaceConfig.laps` as `number`. Validate with `z.number().int().min(1).max(100)`, preserve the current watchable Shanghai default at 20, and expose Shanghai's official 56-lap distance through its circuit runtime/metadata. Add tests that accept a known circuit lap count and reject zero, fractional, and over-100 values.
 
 - [ ] **Step 5: Verify and commit**
 
