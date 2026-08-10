@@ -1,5 +1,10 @@
 import { CALENDAR_2026 } from './calendar-2026';
 import { SHANGHAI_RACE_LAPS, SHANGHAI_TRACK } from '../track/shanghai-track';
+import suzukaManifest from '../track/generated/suzuka-manifest.json';
+import melbourneManifest from '../track/generated/melbourne-manifest.json';
+import barcelonaManifest from '../track/generated/barcelona-manifest.json';
+import spaManifest from '../track/generated/spa-manifest.json';
+import silverstoneManifest from '../track/generated/silverstone-manifest.json';
 
 export interface CornerNote {
   /** Lap fraction, 0 at the start/finish line. */
@@ -34,10 +39,9 @@ export interface Circuit {
 }
 
 /**
- * Shanghai's outline is traced from the fitted centerline in the track
- * definition, so the map on the browse pages is the same geometry the cars
- * actually drive. Placeholder circuits carry no outline and are labelled as
- * unavailable rather than being faked.
+ * Playable outlines are traced from lightweight samples emitted from the same
+ * fitted centerlines the cars drive. Full generated track definitions remain
+ * behind the circuit registry's lazy import boundary.
  */
 function traceOutline(points: readonly { x: number; z: number }[], samples = 120): string {
   const step = Math.max(1, Math.ceil(points.length / samples));
@@ -53,6 +57,14 @@ function traceOutline(points: readonly { x: number; z: number }[], samples = 120
 }
 
 export const SHANGHAI_OUTLINE = traceOutline(SHANGHAI_TRACK.centerLine);
+
+const GENERATED_PLAYABLE_OUTLINES = new Map<string, readonly { x: number; z: number }[]>([
+  ['suzuka', suzukaManifest.outlinePoints],
+  ['melbourne', melbourneManifest.outlinePoints],
+  ['catalunya', barcelonaManifest.outlinePoints],
+  ['spa', spaManifest.outlinePoints],
+  ['silverstone', silverstoneManifest.outlinePoints],
+]);
 
 const SHANGHAI: Circuit = {
   id: 'shanghai',
@@ -112,18 +124,18 @@ const SHANGHAI: Circuit = {
 
 /**
  * The browsable circuit list is the real 2026 calendar. Every round is a real
- * Grand Prix; only Shanghai is playable, because it is the only circuit we hold
- * a track model and an authoritative spline for. The rest are listed with their
- * genuine specifications and marked as not built rather than invented.
+ * Grand Prix. Rounds with validated local models and generated splines are
+ * playable; the rest retain genuine specifications and remain planned.
  */
 export const CIRCUITS: readonly Circuit[] = CALENDAR_2026.map((round) => {
   if (round.id === SHANGHAI.id) return { ...SHANGHAI, round: round.round, date: round.date, openF1MeetingKey: round.openF1MeetingKey };
+  const generatedOutline = GENERATED_PLAYABLE_OUTLINES.get(round.id);
   return {
     id: round.id,
     name: round.circuit,
     country: round.country,
     countryCode: round.countryCode,
-    status: 'planned' as const,
+    status: generatedOutline ? 'playable' as const : 'planned' as const,
     lengthKm: round.lengthKm,
     laps: round.laps,
     turns: round.turns,
@@ -131,6 +143,7 @@ export const CIRCUITS: readonly Circuit[] = CALENDAR_2026.map((round) => {
     date: round.date,
     grandPrix: round.name,
     openF1MeetingKey: round.openF1MeetingKey,
+    ...(generatedOutline ? { outline: traceOutline(generatedOutline) } : {}),
   };
 });
 

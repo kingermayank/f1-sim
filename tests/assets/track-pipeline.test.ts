@@ -511,13 +511,15 @@ describe('runtime track asset verification', () => {
     temporaryRoots.push(verificationRoot);
     const publicRoot = join(verificationRoot, 'public');
     cpSync('public', publicRoot, { recursive: true });
+    rmSync(join(publicRoot, 'assets/models/tracks'), { recursive: true, force: true });
     cpSync(
       join(fixture.outputRoot, 'public/assets/models/tracks'),
       join(publicRoot, 'assets/models/tracks'),
       { recursive: true },
     );
     const manifestPath = join(verificationRoot, 'credits.json');
-    const baseCredits = JSON.parse(readFileSync('src/assets/credits.json', 'utf8'));
+    const baseCredits = JSON.parse(readFileSync('src/assets/credits.json', 'utf8'))
+      .filter((credit: { runtimeFile?: string }) => !credit.runtimeFile?.startsWith('/assets/models/tracks/'));
     writeFileSync(manifestPath, JSON.stringify(baseCredits));
 
     const missingCredit = verifyAssets(manifestPath, publicRoot);

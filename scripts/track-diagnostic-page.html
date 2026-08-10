@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Track diagnostic</title>
+    <style>
+      html, body, canvas { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+      body { background: #071018; color: white; font: 14px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .legend { position: fixed; top: 18px; left: 18px; z-index: 2; padding: 12px 15px; border: 1px solid #4b6070; border-radius: 8px; background: rgb(4 10 15 / 88%); }
+      .legend strong { display: block; margin-bottom: 7px; font-size: 16px; }
+      .legend span { display: block; }
+      .center { color: #10e7ff; } .pit { color: #ff3cba; } .grid { color: #ffe055; }
+      .sector { color: #ff6d43; } .camera { color: #8bff70; }
+    </style>
+  </head>
+  <body>
+    <aside class="legend">
+      <strong id="title">Track diagnostic</strong>
+      <span class="center">━━ center / attack / defend</span>
+      <span class="pit">━━ pit line</span>
+      <span class="grid">■ grid slots</span>
+      <span class="sector">● sector boundaries</span>
+      <span class="camera">▲ camera anchors</span>
+    </aside>
+    <script type="module" src="/scripts/track-diagnostic-browser.ts"></script>
+  </body>
+</html>

@@ -27,7 +27,7 @@ function driversOf(teamId: string) {
 /* ------------------------------------------------------------------ home -- */
 
 export function HomeView() {
-  const featured = PLAYABLE_CIRCUITS[0];
+  const featured = findCircuit('shanghai') ?? PLAYABLE_CIRCUITS[0];
   return (
     <div className="shell-view">
       <section className="hero-panel">
@@ -99,8 +99,8 @@ export function CircuitsView() {
       <header className="shell-head">
         <h1>Circuits</h1>
         <p>
-          The real {CIRCUITS.length}-round 2026 calendar. Shanghai is fully built and playable; the
-          rest carry their genuine specifications and are marked as not built rather than faked.
+          The real {CIRCUITS.length}-round 2026 calendar. {PLAYABLE_CIRCUITS.length} circuits have
+          validated local models and fitted splines; the rest remain planned without invented outlines.
         </p>
       </header>
       <div className="circuit-grid">

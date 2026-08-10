@@ -240,9 +240,16 @@ describe('2026 calendar', () => {
 });
 
 describe('circuits derived from the calendar', () => {
-  it('exposes every real round, with only Shanghai playable', () => {
+  it('exposes every real round and the validated generated circuits as playable', () => {
     expect(CIRCUITS).toHaveLength(CALENDAR_2026.length);
-    expect(PLAYABLE_CIRCUITS.map((circuit) => circuit.id)).toEqual(['shanghai']);
+    expect(PLAYABLE_CIRCUITS.map((circuit) => circuit.id)).toEqual([
+      'melbourne',
+      'shanghai',
+      'suzuka',
+      'catalunya',
+      'silverstone',
+      'spa',
+    ]);
   });
 
   it('carries real specifications for unbuilt rounds', () => {

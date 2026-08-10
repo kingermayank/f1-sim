@@ -1,0 +1,639 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "spa",
+  "displayName": "Circuit de Spa-Francorchamps",
+  "outlinePoints": [
+    {
+      "x": -318.766,
+      "z": -741.685
+    },
+    {
+      "x": -346.723,
+      "z": -789.113
+    },
+    {
+      "x": -379.926,
+      "z": -836.25
+    },
+    {
+      "x": -411.003,
+      "z": -885.138
+    },
+    {
+      "x": -436.887,
+      "z": -935.597
+    },
+    {
+      "x": -410.827,
+      "z": -962.983
+    },
+    {
+      "x": -358.146,
+      "z": -940.14
+    },
+    {
+      "x": -305.296,
+      "z": -913.858
+    },
+    {
+      "x": -254.302,
+      "z": -884.345
+    },
+    {
+      "x": -205.586,
+      "z": -851.073
+    },
+    {
+      "x": -159.278,
+      "z": -814.161
+    },
+    {
+      "x": -117.342,
+      "z": -772.538
+    },
+    {
+      "x": -77.119,
+      "z": -729.342
+    },
+    {
+      "x": -37.11,
+      "z": -685.86
+    },
+    {
+      "x": 3.115,
+      "z": -642.375
+    },
+    {
+      "x": 44.407,
+      "z": -599.775
+    },
+    {
+      "x": 90.002,
+      "z": -562.301
+    },
+    {
+      "x": 140.171,
+      "z": -532.357
+    },
+    {
+      "x": 173.802,
+      "z": -485.937
+    },
+    {
+      "x": 191.38,
+      "z": -430.208
+    },
+    {
+      "x": 206.525,
+      "z": -373.263
+    },
+    {
+      "x": 230.171,
+      "z": -319.346
+    },
+    {
+      "x": 267.715,
+      "z": -273.868
+    },
+    {
+      "x": 304.372,
+      "z": -227.487
+    },
+    {
+      "x": 338.113,
+      "z": -178.773
+    },
+    {
+      "x": 368.488,
+      "z": -127.959
+    },
+    {
+      "x": 393.661,
+      "z": -74.476
+    },
+    {
+      "x": 413.919,
+      "z": -18.932
+    },
+    {
+      "x": 432.395,
+      "z": 37.267
+    },
+    {
+      "x": 450.754,
+      "z": 93.447
+    },
+    {
+      "x": 468.983,
+      "z": 149.4
+    },
+    {
+      "x": 487.418,
+      "z": 205.294
+    },
+    {
+      "x": 505.747,
+      "z": 261.186
+    },
+    {
+      "x": 524.68,
+      "z": 316.959
+    },
+    {
+      "x": 543.282,
+      "z": 372.87
+    },
+    {
+      "x": 561.808,
+      "z": 428.857
+    },
+    {
+      "x": 580.135,
+      "z": 485.017
+    },
+    {
+      "x": 597.832,
+      "z": 541.558
+    },
+    {
+      "x": 615.797,
+      "z": 597.967
+    },
+    {
+      "x": 617.312,
+      "z": 654.648
+    },
+    {
+      "x": 582.142,
+      "z": 699.007
+    },
+    {
+      "x": 572.043,
+      "z": 752.977
+    },
+    {
+      "x": 588.947,
+      "z": 809.545
+    },
+    {
+      "x": 584.482,
+      "z": 865.955
+    },
+    {
+      "x": 546.202,
+      "z": 909.674
+    },
+    {
+      "x": 499.507,
+      "z": 942.842
+    },
+    {
+      "x": 454.087,
+      "z": 976.782
+    },
+    {
+      "x": 408.926,
+      "z": 1011.363
+    },
+    {
+      "x": 361.787,
+      "z": 1046.768
+    },
+    {
+      "x": 309.627,
+      "z": 1070.321
+    },
+    {
+      "x": 265.725,
+      "z": 1045.745
+    },
+    {
+      "x": 271.934,
+      "z": 991.772
+    },
+    {
+      "x": 313.248,
+      "z": 951.795
+    },
+    {
+      "x": 363.668,
+      "z": 923.215
+    },
+    {
+      "x": 383.629,
+      "z": 887.152
+    },
+    {
+      "x": 404.592,
+      "z": 872.507
+    },
+    {
+      "x": 389.261,
+      "z": 818.744
+    },
+    {
+      "x": 369.889,
+      "z": 763.512
+    },
+    {
+      "x": 350.793,
+      "z": 707.549
+    },
+    {
+      "x": 334.932,
+      "z": 650.791
+    },
+    {
+      "x": 321.743,
+      "z": 593.328
+    },
+    {
+      "x": 308.032,
+      "z": 535.94
+    },
+    {
+      "x": 294.902,
+      "z": 478.289
+    },
+    {
+      "x": 280.385,
+      "z": 421.081
+    },
+    {
+      "x": 249.953,
+      "z": 371.358
+    },
+    {
+      "x": 199.443,
+      "z": 345.175
+    },
+    {
+      "x": 140.652,
+      "z": 341.996
+    },
+    {
+      "x": 83.178,
+      "z": 352.998
+    },
+    {
+      "x": 35.105,
+      "z": 386.213
+    },
+    {
+      "x": -2.31,
+      "z": 431.787
+    },
+    {
+      "x": -27.658,
+      "z": 485.09
+    },
+    {
+      "x": -43.002,
+      "z": 542.402
+    },
+    {
+      "x": -58.755,
+      "z": 599.543
+    },
+    {
+      "x": -77.762,
+      "z": 655.817
+    },
+    {
+      "x": -97.833,
+      "z": 711.718
+    },
+    {
+      "x": -126.797,
+      "z": 762.422
+    },
+    {
+      "x": -177.767,
+      "z": 785.469
+    },
+    {
+      "x": -233.397,
+      "z": 770.457
+    },
+    {
+      "x": -289.517,
+      "z": 761.049
+    },
+    {
+      "x": -338.52,
+      "z": 790.255
+    },
+    {
+      "x": -372.149,
+      "z": 838.761
+    },
+    {
+      "x": -399.136,
+      "z": 891.578
+    },
+    {
+      "x": -428.342,
+      "z": 943.092
+    },
+    {
+      "x": -473.171,
+      "z": 975.995
+    },
+    {
+      "x": -528.142,
+      "z": 963.053
+    },
+    {
+      "x": -577.912,
+      "z": 930.852
+    },
+    {
+      "x": -620.795,
+      "z": 890.517
+    },
+    {
+      "x": -642.905,
+      "z": 837.057
+    },
+    {
+      "x": -637.872,
+      "z": 778.735
+    },
+    {
+      "x": -618.99,
+      "z": 722.587
+    },
+    {
+      "x": -591.694,
+      "z": 670.524
+    },
+    {
+      "x": -555.398,
+      "z": 623.666
+    },
+    {
+      "x": -516.056,
+      "z": 579.268
+    },
+    {
+      "x": -472.957,
+      "z": 538.546
+    },
+    {
+      "x": -424.775,
+      "z": 503.991
+    },
+    {
+      "x": -373.602,
+      "z": 473.897
+    },
+    {
+      "x": -321.967,
+      "z": 444.542
+    },
+    {
+      "x": -271.393,
+      "z": 413.455
+    },
+    {
+      "x": -223.001,
+      "z": 379.142
+    },
+    {
+      "x": -180.799,
+      "z": 337.63
+    },
+    {
+      "x": -147.723,
+      "z": 288.589
+    },
+    {
+      "x": -122.731,
+      "z": 234.773
+    },
+    {
+      "x": -100.055,
+      "z": 179.904
+    },
+    {
+      "x": -80.475,
+      "z": 124.057
+    },
+    {
+      "x": -75.472,
+      "z": 65.412
+    },
+    {
+      "x": -84.873,
+      "z": 6.957
+    },
+    {
+      "x": -106.53,
+      "z": -48.008
+    },
+    {
+      "x": -134.282,
+      "z": -100.502
+    },
+    {
+      "x": -158.937,
+      "z": -154.469
+    },
+    {
+      "x": -178.382,
+      "z": -210.499
+    },
+    {
+      "x": -192.213,
+      "z": -268.093
+    },
+    {
+      "x": -199.588,
+      "z": -326.948
+    },
+    {
+      "x": -208.228,
+      "z": -385.647
+    },
+    {
+      "x": -206.126,
+      "z": -442.294
+    },
+    {
+      "x": -165.471,
+      "z": -468.099
+    },
+    {
+      "x": -166.56,
+      "z": -511.651
+    },
+    {
+      "x": -199.148,
+      "z": -554.001
+    },
+    {
+      "x": -227.889,
+      "z": -603.563
+    },
+    {
+      "x": -254.104,
+      "z": -652.102
+    },
+    {
+      "x": -284.664,
+      "z": -697.119
+    }
+  ],
+  "source": {
+    "archive": "/Users/mayankkinger/Downloads/circuit-de-spa-francorchamps-2022-layout.zip",
+    "stagedArchive": "/Users/mayankkinger/Documents/Codex/2026-08-04/f1-simulation/.worktrees/feat-f1-simulation/work/assets-source/tracks/spa/original/circuit-de-spa-francorchamps-2022-layout.zip",
+    "model": "source/spa.glb",
+    "archiveSha256": "feaeb0b45eb1bca00e558504fc101d879bd7449faaa45db19a2c7464a1e5ee0f",
+    "centerlineMaterials": [
+      "groove_custom.001",
+      "groove1.001",
+      "groove3.001",
+      "groove2.001"
+    ],
+    "pitMaterials": [
+      "asph-pitlane-old.001"
+    ],
+    "traceStartMaterials": [
+      "doted_line.001"
+    ]
+  },
+  "visibleTransform": {
+    "strategy": "source-node-world-matrix-preserved",
+    "matrices": [
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        -3.029462689596585e-7,
+        0.9999999657714298,
+        0,
+        0,
+        -0.9999999657714298,
+        -3.029462689596585e-7,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    ]
+  },
+  "fit": {
+    "method": "height-aware forward centroid march over source road material",
+    "sourceVertices": 20284,
+    "outputPoints": 361,
+    "officialLengthMeters": 7004,
+    "fittedLengthMeters": 6947.99,
+    "errorPercent": -0.8,
+    "closureAttempts": [
+      {
+        "points": 1290,
+        "travelledMeters": 7105.87,
+        "closureGapMeters": 28.06,
+        "termination": "closed",
+        "seamBridgeSteps": 58,
+        "maximumSeamBridgeDistanceMeters": 53.61,
+        "maximumSeamBridge": {
+          "fromCursorWorld": [
+            475.891,
+            46.887,
+            169.278
+          ],
+          "fromSourceVertexWorld": [
+            476.137,
+            46.888,
+            169.972
+          ],
+          "toSourceVertexWorld": [
+            492.731,
+            49.308,
+            220.118
+          ],
+          "cursorToSourceDistanceMeters": 53.61,
+          "sourceEndpointDistanceMeters": 52.88
+        }
+      },
+      {
+        "points": 1293,
+        "travelledMeters": 7122.46,
+        "closureGapMeters": 28.74,
+        "termination": "closed",
+        "seamBridgeSteps": 57,
+        "maximumSeamBridgeDistanceMeters": 53.6,
+        "maximumSeamBridge": {
+          "fromCursorWorld": [
+            526.145,
+            54.172,
+            321.098
+          ],
+          "fromSourceVertexWorld": [
+            525.918,
+            54.172,
+            320.412
+          ],
+          "toSourceVertexWorld": [
+            509.324,
+            51.745,
+            270.265
+          ],
+          "cursorToSourceDistanceMeters": 53.6,
+          "sourceEndpointDistanceMeters": 52.88
+        }
+      }
+    ],
+    "parameters": {
+      "stepMeters": 5.5,
+      "samplingDiscMeters": 22,
+      "seamBridgeRadiusMeters": 70,
+      "elevationWeight": 4,
+      "headingDamping": 0.53
+    },
+    "seamBridgeReview": {
+      "rejectedRadiusMeters": 44,
+      "rejectedResult": "Primary march stopped after 5675.8 m with a 757.7 m closure gap; no forward source vertices were found at 22, 33, or 44 m, while three existed inside 66 m.",
+      "acceptanceBasis": "The 70 m search bound reaches only forward vertices from the selected GLB groove materials; the accepted march selects a maximum 53.61 m cursor-to-source continuation (52.88 m between its nearest exact source vertices), without manual route points.",
+      "diagnosticObservations": [
+        "Overhead: the complete characteristic Spa loop and all racing lines remain on the modeled road through every sector.",
+        "Track level 1: the pit-straight racing lines, 22 grid slots, and old pit-lane source align with the visible asphalt.",
+        "Track level 2: the raised Raidillon view keeps all three racing lines on the uphill curbed roadway and confirms preserved elevation."
+      ]
+    },
+    "worldBounds": {
+      "min": [
+        -643.8012828495197,
+        -28.689706149910997,
+        -962.9827949672715
+      ],
+      "max": [
+        621.1237830439018,
+        73.38530873820542,
+        1070.3214870360675
+      ]
+    }
+  },
+  "pit": {
+    "sourceVertices": 918,
+    "availableSourceVertices": 918,
+    "selectionRadiusFromStartMeters": null,
+    "outputPoints": 26,
+    "entry": 0.0194,
+    "exit": 0.1222
+  },
+  "runtime": {
+    "runtimeFile": "/assets/models/tracks/spa.glb",
+    "bytes": 14354528,
+    "sha256": "1fdb587d3f7fc07509f549fef1214a4073f7f64a751845c53c4de79a4c10d9a8"
+  },
+  "diagnostics": [
+    "work/assets-source/tracks/spa/diagnostics/overhead.png",
+    "work/assets-source/tracks/spa/diagnostics/track-level-1.png",
+    "work/assets-source/tracks/spa/diagnostics/track-level-2.png"
+  ]
+}

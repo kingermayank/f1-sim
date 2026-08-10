@@ -6,13 +6,21 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 const temporaryRoots: string[] = [];
 
+function resetPublicFixture(publicRoot: string) {
+  rmSync(publicRoot, { recursive: true, force: true });
+  cpSync('public', publicRoot, { recursive: true });
+  rmSync(join(publicRoot, 'assets/models/tracks'), { recursive: true, force: true });
+}
+
 function createFixture() {
   const root = mkdtempSync(join(tmpdir(), 'race-assets-'));
   temporaryRoots.push(root);
   const publicRoot = join(root, 'public');
-  cpSync('public', publicRoot, { recursive: true });
+  resetPublicFixture(publicRoot);
   const manifestPath = join(root, 'credits.json');
-  writeFileSync(manifestPath, readFileSync('src/assets/credits.json'));
+  const credits = JSON.parse(readFileSync('src/assets/credits.json', 'utf8'))
+    .filter((credit: { runtimeFile?: string }) => !credit.runtimeFile?.startsWith('/assets/models/tracks/'));
+  writeFileSync(manifestPath, JSON.stringify(credits));
   return { manifestPath, publicRoot };
 }
 
@@ -114,7 +122,7 @@ describe('asset verifier binary validation', () => {
     expect(invalidGlb.status).toBe(1);
     expect(invalidGlb.stderr).toMatch(/invalid GLB version/);
 
-    cpSync('public', fixture.publicRoot, { recursive: true, force: true });
+    resetPublicFixture(fixture.publicRoot);
     const invalidAccessor = readFileSync(glbPath);
     // Push an accessor past the end of its bufferView. The replacement is
     // derived from the file and is exactly as wide as the original, so the GLB
@@ -132,7 +140,7 @@ describe('asset verifier binary validation', () => {
       [(json: Record<string, any>) => { json.scenes = []; }, /usable scene/],
       [(json: Record<string, any>) => { json.meshes = []; }, /non-empty mesh primitive/],
     ] as const) {
-      cpSync('public', fixture.publicRoot, { recursive: true, force: true });
+      resetPublicFixture(fixture.publicRoot);
       const semanticallyEmpty = rewriteGlbJson(readFileSync(glbPath), mutate);
       writeFileSync(glbPath, semanticallyEmpty);
       const invalidSemantics = verify(fixture.manifestPath, fixture.publicRoot);
@@ -140,7 +148,7 @@ describe('asset verifier binary validation', () => {
       expect(invalidSemantics.stderr).toMatch(expected);
     }
 
-    cpSync('public', fixture.publicRoot, { recursive: true, force: true });
+    resetPublicFixture(fixture.publicRoot);
     const webpPath = join(fixture.publicRoot, 'assets/textures/teams/ferrari.webp');
     const webp = readFileSync(webpPath);
     webp.writeUInt32LE(1, 4);
@@ -149,7 +157,7 @@ describe('asset verifier binary validation', () => {
     expect(invalidWebp.status).toBe(1);
     expect(invalidWebp.stderr).toMatch(/invalid WebP RIFF length/);
 
-    cpSync('public', fixture.publicRoot, { recursive: true, force: true });
+    resetPublicFixture(fixture.publicRoot);
     const corruptFrame = readFileSync(webpPath);
     const vp8ChunkOffset = corruptFrame.indexOf(Buffer.from('VP8 '));
     expect(vp8ChunkOffset).toBeGreaterThan(-1);

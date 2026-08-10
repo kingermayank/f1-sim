@@ -66,6 +66,7 @@ export async function optimizeCircuit(id, source) {
     '--compress', 'meshopt',
     '--simplify', 'true',
     '--simplify-error', '0.001',
+    '--sparse', 'false',
     '--texture-compress', 'webp',
     '--texture-size', '1024',
   ], {
