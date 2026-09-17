@@ -112,11 +112,11 @@ export function cameraBlendFactor(
   // fly across the circuit, so a pending cut snaps.
   if (mode === 'trackside' && broadcastCut) return 1;
   const rate = mode === 'cockpit' ? 9
-    : mode === 'chase' ? 7.5
-    : mode === 'trackside' ? (reducedMotion ? 6 : 9)
-    : mode === 'drone' ? (reducedMotion ? 3.2 : 4.2)
-    : mode === 'aerial' ? (reducedMotion ? 3.5 : 5)
-    : reducedMotion ? 4.5 : 6;
+    : mode === 'chase' ? 6.5
+    : mode === 'trackside' ? (reducedMotion ? 5.5 : 8)
+    : mode === 'drone' ? (reducedMotion ? 3.5 : 4.8)
+    : mode === 'aerial' ? (reducedMotion ? 4 : 5.5)
+    : reducedMotion ? 5 : 6.5;
   return 1 - Math.exp(-Math.min(delta, 0.1) * rate);
 }
 
@@ -541,8 +541,9 @@ export function RaceCameras() {
     camera.position.lerp(current.desiredPosition, damping);
     current.lookTarget.lerp(current.pose.target, damping);
     camera.lookAt(current.lookTarget);
-    if (camera instanceof PerspectiveCamera && Math.abs(camera.fov - current.pose.fov) > 0.01) {
-      camera.fov += (current.pose.fov - camera.fov) * damping;
+    if (camera instanceof PerspectiveCamera && Math.abs(camera.fov - current.pose.fov) > 0.05) {
+      const fovDamping = cameraMode === 'broadcast' ? damping * 0.85 : damping;
+      camera.fov += (current.pose.fov - camera.fov) * fovDamping;
       camera.updateProjectionMatrix();
     }
     current.snapPending = false;
