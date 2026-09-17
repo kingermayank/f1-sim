@@ -84,9 +84,12 @@ function LoadedTrack() {
   const gltf = useGLTF(ASSETS.track);
   const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
     if (material instanceof MeshStandardMaterial) {
-      material.roughness = Math.max(0.62, material.roughness);
+      material.roughness = Math.max(0.65, material.roughness);
       if (material.color.r < 0.3 && material.color.g < 0.3 && material.color.b < 0.3) {
-        material.color.multiplyScalar(0.7);
+        material.color.multiplyScalar(0.65);
+      }
+      if (material.color.r > 0.6 || material.color.g > 0.6 || material.color.b > 0.6) {
+        material.color.multiplyScalar(1.15);
       }
     }
   }), [gltf.scene]);
@@ -163,7 +166,7 @@ function RacingLineOverlay({ quality }: { quality: SceneQualityTier }) {
   if (quality === 'mobile') return null;
   return (
     <mesh geometry={geometry} renderOrder={2}>
-      <meshBasicMaterial color="#b4c8dc" transparent opacity={0.08} depthWrite={false} />
+      <meshBasicMaterial color="#9ab4c8" transparent opacity={0.04} depthWrite={false} />
     </mesh>
   );
 }
