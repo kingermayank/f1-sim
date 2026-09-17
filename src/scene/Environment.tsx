@@ -174,13 +174,13 @@ function RacingLineOverlay({ quality }: { quality: SceneQualityTier }) {
 export function Environment({ quality }: { quality: SceneQualityTier }) {
   return (
     <>
-      <color attach="background" args={['#4a5d70']} />
-      <fog attach="fog" args={['#455a6a', 1500, 3800]} />
-      <hemisphereLight args={['#b8d0e8', '#1a2228', quality === 'high' ? 1.35 : 1.65]} />
+      <color attach="background" args={['#3a4858']} />
+      <fog attach="fog" args={['#354555', 1500, 3800]} />
+      <hemisphereLight args={['#a8c0d8', '#1a2228', quality === 'high' ? 1.25 : 1.55]} />
       <directionalLight
         castShadow={quality === 'high'}
-        color="#e8f2ff"
-        intensity={3.2}
+        color="#d8e8f8"
+        intensity={3.5}
         position={[720, 920, 520]}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-CIRCUIT_EXTENT / 2}
@@ -190,12 +190,12 @@ export function Environment({ quality }: { quality: SceneQualityTier }) {
         shadow-camera-far={2600}
         shadow-bias={-0.0006}
       />
-      <ambientLight intensity={0.38} color="#b8cce0" />
+      <ambientLight intensity={0.32} color="#a8c0d8" />
       {/* Sits below the circuit datum so the supplied terrain reads as the
           surface and this only fills the far horizon. */}
       <mesh position={[0, -8, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[CIRCUIT_EXTENT * 4, CIRCUIT_EXTENT * 4, 1, 1]} />
-        <meshStandardMaterial color="#3a4a54" roughness={1} />
+        <meshStandardMaterial color="#2a3540" roughness={1} />
       </mesh>
       <RacingLineOverlay quality={quality} />
       <TrackAssetBoundary fallback={<CircuitFallback />}>
