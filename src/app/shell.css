@@ -131,7 +131,7 @@
   border: 1px solid rgb(255 255 255 / 18%); background: transparent; color: var(--muted); cursor: pointer;
 }
 .corner-picker button:hover { color: var(--text); border-color: rgb(255 255 255 / 40%); }
-.corner-picker button.is-active { color: var(--text); border-color: var(--signal); background: rgb(219 255 74 / 16%); }
+.corner-picker button.is-active { color: var(--broadcast-white); border-color: var(--broadcast-blue); background: rgb(180 200 220 / 12%); }
 
 .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem; margin: 0; }
 .spec-grid div { border: 1px solid var(--line); border-radius: .4rem; padding: .55rem .65rem; background: rgb(255 255 255 / 3%); }
