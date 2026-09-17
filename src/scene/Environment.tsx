@@ -86,10 +86,10 @@ function LoadedTrack() {
     if (material instanceof MeshStandardMaterial) {
       material.roughness = Math.max(0.65, material.roughness);
       if (material.color.r < 0.3 && material.color.g < 0.3 && material.color.b < 0.3) {
-        material.color.multiplyScalar(0.65);
+        material.color.multiplyScalar(0.6);
       }
       if (material.color.r > 0.6 || material.color.g > 0.6 || material.color.b > 0.6) {
-        material.color.multiplyScalar(1.15);
+        material.color.multiplyScalar(1.22);
       }
     }
   }), [gltf.scene]);
