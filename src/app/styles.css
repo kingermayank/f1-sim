@@ -75,7 +75,9 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 
 .app-shell { position: relative; min-height: 100vh; overflow: hidden; background: var(--ink); }
 .race-viewport { position: relative; width: 100%; min-height: 100vh; overflow: hidden; isolation: isolate; background: linear-gradient(165deg, #6a8090 0%, #7a9db0 28%, #2a4858 65%, #0a1820 100%); }
-.race-viewport::after { position: absolute; inset: 0; content: ''; pointer-events: none; background: radial-gradient(ellipse at center, transparent 0%, transparent 45%, rgb(5 8 13 / 22%) 85%, rgb(5 8 13 / 45%) 100%), linear-gradient(90deg, rgb(5 8 13 / 42%) 0, transparent 28%, transparent 72%, rgb(5 8 13 / 40%) 100%), linear-gradient(0deg, rgb(5 8 13 / 58%), transparent 20%, transparent 80%, rgb(5 8 13 / 32%)); mix-blend-mode: multiply; opacity: 0.85; }
+.race-viewport::after { position: absolute; inset: 0; content: ''; pointer-events: none; background: radial-gradient(ellipse at center, transparent 0%, transparent 45%, rgb(5 8 13 / 22%) 85%, rgb(5 8 13 / 45%) 100%), linear-gradient(90deg, rgb(5 8 13 / 42%) 0, transparent 28%, transparent 72%, rgb(5 8 13 / 40%) 100%), linear-gradient(0deg, rgb(5 8 13 / 58%), transparent 20%, transparent 80%, rgb(5 8 13 / 32%)); mix-blend-mode: multiply; opacity: 0.85; transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1); }
+.race-viewport[data-flag='yellow']::after, .race-viewport[data-flag='safety-car']::after { animation: yellow-pulse 2s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+@keyframes yellow-pulse { 0%, 100% { opacity: 0.85; } 50% { opacity: 0.75; box-shadow: inset 0 0 120px rgb(255 216 61 / 8%); } }
 .race-canvas { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; outline: none; }
 .race-viewport__status { position: absolute; z-index: 3; right: 1rem; bottom: 7.1rem; margin: 0; border: 1px solid var(--line); border-radius: 999px; padding: .5rem .75rem; background: rgb(5 9 14 / 74%); color: #e4e9ef; font-size: .6875rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; backdrop-filter: blur(14px); }
 .race-viewport__fallback { position: absolute; inset: 0; background: radial-gradient(ellipse at 70% 25%, rgb(255 235 176 / 42%), transparent 28%), linear-gradient(156deg, transparent 0 48%, rgb(5 32 38 / 50%) 49% 52%, transparent 53%), linear-gradient(21deg, transparent 0 60%, rgb(224 170 105 / 20%) 61% 75%, transparent 76%); }
@@ -95,11 +97,12 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .race-state__stat small { color: var(--broadcast-blue); font-size: .68rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; font-family: var(--font-body); }
 .race-state__leader { max-width: 8.75rem; overflow: hidden; text-overflow: ellipsis; }
 .race-state__weather { color: var(--broadcast-blue); font-size: .7rem; white-space: nowrap; }
-.flag { min-height: 1.7rem; display: inline-flex; align-items: center; gap: .4rem; border-radius: .25rem; padding: .3rem .6rem; background: rgb(255 255 255 / 6%); border: 1px solid var(--glass-chrome); font-size: .6875rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--broadcast-white); transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1); }
-.flag i { width: .48rem; height: .48rem; border-radius: 50%; background: #38e078; box-shadow: 0 0 .6rem currentColor; transition: box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.flag { min-height: 1.85rem; display: inline-flex; align-items: center; gap: .42rem; border-radius: .28rem; padding: .35rem .65rem; background: rgb(255 255 255 / 6%); border: 1px solid var(--glass-chrome); font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--broadcast-white); transition: all 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.flag i { width: .5rem; height: .5rem; border-radius: 50%; background: #38e078; box-shadow: 0 0 .6rem currentColor; transition: box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.flag--yellow, .flag--safety-car { background: rgb(255 216 61 / 16%); border-color: rgb(255 216 61 / 55%); border-width: 1.5px; }
 .flag--yellow i, .flag--safety-car i { background: #ffd83d; animation: flag-pulse 1.5s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
 .flag--green { background: rgb(56 224 120 / 12%); border-color: rgb(56 224 120 / 35%); }
-@keyframes flag-pulse { 0%, 100% { box-shadow: 0 0 .6rem currentColor; } 50% { box-shadow: 0 0 1rem currentColor; } }
+@keyframes flag-pulse { 0%, 100% { box-shadow: 0 0 .6rem currentColor; } 50% { box-shadow: 0 0 1.2rem currentColor; } }
 .race-meta { min-width: 0; display: grid; grid-template-columns: 1fr auto; align-items: center; justify-self: end; }
 .race-meta span { grid-column: 1; }
 .race-meta code { grid-column: 1; overflow: hidden; max-width: 15rem; color: #dce4ee; font-size: .6875rem; text-overflow: ellipsis; white-space: nowrap; }
