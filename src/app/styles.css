@@ -109,11 +109,11 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .timing-tower { height: 100%; display: flex; flex-direction: column; }
 .timing-list { margin: 0; padding: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--glass-chrome) transparent; list-style: none; }
 .timing-list li { border-bottom: 1px solid var(--line-subtle); }
-.timing-row { position: relative; width: 100%; min-height: 2.35rem; display: grid; grid-template-columns: 1.55rem 3.3rem 3.35rem 3rem 3rem 1fr; align-items: center; gap: .28rem; border: 0; border-left: 3px solid var(--team-color); padding: .25rem .4rem; background: transparent; cursor: pointer; text-align: left; transition: background 100ms ease; }
-.timing-row::after { position: absolute; inset: 0; content: ''; opacity: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--team-color) 22%, transparent), transparent 65%); transition: opacity 100ms ease; }
-.timing-row:hover::after { opacity: 0.7; }
-.timing-row[aria-current='true']::after { opacity: 1; }
-.timing-row[aria-current='true'] { border-left-width: 3px; background: rgb(0 0 0 / 15%); }
+.timing-row { position: relative; width: 100%; min-height: 2.25rem; display: grid; grid-template-columns: 1.5rem 3.2rem 3.25rem 2.9rem 2.9rem 1fr; align-items: center; gap: .25rem; border: 0; border-left: 3px solid var(--team-color); padding: .22rem .38rem; background: transparent; cursor: pointer; text-align: left; transition: background 80ms cubic-bezier(0.22, 1, 0.36, 1); }
+.timing-row::after { position: absolute; inset: 0; content: ''; opacity: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--team-color) 16%, transparent), transparent 68%); transition: opacity 80ms cubic-bezier(0.22, 1, 0.36, 1); }
+.timing-row:hover::after { opacity: 0.5; }
+.timing-row[aria-current='true']::after { opacity: 0.65; }
+.timing-row[aria-current='true'] { border-left-width: 3px; background: rgb(0 0 0 / 10%); }
 .timing-row > * { position: relative; z-index: 1; }
 .timing-row__position { color: var(--broadcast-blue); font-family: var(--font-mono); font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .timing-row[aria-current='true'] .timing-row__position { color: var(--broadcast-white); }
@@ -121,8 +121,10 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .timing-row__driver strong { font-family: var(--font-display); font-size: .83rem; font-weight: 700; letter-spacing: 0; color: var(--broadcast-white); }
 .timing-row__driver small { overflow: hidden; color: var(--broadcast-blue); font-size: .66rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .fastest-lap { display: inline-grid; place-items: center; min-width: 1.1rem; min-height: 1.1rem; margin-left: .2rem; border-radius: 50%; background: #b966ff; color: #0a0610; font-family: var(--font-body); font-size: .63rem; font-weight: 900; letter-spacing: -.03em; vertical-align: middle; }
-.timing-row__gap { justify-self: end; color: var(--broadcast-white); font-size: .72rem; font-weight: 700; font-family: var(--font-mono); letter-spacing: -.01em; }
+.timing-row__gap { justify-self: end; color: var(--broadcast-white); font-size: .72rem; font-weight: 700; font-family: var(--font-mono); letter-spacing: -.01em; transition: color 120ms cubic-bezier(0.22, 1, 0.36, 1); }
 .timing-row[aria-current='true'] .timing-row__gap { color: var(--signal); }
+@keyframes gap-flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.timing-row__gap.is-changing { animation: gap-flash 300ms cubic-bezier(0.22, 1, 0.36, 1); }
 .timing-row__laps { display: grid; justify-self: end; color: var(--broadcast-white); font-size: .7rem; font-family: var(--font-mono); font-weight: 600; }
 .timing-row__laps small { color: var(--broadcast-blue); font-size: .66rem; font-weight: 600; letter-spacing: .05em; }
 .tire { width: 1.4rem; height: 1.4rem; display: inline-grid; place-items: center; justify-self: end; border: 1.5px solid currentColor; border-radius: 50%; padding: 0; color: #ffd940; font-size: .68rem; font-weight: 800; text-transform: uppercase; background: rgb(0 0 0 / 25%); }
@@ -133,15 +135,15 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .race-hud__right { position: absolute; top: 5.45rem; right: .75rem; bottom: 6.8rem; width: clamp(17.5rem, 21vw, 20rem); display: grid; grid-template-rows: auto minmax(11rem, 1fr) auto; gap: .6rem; }
 .driver-panel, .track-map, .event-feed { overflow: hidden; border: 1px solid var(--glass-chrome); border-radius: .35rem; background: var(--glass); box-shadow: 0 .5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 5%); backdrop-filter: blur(20px) saturate(110%); }
 .driver-panel { border-top: 3px solid var(--team-color); }
-.driver-panel__identity { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .6rem; padding: .75rem; }
+.driver-panel__identity { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .55rem; padding: .65rem; }
 .driver-panel__position { color: var(--broadcast-blue); font-family: var(--font-mono); font-size: 1.4rem; font-weight: 700; }
 .driver-panel__identity p { margin: 0; color: var(--broadcast-blue); font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
 .driver-panel__identity h2 { margin: .1rem 0 0; font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; line-height: 1; text-transform: uppercase; color: var(--broadcast-white); }
 .driver-panel__identity > strong { color: var(--team-color); font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; }
 .telemetry-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin: 0; border-top: 1px solid var(--line-subtle); }
-.telemetry-grid div { min-width: 0; padding: .55rem .65rem; border-right: 1px solid var(--line-subtle); border-bottom: 1px solid var(--line-subtle); }
-.telemetry-grid dt { margin-bottom: .18rem; color: var(--broadcast-blue); font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
-.telemetry-grid dd { overflow: hidden; margin: 0; color: var(--broadcast-white); font-size: .7rem; font-weight: 600; font-family: var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
+.telemetry-grid div { min-width: 0; padding: .5rem .6rem; border-right: 1px solid var(--line-subtle); border-bottom: 1px solid var(--line-subtle); }
+.telemetry-grid dt { margin-bottom: .16rem; color: var(--broadcast-blue); font-size: .66rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.telemetry-grid dd { overflow: hidden; margin: 0; color: var(--broadcast-white); font-size: .7rem; font-weight: 600; font-family: var(--font-mono); text-overflow: ellipsis; white-space: nowrap; transition: color 120ms cubic-bezier(0.22, 1, 0.36, 1); }
 .telemetry-grid small { color: var(--broadcast-blue); font-size: .68rem; }
 .telemetry-grid__wide { grid-column: span 3; }
 .track-map { min-height: 0; }
