@@ -41,17 +41,17 @@
 .shell-nav nav a:hover { color: var(--broadcast-white); background: rgb(255 255 255 / 8%); }
 .shell-nav nav a.is-active { color: var(--broadcast-white); background: rgb(255 255 255 / 10%); box-shadow: inset 0 -2px 0 var(--broadcast-blue); }
 .shell-nav__cta {
-  margin-left: auto; font-family: var(--font-body); font-weight: 800; font-size: .82rem;
-  padding: .45rem .85rem; border-radius: 6px; background: var(--signal); color: #07100d; text-decoration: none;
+  margin-left: auto; font-family: var(--font-body); font-weight: 700; font-size: .82rem;
+  padding: .45rem .85rem; border-radius: 5px; background: rgb(255 255 255 / 12%); border: 1px solid var(--glass-chrome); color: var(--broadcast-white); text-decoration: none;
 }
-.shell-nav__cta:hover { background: #e8ff7a; color: #07100d; }
+.shell-nav__cta:hover { background: rgb(255 255 255 / 18%); border-color: var(--broadcast-blue); }
 
 /* ---------------------------------------------------------------- layout -- */
 .shell-view { max-width: 1180px; margin: 0 auto; padding: clamp(1.5rem, 4vw, 2.75rem) clamp(1rem, 4vw, 2.5rem) 4rem; }
 .shell-head { margin-bottom: 1.5rem; }
 .shell-head h1 { font-family: var(--font-wide); font-size: clamp(1.9rem, 5vw, 3rem); text-transform: uppercase; margin: 0 0 .5rem; line-height: 1.05; }
 .shell-head p { margin: 0; color: var(--muted); font-size: 1rem; max-width: 62ch; }
-.shell-eyebrow { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; color: var(--signal); margin: 0 0 .6rem; }
+.shell-eyebrow { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--broadcast-blue); margin: 0 0 .6rem; }
 .shell-foot { margin-top: 1.5rem; color: var(--muted); font-size: .85rem; max-width: 70ch; }
 
 .panel { border: 1px solid var(--glass-chrome); border-radius: .5rem; background: var(--glass); padding: 1.1rem; box-shadow: 0 .25rem 1.5rem rgb(0 0 0 / 25%), inset 0 1px 0 rgb(255 255 255 / 5%); }
@@ -70,8 +70,8 @@
    outranks `.shell-btn--primary` on specificity and used to strip the lime fill,
    leaving near-black text on a dark panel. */
 .shell-btn:not(.shell-btn--primary):hover { background: rgb(255 255 255 / 10%); border-color: rgb(255 255 255 / 40%); }
-.shell-btn--primary { background: var(--signal); border-color: var(--signal); color: #07100d; font-weight: 800; }
-.shell-btn--primary:hover, .shell-btn--primary:focus-visible { background: #e8ff7a; border-color: #e8ff7a; color: #07100d; }
+.shell-btn--primary { background: rgb(255 255 255 / 12%); border-color: var(--glass-chrome); color: var(--broadcast-white); font-weight: 700; }
+.shell-btn--primary:hover, .shell-btn--primary:focus-visible { background: rgb(255 255 255 / 18%); border-color: var(--broadcast-blue); color: var(--broadcast-white); }
 /* A disabled button states WHY it is disabled ("Pick 3 more"), so it has to stay
    readable. The global 50% dimming turned the lime fill olive under dark text;
    swap to a muted surface with light text instead of fading it out. */
@@ -84,7 +84,7 @@
   text-transform: uppercase; padding: .2rem .5rem; border-radius: 999px;
   border: 1px solid rgb(255 255 255 / 22%); color: var(--muted);
 }
-.shell-tag--live { color: var(--signal); border-color: rgb(219 255 74 / 45%); background: rgb(219 255 74 / 10%); }
+.shell-tag--live { color: var(--live); border-color: rgb(255 96 77 / 45%); background: rgb(255 96 77 / 10%); font-weight: 700; }
 .shell-tag--soon { color: #ffb020; border-color: rgb(255 176 32 / 40%); background: rgb(255 176 32 / 8%); }
 
 /* ------------------------------------------------------------------ home -- */
@@ -164,7 +164,7 @@
 /* ------------------------------------------------------- predict / match -- */
 .predict-slots { list-style: none; margin: .9rem 0 0; padding: 0; display: grid; gap: .35rem; }
 .predict-slots li { display: flex; align-items: center; gap: .6rem; border: 1px solid var(--line); border-radius: .4rem; padding: .45rem .6rem; background: rgb(255 255 255 / 3%); }
-.predict-slots__pos { font-family: var(--font-mono); font-size: .78rem; color: var(--signal); min-width: 2rem; }
+.predict-slots__pos { font-family: var(--font-mono); font-size: .78rem; font-weight: 700; color: var(--broadcast-blue); min-width: 2rem; }
 .predict-slots__name { font-size: .9rem; }
 .predict-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: .4rem; margin-top: .9rem; }
 .predict-pick {
@@ -175,13 +175,13 @@
 }
 .predict-pick:hover:not(:disabled) { background: rgb(255 255 255 / 10%); border-color: rgb(255 255 255 / 40%); }
 /* Chosen state must not rely on colour alone — the order badge carries it too. */
-.predict-pick.is-chosen { background: rgb(219 255 74 / 16%); border-color: var(--signal); color: var(--text); }
+.predict-pick.is-chosen { background: rgb(180 200 220 / 12%); border-color: var(--broadcast-blue); color: var(--broadcast-white); }
 .predict-pick:disabled { opacity: .85; cursor: default; }
 .predict-pick__abbr { display: block; letter-spacing: .04em; }
-.predict-pick__order { display: block; font-family: var(--font-mono); font-size: .68rem; color: var(--signal); margin-top: .15rem; }
+.predict-pick__order { display: block; font-family: var(--font-mono); font-size: .68rem; font-weight: 700; color: var(--broadcast-blue); margin-top: .15rem; }
 .quiz h2 { font-size: 1.2rem; margin-bottom: .5rem; }
 .quiz__lede { margin-bottom: .8rem; }
-.quiz__best { font-family: var(--font-mono); font-size: .85rem; color: var(--signal); margin: 0 0 .8rem; }
+.quiz__best { font-family: var(--font-mono); font-size: .85rem; font-weight: 700; color: var(--broadcast-blue); margin: 0 0 .8rem; }
 .quiz__progress { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 .4rem; }
 .quiz__options { list-style: none; margin: .9rem 0 0; padding: 0; display: grid; gap: .45rem; }
 .quiz__option {
@@ -189,14 +189,14 @@
   padding: .65rem .8rem; border-radius: .45rem; border: 1px solid rgb(255 255 255 / 18%);
   background: rgb(255 255 255 / 3%); color: var(--text); cursor: pointer;
 }
-.quiz__option:hover:not(:disabled) { border-color: var(--signal); background: rgb(219 255 74 / 8%); }
+.quiz__option:hover:not(:disabled) { border-color: var(--broadcast-blue); background: rgb(180 200 220 / 8%); }
 .quiz__option:disabled { cursor: default; opacity: 1; }
-.quiz__option.is-correct, .quiz__option.is-wrong { opacity: 1; color: var(--text); }
-.quiz__option.is-correct { border-color: var(--signal); background: rgb(219 255 74 / 14%); }
+.quiz__option.is-correct, .quiz__option.is-wrong { opacity: 1; color: var(--broadcast-white); }
+.quiz__option.is-correct { border-color: var(--broadcast-blue); background: rgb(180 200 220 / 14%); }
 .quiz__option.is-wrong { border-color: var(--coral, #ff604d); background: rgb(255 96 77 / 12%); }
 .quiz__feedback { margin-top: .9rem; border-top: 1px solid var(--line); padding-top: .8rem; }
 .quiz__feedback p { color: var(--muted); font-size: .9rem; margin: 0 0 .5rem; }
-.quiz__feedback p.is-correct { color: var(--signal); font-weight: 700; }
+.quiz__feedback p.is-correct { color: var(--broadcast-blue); font-weight: 700; }
 .quiz__feedback p.is-wrong { color: #ff8f8a; font-weight: 700; }
 
 .glossary { margin: 0; display: grid; gap: .7rem; }
@@ -240,19 +240,19 @@
    touch-target min-height applies to every button and was forcing each term
    onto its own line, fragmenting the sentence it sits in. */
 .jargon {
-  font: inherit; color: var(--text); background: none; border: 0; padding: 0;
+  font: inherit; color: var(--broadcast-white); background: none; border: 0; padding: 0;
   display: inline; min-height: 0; line-height: inherit; text-align: left;
-  border-bottom: 1px dashed var(--signal); cursor: help;
+  border-bottom: 1px dashed var(--broadcast-blue); cursor: help;
 }
 /* The explain panel is a scroll container, so an absolutely positioned tooltip
    gets clipped the moment it sits near an edge. Rendering the definition in
    flow makes it impossible to clip: the paragraph simply grows and the panel
    scrolls to it. */
 .jargon-tip {
-  display: block; margin: .4rem 0; padding: .55rem .65rem; border-radius: .4rem;
-  border: 1px solid rgb(219 255 74 / 40%); background: #070c14;
+  display: block; margin: .4rem 0; padding: .55rem .65rem; border-radius: .35rem;
+  border: 1px solid var(--glass-chrome); background: rgb(0 0 0 / 20%);
 }
-.jargon-tip strong { display: block; font-size: .8rem; color: var(--signal); margin-bottom: .2rem; }
+.jargon-tip strong { display: block; font-size: .8rem; font-weight: 700; color: var(--broadcast-white); margin-bottom: .2rem; }
 .jargon-tip span { display: block; font-size: .78rem; color: var(--muted); line-height: 1.45; }
 
 @media (max-width: 860px) {
@@ -270,7 +270,7 @@
   text-transform: uppercase; color: var(--muted); padding: .3rem .4rem; border-bottom: 1px solid var(--line);
 }
 .result-table td { padding: .35rem .4rem; border-bottom: 1px solid rgb(255 255 255 / 7%); font-size: .84rem; }
-.result-table__pos { font-family: var(--font-mono); color: var(--signal); width: 3rem; }
+.result-table__pos { font-family: var(--font-mono); font-weight: 700; color: var(--broadcast-blue); width: 3rem; }
 .result-table__team { color: var(--muted); }
 .result-table__gap { font-family: var(--font-mono); font-size: .78rem; text-align: right; white-space: nowrap; }
 .result-panel__source { margin-top: .5rem; font-size: .76rem; color: var(--muted); }
@@ -281,11 +281,11 @@
   padding: .4rem .55rem; border-radius: .35rem; border: 1px solid var(--line);
   background: rgb(255 255 255 / 2%); font-size: .84rem;
 }
-.grid-list__row.is-simulated { border-left: 3px solid var(--signal); }
-.grid-list__number { font-family: var(--font-mono); color: var(--muted); }
-.grid-list__team { color: var(--muted); font-size: .78rem; }
-.grid-list__flag { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-.grid-list__row.is-simulated .grid-list__flag { color: var(--signal); }
+.grid-list__row.is-simulated { border-left: 3px solid var(--broadcast-blue); }
+.grid-list__number { font-family: var(--font-mono); color: var(--broadcast-blue); }
+.grid-list__team { color: var(--broadcast-blue); font-size: .78rem; }
+.grid-list__flag { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--broadcast-blue); }
+.grid-list__row.is-simulated .grid-list__flag { color: var(--broadcast-white); font-weight: 700; }
 @media (max-width: 620px) {
   .grid-list__row { grid-template-columns: 2.2rem 1fr; }
   .grid-list__team, .grid-list__flag { grid-column: 2; }
