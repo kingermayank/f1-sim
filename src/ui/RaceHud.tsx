@@ -48,6 +48,7 @@ export function RaceHud() {
   const replaySeed = useRaceStore((state) => state.replaySeed);
   const restart = useRaceStore((state) => state.restart);
   const totalLaps = useRaceStore((state) => state.config.laps);
+  const cameraMode = useRaceStore((state) => state.cameraMode);
   const currentLap = Math.min(totalLaps, Math.max(1, ...snapshot.cars.map((car) => car.lap + 1)));
   const leader = getClassification(snapshot)[0];
   const leaderName = DRIVERS_2026.find((driver) => driver.id === leader?.driverId)?.name ?? '—';
@@ -55,8 +56,9 @@ export function RaceHud() {
     setTimingOpen(false);
     timingToggleRef.current?.focus();
   };
+  const immersive = cameraMode === 'chase' || cameraMode === 'cockpit';
   return (
-    <div className="race-hud">
+    <div className="race-hud" data-immersive={immersive || undefined}>
       <header className="race-header">
         <div className="race-header__brand"><span className="race-header__mark" aria-hidden="true">SH</span><div><p>Shanghai · 2026</p><strong>Chinese Grand Prix</strong></div></div>
         <div className="race-state">

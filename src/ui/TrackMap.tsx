@@ -1,5 +1,6 @@
 import { DRIVERS_2026 } from '../domain/grid-2026';
 import type { RaceState } from '../simulation/events';
+import { getClassification } from '../simulation/selectors';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 
 const points = SHANGHAI_TRACK.centerLine;
@@ -20,6 +21,8 @@ export function TrackMap({ snapshot, selectedDriverId }: {
   snapshot: Readonly<RaceState>;
   selectedDriverId: string | null;
 }) {
+  const classification = getClassification(snapshot);
+  const leaderId = classification[0]?.driverId;
   return (
     <section className="track-map" aria-label="Track map">
       <header className="panel-kicker"><span>Position map</span><span>Shanghai</span></header>
@@ -31,7 +34,10 @@ export function TrackMap({ snapshot, selectedDriverId }: {
           const point = points[Math.floor((((car.distance % 1) + 1) % 1) * points.length) % points.length];
           const position = project(point.x, point.z);
           const driver = DRIVERS_2026.find((item) => item.id === car.driverId)!;
-          return <circle key={car.driverId} data-testid="track-map-marker" cx={position.x} cy={position.y} r={selectedDriverId === car.driverId ? 4.2 : 2.6} fill={driver.color} className={selectedDriverId === car.driverId ? 'is-selected' : ''} />;
+          const isSelected = selectedDriverId === car.driverId;
+          const isLeader = car.driverId === leaderId;
+          const classes = [isSelected && 'is-selected', isLeader && 'is-leader'].filter(Boolean).join(' ');
+          return <circle key={car.driverId} data-testid="track-map-marker" cx={position.x} cy={position.y} r={isSelected ? 4.2 : 2.6} fill={driver.color} className={classes} />;
         })}
       </svg>
       <ol className="visually-hidden" aria-label="Driver track positions">

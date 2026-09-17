@@ -138,6 +138,7 @@ export function RaceScene() {
   const qualityMode = useRaceStore((state) => state.qualityMode);
   const selectedDriverId = useRaceStore((state) => state.selectedDriverId);
   const selectDriver = useRaceStore((state) => state.selectDriver);
+  const raceFlag = useRaceStore((state) => state.snapshot.flag);
   const quality = selectQualityTier({
     viewportWidth,
     coarsePointer,
@@ -154,7 +155,7 @@ export function RaceScene() {
   });
 
   return (
-    <section className="race-viewport" aria-label="3D race viewport">
+    <section className="race-viewport" data-flag={raceFlag} aria-label="3D race viewport">
       <p className="race-viewport__status" role="status" aria-live="polite">
         {webGLAvailable ? sceneStatus : <><span>Preparing the grid</span> · accessible race view</>}
       </p>

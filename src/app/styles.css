@@ -110,7 +110,8 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .race-meta button { grid-column: 2; grid-row: 1 / span 2; border: 1px solid var(--line); border-radius: .3rem; margin-left: .65rem; padding: 0 .8rem; background: transparent; color: #ecf0f5; cursor: pointer; font-size: .6875rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 
 .panel-kicker { min-height: 1.85rem; display: flex; align-items: center; justify-content: space-between; margin: 0; padding: 0 .65rem; border-bottom: 1px solid var(--line-subtle); color: var(--broadcast-blue); font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; background: rgb(0 0 0 / 8%); }
-.race-hud__left { position: absolute; top: 5.5rem; bottom: 7rem; left: 1rem; width: clamp(20rem, 25.5vw, 23rem); overflow: hidden; border: 1px solid var(--glass-chrome); border-radius: .35rem; background: var(--glass); box-shadow: 0 .5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 5%); backdrop-filter: blur(20px) saturate(110%); }
+.race-hud__left { position: absolute; top: 5.5rem; bottom: 7rem; left: 1rem; width: clamp(20rem, 25.5vw, 23rem); overflow: hidden; border: 1px solid var(--glass-chrome); border-radius: .35rem; background: var(--glass); box-shadow: 0 .5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 5%); backdrop-filter: blur(20px) saturate(110%); transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.race-hud[data-immersive='true'] .race-hud__left { opacity: 0.35; }
 .timing-tower { height: 100%; display: flex; flex-direction: column; }
 .timing-list { margin: 0; padding: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--glass-chrome) transparent; list-style: none; }
 .timing-list li { border-bottom: 1px solid var(--line-subtle); }
@@ -137,7 +138,8 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .timing-row__status { grid-column: 3 / -1; margin-top: -.25rem; color: #ffb845; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .timing-row__status--retired { color: var(--coral); }
 
-.race-hud__right { position: absolute; top: 5.5rem; right: 1rem; bottom: 7rem; width: clamp(17.5rem, 21vw, 20rem); display: grid; grid-template-rows: auto minmax(11rem, 1fr) auto; gap: .6rem; }
+.race-hud__right { position: absolute; top: 5.5rem; right: 1rem; bottom: 7rem; width: clamp(17.5rem, 21vw, 20rem); display: grid; grid-template-rows: auto minmax(11rem, 1fr) auto; gap: .6rem; transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+.race-hud[data-immersive='true'] .race-hud__right { opacity: 0.35; }
 .driver-panel, .track-map, .event-feed { overflow: hidden; border: 1px solid var(--glass-chrome); border-radius: .35rem; background: var(--glass); box-shadow: 0 .5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 5%); backdrop-filter: blur(20px) saturate(110%); }
 .driver-panel { border-top: 3px solid var(--team-color); }
 .driver-panel__identity { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .55rem; padding: .65rem; }
@@ -151,6 +153,10 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .telemetry-grid dd { overflow: hidden; margin: 0; color: var(--broadcast-white); font-size: .7rem; font-weight: 600; font-family: var(--font-mono); text-overflow: ellipsis; white-space: nowrap; transition: color 120ms cubic-bezier(0.22, 1, 0.36, 1); }
 .telemetry-grid small { color: var(--broadcast-blue); font-size: .68rem; }
 .telemetry-grid__wide { grid-column: span 3; }
+/* Telemetry bars for percentage data visualization. Hook: wrap dd content in
+   <div class="telemetry-bar"><div class="telemetry-bar__track"><div class="telemetry-bar__fill" style="width: 75%"></div></div><span class="telemetry-bar__value">75%</span></div>
+   Modifiers: .telemetry-bar__fill--warn (yellow), .telemetry-bar__fill--danger (coral).
+   Note: Current CarState has speed/tire/fuel/damage — no throttle/brake/ERS in deterministic sim. */
 .telemetry-bar { display: flex; align-items: center; gap: .35rem; }
 .telemetry-bar__track { flex: 1; height: .35rem; border-radius: .2rem; background: rgb(255 255 255 / 8%); overflow: hidden; }
 .telemetry-bar__fill { height: 100%; background: var(--broadcast-blue); border-radius: .2rem; transition: width 180ms cubic-bezier(0.22, 1, 0.36, 1); }
@@ -161,10 +167,11 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .track-map svg { width: 100%; height: calc(100% - 2rem); min-height: 9rem; padding: .45rem .8rem; overflow: visible; }
 .track-map__shadow, .track-map__line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .track-map__shadow { stroke: rgb(0 0 0 / 55%); stroke-width: 8; }
-.track-map__line { stroke: var(--broadcast-blue); stroke-width: 3.5; }
-.track-map__finish { stroke: var(--broadcast-white); stroke-width: 2.5; }
-.track-map circle { stroke: rgb(5 8 13 / 90%); stroke-width: 1.5; filter: drop-shadow(0 0 2px rgb(0 0 0 / 85%)); transition: r 110ms ease; }
-.track-map circle.is-selected { stroke: var(--broadcast-white); stroke-width: 2.2; }
+.track-map__line { stroke: var(--glass-chrome); stroke-width: 3.2; }
+.track-map__finish { stroke: var(--broadcast-blue); stroke-width: 2.2; }
+.track-map circle { stroke: rgb(5 8 13 / 92%); stroke-width: 1.5; filter: drop-shadow(0 0 2px rgb(0 0 0 / 90%)); transition: r 110ms ease; }
+.track-map circle.is-selected { stroke: var(--broadcast-white); stroke-width: 2.4; filter: drop-shadow(0 0 3px rgb(255 255 255 / 65%)); }
+.track-map circle.is-leader { stroke: var(--broadcast-blue); stroke-width: 2; }
 .event-feed ol { max-height: 9rem; margin: 0; padding: .3rem .65rem .55rem; overflow: auto; list-style: none; scrollbar-width: thin; scrollbar-color: var(--glass-chrome) transparent; }
 .event-feed li { display: grid; grid-template-columns: 2.7rem 1fr; gap: .45rem; padding: .35rem 0; border-bottom: 1px solid var(--line-subtle); color: var(--broadcast-white); font-size: .68rem; line-height: 1.35; }
 .event-feed time { color: var(--broadcast-blue); font-size: .67rem; font-weight: 700; font-family: var(--font-mono); letter-spacing: -.01em; }
