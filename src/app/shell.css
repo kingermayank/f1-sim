@@ -21,24 +21,25 @@
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
   padding: .7rem clamp(1rem, 4vw, 2.5rem);
-  border-bottom: 1px solid var(--line);
-  background: rgb(5 8 13 / 88%); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--glass-chrome);
+  background: var(--glass); backdrop-filter: blur(20px);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 5%);
 }
 .shell-nav__brand { display: flex; align-items: center; gap: .55rem; text-decoration: none; color: inherit; }
 .shell-nav__mark {
-  width: 26px; height: 26px; border-radius: 6px; display: grid; place-items: center;
-  background: var(--signal); color: #07100d; font-weight: 900; font-size: .82rem;
-  transform: skew(-8deg); font-family: var(--font-body);
+  width: 26px; height: 26px; border-radius: 4px; display: grid; place-items: center;
+  background: var(--ink); border: 1px solid var(--glass-chrome); color: var(--broadcast-white); 
+  font-weight: 700; font-size: .82rem; font-family: var(--font-body);
 }
 /* Brand lockup is one short word at display scale — a valid use of Wide. */
 .shell-nav__wordmark { font-family: var(--font-wide); font-size: 1.05rem; letter-spacing: .06em; }
 .shell-nav nav { display: flex; gap: .15rem; flex-wrap: wrap; }
 .shell-nav nav a {
-  font-family: var(--font-body); font-weight: 700; font-size: .82rem; letter-spacing: .02em;
-  color: var(--muted); text-decoration: none; padding: .4rem .7rem; border-radius: 6px;
+  font-family: var(--font-body); font-weight: 600; font-size: .82rem; letter-spacing: .01em;
+  color: var(--broadcast-blue); text-decoration: none; padding: .4rem .7rem; border-radius: 5px;
 }
-.shell-nav nav a:hover { color: var(--text); background: rgb(255 255 255 / 6%); }
-.shell-nav nav a.is-active { color: var(--text); background: rgb(219 255 74 / 12%); box-shadow: inset 0 -2px 0 var(--signal); }
+.shell-nav nav a:hover { color: var(--broadcast-white); background: rgb(255 255 255 / 8%); }
+.shell-nav nav a.is-active { color: var(--broadcast-white); background: rgb(255 255 255 / 10%); box-shadow: inset 0 -2px 0 var(--broadcast-blue); }
 .shell-nav__cta {
   margin-left: auto; font-family: var(--font-body); font-weight: 800; font-size: .82rem;
   padding: .45rem .85rem; border-radius: 6px; background: var(--signal); color: #07100d; text-decoration: none;
@@ -53,11 +54,11 @@
 .shell-eyebrow { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; color: var(--signal); margin: 0 0 .6rem; }
 .shell-foot { margin-top: 1.5rem; color: var(--muted); font-size: .85rem; max-width: 70ch; }
 
-.panel { border: 1px solid var(--line); border-radius: .6rem; background: linear-gradient(165deg, var(--panel), rgb(6 10 16 / 88%)); padding: 1.1rem; }
+.panel { border: 1px solid var(--glass-chrome); border-radius: .5rem; background: var(--glass); padding: 1.1rem; box-shadow: 0 .25rem 1.5rem rgb(0 0 0 / 25%), inset 0 1px 0 rgb(255 255 255 / 5%); }
 .panel--tight { padding: .9rem; margin-top: .8rem; }
-.panel h2 { font-family: var(--font-body); font-weight: 800; font-size: 1.15rem; margin: 0 0 .5rem; }
-.panel h3 { font-family: var(--font-body); font-weight: 800; font-size: .98rem; margin: 0 0 .35rem; }
-.panel p { margin: 0; color: var(--muted); font-size: .9rem; }
+.panel h2 { font-family: var(--font-body); font-weight: 700; font-size: 1.15rem; margin: 0 0 .5rem; color: var(--broadcast-white); }
+.panel h3 { font-family: var(--font-body); font-weight: 700; font-size: .98rem; margin: 0 0 .35rem; color: var(--broadcast-white); }
+.panel p { margin: 0; color: var(--broadcast-blue); font-size: .9rem; }
 
 .shell-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
 .shell-btn {
@@ -87,8 +88,8 @@
 .shell-tag--soon { color: #ffb020; border-color: rgb(255 176 32 / 40%); background: rgb(255 176 32 / 8%); }
 
 /* ------------------------------------------------------------------ home -- */
-.hero-panel { position: relative; border: 1px solid var(--line); border-radius: .8rem; padding: clamp(1.25rem, 4vw, 2.25rem); overflow: hidden;
-  background: linear-gradient(150deg, #14283a, #070c14 65%); }
+.hero-panel { position: relative; border: 1px solid var(--glass-chrome); border-radius: .65rem; padding: clamp(1.25rem, 4vw, 2.25rem); overflow: hidden;
+  background: linear-gradient(150deg, #1a3248, var(--glass-solid) 68%); box-shadow: 0 .5rem 2rem rgb(0 0 0 / 30%), inset 0 1px 0 rgb(255 255 255 / 5%); }
 @media (min-width: 861px) { .hero-panel { padding-right: 38%; } }
 .hero-panel__title { font-family: var(--font-wide); font-size: clamp(1.6rem, 4vw, 2.9rem); text-transform: uppercase; line-height: 1.04; margin: 0 0 .6rem; max-width: 14ch; }
 .hero-panel__lede { color: var(--muted); font-size: 1rem; max-width: 52ch; margin: 0; }
@@ -96,28 +97,28 @@
 .hero-panel__map .circuit-map { height: auto; }
 
 .tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .8rem; margin-top: 1rem; }
-.tile { border: 1px solid var(--line); border-radius: .6rem; padding: 1rem; text-decoration: none; color: inherit;
-  background: linear-gradient(155deg, var(--panel), rgb(6 10 16 / 85%)); display: block; }
-.tile:hover { border-color: rgb(255 255 255 / 26%); background: linear-gradient(155deg, #131d2a, rgb(6 10 16 / 85%)); }
-.tile h2 { font-family: var(--font-body); font-weight: 800; font-size: 1.05rem; margin: 0 0 .25rem; }
-.tile p { margin: 0; color: var(--muted); font-size: .85rem; }
+.tile { border: 1px solid var(--glass-chrome); border-radius: .5rem; padding: 1rem; text-decoration: none; color: inherit;
+  background: var(--glass); display: block; box-shadow: 0 .25rem 1rem rgb(0 0 0 / 25%), inset 0 1px 0 rgb(255 255 255 / 4%); }
+.tile:hover { border-color: var(--broadcast-blue); background: rgb(180 200 220 / 6%); }
+.tile h2 { font-family: var(--font-body); font-weight: 700; font-size: 1.05rem; margin: 0 0 .25rem; color: var(--broadcast-white); }
+.tile p { margin: 0; color: var(--broadcast-blue); font-size: .85rem; }
 
 /* -------------------------------------------------------------- circuits -- */
 .circuit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(198px, 1fr)); gap: .8rem; }
-.circuit-card { border: 1px solid var(--line); border-radius: .6rem; padding: .85rem; background: #080d15; text-decoration: none; color: inherit; display: block; }
-.circuit-card:hover { border-color: var(--signal); }
-.circuit-card.is-locked { opacity: .72; }
-.circuit-card h2 { font-family: var(--font-body); font-weight: 700; font-size: .95rem; margin: .5rem 0 .15rem; }
-.circuit-card__meta { font-family: var(--font-mono); font-size: .7rem; color: var(--muted); margin: 0 0 .45rem; letter-spacing: .04em; }
+.circuit-card { border: 1px solid var(--glass-chrome); border-radius: .5rem; padding: .85rem; background: var(--glass); text-decoration: none; color: inherit; display: block; box-shadow: 0 .25rem 1rem rgb(0 0 0 / 25%), inset 0 1px 0 rgb(255 255 255 / 4%); }
+.circuit-card:hover { border-color: var(--broadcast-blue); }
+.circuit-card.is-locked { opacity: .68; }
+.circuit-card h2 { font-family: var(--font-body); font-weight: 700; font-size: .95rem; margin: .5rem 0 .15rem; color: var(--broadcast-white); }
+.circuit-card__meta { font-family: var(--font-mono); font-size: .7rem; color: var(--broadcast-blue); margin: 0 0 .45rem; letter-spacing: .04em; }
 .circuit-card__map { height: 92px; display: grid; place-items: center; }
 
 .circuit-map { width: 100%; height: 100%; display: block; }
-.circuit-map__line { fill: none; stroke: var(--signal); stroke-width: 2.4; stroke-linejoin: round; }
-.circuit-card.is-locked .circuit-map__line { stroke: var(--muted); }
-.circuit-map--empty { display: grid; place-items: center; height: 92px; color: var(--muted); font-family: var(--font-mono); font-size: .66rem;
-  text-align: center; letter-spacing: .06em; border: 1px dashed rgb(255 255 255 / 18%); border-radius: .4rem; padding: .5rem; }
-.circuit-map__pin { fill: var(--signal); stroke: #04070c; stroke-width: 1.2; cursor: pointer; }
-.circuit-map__pin.is-active { fill: var(--coral, #ff604d); }
+.circuit-map__line { fill: none; stroke: var(--broadcast-blue); stroke-width: 2.4; stroke-linejoin: round; }
+.circuit-card.is-locked .circuit-map__line { stroke: var(--broadcast-blue); opacity: 0.5; }
+.circuit-map--empty { display: grid; place-items: center; height: 92px; color: var(--broadcast-blue); font-family: var(--font-mono); font-size: .66rem;
+  text-align: center; letter-spacing: .06em; border: 1px dashed var(--glass-chrome); border-radius: .4rem; padding: .5rem; }
+.circuit-map__pin { fill: var(--broadcast-blue); stroke: var(--ink); stroke-width: 1.2; cursor: pointer; }
+.circuit-map__pin.is-active { fill: var(--coral); }
 .circuit-map__pin:focus-visible { outline: 2px solid var(--focus); }
 
 .circuit-detail { display: grid; grid-template-columns: 1.05fr .95fr; gap: 1rem; align-items: start; }
@@ -139,22 +140,22 @@
 
 /* ---------------------------------------------------------------- garage -- */
 .car-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: .8rem; }
-.car-card { border: 1px solid var(--line); border-radius: .6rem; overflow: hidden; background: #080d15; }
-.car-card__swatch { height: 66px; background: linear-gradient(115deg, var(--team), #0a1019 80%); position: relative; }
+.car-card { border: 1px solid var(--glass-chrome); border-radius: .5rem; overflow: hidden; background: var(--glass); box-shadow: 0 .25rem 1rem rgb(0 0 0 / 25%), inset 0 1px 0 rgb(255 255 255 / 4%); }
+.car-card__swatch { height: 66px; background: linear-gradient(115deg, var(--team), var(--glass-solid) 82%); position: relative; }
 .car-card__swatch::after { content: ''; position: absolute; inset: auto 0 0 0; height: 3px; background: var(--accent); }
 .car-card__body { padding: .7rem .8rem; }
-.car-card h2 { font-family: var(--font-body); font-weight: 700; font-size: .95rem; margin: 0 0 .2rem; }
-.car-card__meta { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); margin: 0; }
-.car-card__drivers { font-family: var(--font-mono); font-size: .72rem; color: var(--text); margin: .3rem 0 0; letter-spacing: .05em; }
+.car-card h2 { font-family: var(--font-body); font-weight: 700; font-size: .95rem; margin: 0 0 .2rem; color: var(--broadcast-white); }
+.car-card__meta { font-family: var(--font-mono); font-size: .72rem; color: var(--broadcast-blue); margin: 0; }
+.car-card__drivers { font-family: var(--font-mono); font-size: .72rem; color: var(--broadcast-white); margin: .3rem 0 0; letter-spacing: .05em; }
 
 /* --------------------------------------------------------------- drivers -- */
 .driver-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: .7rem; }
-.driver-card { border: 1px solid var(--line); border-left: 3px solid var(--team); border-radius: .5rem; background: #080d15; padding: .8rem .9rem; }
+.driver-card { border: 1px solid var(--glass-chrome); border-left: 3px solid var(--team); border-radius: .45rem; background: var(--glass); padding: .8rem .9rem; box-shadow: 0 .25rem 1rem rgb(0 0 0 / 25%), inset 0 1px 0 rgb(255 255 255 / 4%); }
 .driver-card__head { display: flex; gap: .7rem; align-items: baseline; }
-.driver-card__number { font-family: var(--font-mono); font-size: 1.6rem; color: var(--muted); line-height: 1; }
-.driver-card h2 { font-family: var(--font-body); font-weight: 800; font-size: 1rem; margin: 0; }
-.driver-card__team { font-family: var(--font-mono); font-size: .7rem; color: var(--muted); margin: .15rem 0 0; }
-.driver-card__hook { color: var(--muted); font-size: .88rem; margin: .55rem 0 .5rem; }
+.driver-card__number { font-family: var(--font-mono); font-size: 1.6rem; color: var(--broadcast-blue); line-height: 1; }
+.driver-card h2 { font-family: var(--font-body); font-weight: 700; font-size: 1rem; margin: 0; color: var(--broadcast-white); }
+.driver-card__team { font-family: var(--font-mono); font-size: .7rem; color: var(--broadcast-blue); margin: .15rem 0 0; }
+.driver-card__hook { color: var(--broadcast-blue); font-size: .88rem; margin: .55rem 0 .5rem; }
 
 /* ------------------------------------------------------------------ quiz -- */
 .quiz { margin-bottom: 1rem; }
