@@ -195,11 +195,11 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .credits-list dd { margin: 0; color: #c7d0da; font-size: .6875rem; line-height: 1.35; }
 .credits-list a { color: var(--broadcast-blue); text-decoration: underline; }
 
-.finish-screen { position: fixed; z-index: 15; inset: 1.5rem; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: 1rem; border: 1px solid var(--glass-chrome); border-radius: .5rem; padding: clamp(1rem, 3vw, 2.5rem); background: radial-gradient(circle at 70% 0, rgb(74 93 112 / 22%), transparent 38%), var(--glass-solid); box-shadow: 0 1.5rem 6rem rgb(0 0 0 / 75%), inset 0 1px 0 rgb(255 255 255 / 6%); backdrop-filter: blur(24px); }
+.finish-screen { position: fixed; z-index: 15; inset: 1.5rem; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: .95rem; border: 1px solid var(--glass-chrome); border-radius: .45rem; padding: clamp(1rem, 3vw, 2.25rem); background: radial-gradient(circle at 70% 0, rgb(74 93 112 / 24%), transparent 40%), var(--glass-solid); box-shadow: 0 1.5rem 6rem rgb(0 0 0 / 80%), inset 0 1px 0 rgb(255 255 255 / 7%); backdrop-filter: blur(26px); }
 .finish-screen header { text-align: center; }
-.finish-screen__eyebrow { margin: 0; color: var(--coral); font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.finish-screen h2 { margin: .25rem 0 0; font-family: var(--font-display); font-size: clamp(2.5rem, 6vw, 5rem); font-weight: 700; line-height: .9; text-transform: uppercase; color: var(--broadcast-white); }
-.finish-screen header > p:last-child { margin: .65rem 0 0; color: var(--broadcast-blue); }
+.finish-screen__eyebrow { margin: 0; color: var(--coral); font-size: .72rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
+.finish-screen h2 { margin: .3rem 0 0; font-family: var(--font-display); font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 700; line-height: .92; text-transform: uppercase; color: var(--broadcast-white); letter-spacing: -.01em; }
+.finish-screen header > p:last-child { margin: .6rem 0 0; color: var(--broadcast-blue); font-size: .95rem; }
 .finish-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: .65rem; }
 .finish-facts p { display: grid; margin: 0; border: 1px solid var(--glass-chrome); border-radius: .3rem; padding: .65rem .85rem; background: rgb(255 255 255 / 5%); }
 .finish-facts span { color: var(--broadcast-blue); font-size: .68rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
@@ -211,9 +211,12 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .incident-recap time { color: var(--broadcast-blue); font-weight: 700; font-family: var(--font-mono); }
 .finish-table-wrap { overflow: auto; }
 .finish-screen table { width: 100%; border-collapse: collapse; font-size: .72rem; }
-.finish-screen th, .finish-screen td { min-height: 2.75rem; padding: .55rem .7rem; border-bottom: 1px solid rgb(255 255 255 / 9%); text-align: left; }
-.finish-screen thead { position: sticky; top: 0; background: var(--panel-solid); color: var(--muted); font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; }
-.finish-screen tbody th small { display: block; color: var(--muted); font-weight: 400; }
+.finish-screen th, .finish-screen td { min-height: 2.6rem; padding: .5rem .65rem; border-bottom: 1px solid var(--line-subtle); text-align: left; }
+.finish-screen thead { position: sticky; top: 0; background: var(--glass-solid); color: var(--broadcast-blue); font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.finish-screen tbody tr:nth-child(-n+3) { background: rgb(180 200 220 / 6%); }
+.finish-screen tbody tr:first-child { background: rgb(180 200 220 / 10%); border-left: 3px solid var(--broadcast-blue); }
+.finish-screen tbody th { font-family: var(--font-display); font-weight: 700; color: var(--broadcast-white); }
+.finish-screen tbody th small { display: block; color: var(--broadcast-blue); font-weight: 600; font-size: .66rem; }
 .finish-screen footer { display: flex; justify-content: center; gap: .65rem; }
 .finish-screen footer button { min-width: 11rem; border: 1px solid var(--glass-chrome); border-radius: .35rem; padding: .6rem 1rem; background: transparent; cursor: pointer; font-weight: 700; color: var(--broadcast-white); }
 .finish-screen footer .button--accent { border-color: var(--glass-chrome); background: rgb(255 255 255 / 12%); color: var(--broadcast-white); }
