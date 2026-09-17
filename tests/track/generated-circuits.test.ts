@@ -12,10 +12,43 @@ import {
 import type { TrackPoint } from '../../src/track/track-types';
 import type { TrackTransform } from '../../src/track/track-types';
 
-const BATCH_A_IDS = ['suzuka', 'melbourne', 'barcelona', 'spa', 'silverstone'] as const;
+const GENERATED_CIRCUIT_IDS = [
+  'suzuka',
+  'melbourne',
+  'barcelona',
+  'spa',
+  'silverstone',
+  'singapore',
+  'red-bull-ring',
+  'austin',
+  'abu-dhabi',
+  'bahrain',
+] as const;
+
+const CALENDAR_CIRCUIT_IDS: Partial<Record<(typeof GENERATED_CIRCUIT_IDS)[number], string>> = {
+  barcelona: 'catalunya',
+  'red-bull-ring': 'spielberg',
+  'abu-dhabi': 'yas-marina',
+  bahrain: 'sakhir',
+};
 
 function pointDistance(a: TrackPoint, b: TrackPoint): number {
   return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+function segmentVector(a: TrackPoint, b: TrackPoint): TrackPoint {
+  return { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+}
+
+function vectorLength(vector: TrackPoint): number {
+  return Math.hypot(vector.x, vector.y, vector.z);
+}
+
+function tangentAngle(a: TrackPoint, b: TrackPoint): number {
+  const length = vectorLength(a) * vectorLength(b);
+  if (length === 0) return Number.POSITIVE_INFINITY;
+  const cosine = Math.min(1, Math.max(-1, (a.x * b.x + a.y * b.y + a.z * b.z) / length));
+  return Math.acos(cosine);
 }
 
 function expectFinitePoint(point: TrackPoint): void {
@@ -36,13 +69,13 @@ function expectFiniteTransform(transform: TrackTransform): void {
   expect(transform.rotation.length()).toBeCloseTo(1, 5);
 }
 
-describe.each(BATCH_A_IDS)('%s generated circuit', (id) => {
+describe.each(GENERATED_CIRCUIT_IDS)('%s generated circuit', (id) => {
   it('is registered with a complete, source-aligned runtime definition', async () => {
     expect(PLAYABLE_CIRCUIT_IDS).toContain(id);
 
     const runtime = await loadCircuitRuntime(id as PlayableCircuitId);
     const track = runtime.track;
-    const calendarId = id === 'barcelona' ? 'catalunya' : id;
+    const calendarId = CALENDAR_CIRCUIT_IDS[id] ?? id;
     const round = CALENDAR_2026.find((candidate) => candidate.id === calendarId);
 
     expect(round).toBeDefined();
@@ -62,6 +95,15 @@ describe.each(BATCH_A_IDS)('%s generated circuit', (id) => {
       expect(line.length).toBeGreaterThan(16);
       expect(pointDistance(line[0]!, line.at(-1)!)).toBeLessThan(0.01);
       line.forEach(expectFinitePoint);
+
+      const previousStep = segmentVector(line.at(-3)!, line.at(-2)!);
+      const seamStep = segmentVector(line.at(-2)!, line.at(-1)!);
+      const nextStep = segmentVector(line[0]!, line[1]!);
+      const neighboringMean = (vectorLength(previousStep) + vectorLength(nextStep)) / 2;
+      expect(vectorLength(seamStep) / neighboringMean).toBeGreaterThan(0.5);
+      expect(vectorLength(seamStep) / neighboringMean).toBeLessThan(1.5);
+      expect(tangentAngle(previousStep, seamStep)).toBeLessThan(Math.PI / 4);
+      expect(tangentAngle(seamStep, nextStep)).toBeLessThan(Math.PI / 4);
     }
     expect(track.pitLine.length).toBeGreaterThan(2);
     expect(pointDistance(track.pitLine[0]!, track.pitLine.at(-1)!)).toBeGreaterThan(1);

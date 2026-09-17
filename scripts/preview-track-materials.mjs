@@ -25,6 +25,18 @@ const transformPoint = (point, matrix) => [
   matrix[2] * point[0] + matrix[6] * point[1] + matrix[10] * point[2] + matrix[14],
 ];
 
+function pointBounds(points) {
+  const min = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
+  const max = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+  for (const point of points) {
+    for (let axis = 0; axis < 3; axis += 1) {
+      min[axis] = Math.min(min[axis], point[axis]);
+      max[axis] = Math.max(max[axis], point[axis]);
+    }
+  }
+  return { min, max };
+}
+
 const wanted = new Set(materialNames);
 const samples = [];
 for (const node of root.listNodes()) {
@@ -45,12 +57,9 @@ if (samples.length === 0) throw new Error(`None of the requested materials were 
 const width = 1800;
 const height = 1200;
 const padding = 50;
-const xs = samples.map(({ point }) => point[0]);
-const zs = samples.map(({ point }) => point[2]);
-const minX = Math.min(...xs);
-const maxX = Math.max(...xs);
-const minZ = Math.min(...zs);
-const maxZ = Math.max(...zs);
+const sampleBounds = pointBounds(samples.map(({ point }) => point));
+const [minX, , minZ] = sampleBounds.min;
+const [maxX, , maxZ] = sampleBounds.max;
 const scale = Math.min((width - padding * 2) / (maxX - minX || 1), (height - padding * 2) / (maxZ - minZ || 1));
 const project = ([x, , z]) => [padding + (x - minX) * scale, height - padding - (z - minZ) * scale];
 const colors = ['#e8edf2', '#ff355e', '#00d8ff', '#ffcc33', '#b06cff', '#4be28b'];
@@ -78,11 +87,12 @@ const materialStats = Object.fromEntries(materialNames.map((material) => {
   const points = samples.filter((sample) => sample.material === material).map((sample) => sample.point);
   if (points.length === 0) return [material, null];
   const sum = points.reduce((total, point) => total.map((value, index) => value + point[index]), [0, 0, 0]);
+  const bounds = pointBounds(points);
   return [material, {
     samples: points.length,
     centroid: sum.map((value) => Number((value / points.length).toFixed(3))),
-    min: [0, 1, 2].map((axis) => Number(Math.min(...points.map((point) => point[axis])).toFixed(3))),
-    max: [0, 1, 2].map((axis) => Number(Math.max(...points.map((point) => point[axis])).toFixed(3))),
+    min: bounds.min.map((value) => Number(value.toFixed(3))),
+    max: bounds.max.map((value) => Number(value.toFixed(3))),
   }];
 }));
 console.log(JSON.stringify({ source: resolve(source), output: resolve(output), samples: samples.length, bounds: { min: [minX, minZ], max: [maxX, maxZ] }, materialStats }));

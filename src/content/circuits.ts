@@ -5,6 +5,9 @@ import melbourneManifest from '../track/generated/melbourne-manifest.json';
 import barcelonaManifest from '../track/generated/barcelona-manifest.json';
 import spaManifest from '../track/generated/spa-manifest.json';
 import silverstoneManifest from '../track/generated/silverstone-manifest.json';
+import singaporeManifest from '../track/generated/singapore-manifest.json';
+import redBullRingManifest from '../track/generated/red-bull-ring-manifest.json';
+import austinManifest from '../track/generated/austin-manifest.json';
 
 export interface CornerNote {
   /** Lap fraction, 0 at the start/finish line. */
@@ -64,6 +67,9 @@ const GENERATED_PLAYABLE_OUTLINES = new Map<string, readonly { x: number; z: num
   ['catalunya', barcelonaManifest.outlinePoints],
   ['spa', spaManifest.outlinePoints],
   ['silverstone', silverstoneManifest.outlinePoints],
+  ['singapore', singaporeManifest.outlinePoints],
+  ['spielberg', redBullRingManifest.outlinePoints],
+  ['austin', austinManifest.outlinePoints],
 ]);
 
 const SHANGHAI: Circuit = {

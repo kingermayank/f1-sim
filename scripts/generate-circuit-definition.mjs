@@ -163,6 +163,123 @@ const CIRCUITS = Object.freeze({
       { id: 'hamilton-straight', name: 'Hamilton Straight', distance: 0.985, offset: 66, height: 38 },
     ],
   },
+  singapore: {
+    displayName: 'Marina Bay Street Circuit',
+    officialLengthMeters: 4_940,
+    laps: 62,
+    centerMaterial: /^151Mtl$/u,
+    pitMaterial: /^11761Mtl$/u,
+    startMaterial: /^11761Mtl$/u,
+    step: 5,
+    disc: 20,
+    heightWeight: 3,
+    headingDamping: 0.53,
+    mainStraightDirection: [0, 1],
+    sectors: [0.33, 0.67, 1],
+    passingZones: [[0.96, 0.08], [0.46, 0.58]],
+    cameras: [
+      { id: 'turns-1-3', name: 'Opening Complex', distance: 0.045, offset: 44, height: 25 },
+      { id: 'north-straight', name: 'North Straight', distance: 0.16, offset: 54, height: 31 },
+      { id: 'memorial-corner', name: 'Memorial Corner', distance: 0.28, offset: 42, height: 24 },
+      { id: 'bayfront-drone', name: 'Bayfront Drone', distance: 0.42, offset: 76, height: 100, side: -1 },
+      { id: 'marina-hairpin', name: 'Marina Hairpin', distance: 0.53, offset: 42, height: 24 },
+      { id: 'waterfront-straight', name: 'Waterfront Straight', distance: 0.64, offset: 58, height: 32 },
+      { id: 'final-sector', name: 'Final Sector Complex', distance: 0.79, offset: 46, height: 26 },
+      { id: 'pit-entry', name: 'Pit Entry', distance: 0.92, offset: 40, height: 23 },
+      { id: 'pit-straight', name: 'Pit Straight', distance: 0.985, offset: 56, height: 32 },
+    ],
+  },
+  'red-bull-ring': {
+    displayName: 'Red Bull Ring',
+    sourceFile: 'redbullring.glb',
+    officialLengthMeters: 4_318,
+    laps: 71,
+    centerMaterial: /^Acuredbullring201Mtl\.003$/u,
+    pitMaterial: /^Acuredbullring131Mtl\.003$/u,
+    startMaterial: /^Acuredbullring101Mtl\.003$/u,
+    pitSelectionRadius: 300,
+    step: 5,
+    disc: 24,
+    outputPoints: 360,
+    smoothingPasses: 4,
+    heightWeight: 4,
+    headingDamping: 0.53,
+    mainStraightDirection: [1, 0],
+    sectors: [0.33, 0.67, 1],
+    passingZones: [[0.95, 0.08], [0.43, 0.57]],
+    cameras: [
+      { id: 'castrol', name: 'Castrol Edge', distance: 0.055, offset: 42, height: 24 },
+      { id: 'remus', name: 'Remus Hairpin', distance: 0.165, offset: 48, height: 28 },
+      { id: 'schlossgold', name: 'Schlossgold', distance: 0.34, offset: 46, height: 26 },
+      { id: 'infield-drone', name: 'Infield Drone', distance: 0.47, offset: 72, height: 90, side: -1 },
+      { id: 'rauch', name: 'Rauch Corner', distance: 0.59, offset: 44, height: 25 },
+      { id: 'wuerth', name: 'Wuerth Corner', distance: 0.7, offset: 45, height: 25 },
+      { id: 'rindt', name: 'Rindt Corner', distance: 0.83, offset: 46, height: 27 },
+      { id: 'red-bull-mobile', name: 'Red Bull Mobile', distance: 0.91, offset: 42, height: 24 },
+      { id: 'pit-straight', name: 'Pit Straight', distance: 0.985, offset: 54, height: 31 },
+    ],
+  },
+  austin: {
+    displayName: 'Circuit of the Americas',
+    sourceFile: 'Untitled_compressed.glb',
+    officialLengthMeters: 5_513,
+    laps: 56,
+    centerMaterial: /^roada$/u,
+    pitMaterial: /^roadpitlane$/u,
+    startMaterial: /^decalpitgrid$/u,
+    step: 5,
+    disc: 20,
+    heightWeight: 4,
+    headingDamping: 0.53,
+    mainStraightDirection: [0.8, 0.6],
+    sectors: [0.33, 0.67, 1],
+    passingZones: [[0.96, 0.08], [0.5, 0.64]],
+    cameras: [
+      { id: 'turn-1', name: 'Turn 1 Hill', distance: 0.09, offset: 60, height: 45 },
+      { id: 'esses', name: 'Esses', distance: 0.16, offset: 56, height: 34 },
+      { id: 'turn-9', name: 'Turn 9', distance: 0.28, offset: 45, height: 26 },
+      { id: 'turn-11', name: 'Turn 11 Hairpin', distance: 0.39, offset: 46, height: 27 },
+      { id: 'back-straight', name: 'Back Straight', distance: 0.53, offset: 72, height: 42 },
+      { id: 'turn-12', name: 'Turn 12 Braking', distance: 0.65, offset: 48, height: 28 },
+      { id: 'stadium', name: 'Stadium Complex', distance: 0.78, offset: 76, height: 75, side: -1 },
+      { id: 'turn-19', name: 'Turn 19', distance: 0.9, offset: 44, height: 25 },
+      { id: 'pit-straight', name: 'Pit Straight', distance: 0.985, offset: 72, height: 46, side: -1 },
+    ],
+  },
+  'abu-dhabi': {
+    displayName: 'Yas Marina Circuit',
+    sourceFile: 'abudhabi_compressed.glb',
+    officialLengthMeters: 5_281,
+    laps: 58,
+    centerMaterial: /^roada$/u,
+    pitMaterial: /^roada$/u,
+    startMaterial: /^rdltglowa$/u,
+    pitSelectionRadius: 120,
+    step: 5,
+    disc: 20,
+    seamBridgeRadius: 90,
+    outputPoints: 720,
+    smoothingPasses: 4,
+    calibrateAssetSpaceLength: {
+      rationale: 'The supplied GLB uses arbitrary asset-space units. The complete source-aligned Grand Prix loop remains in those coordinates for exact visual registration; only its simulation distance metadata is calibrated to the official 5,281 m lap.',
+    },
+    heightWeight: 4,
+    headingDamping: 0.53,
+    mainStraightDirection: [0.5, 0.85],
+    sectors: [0.33, 0.67, 1],
+    passingZones: [[0.96, 0.08], [0.34, 0.49]],
+    cameras: [
+      { id: 'turn-1', name: 'Turn 1', distance: 0.055, offset: 44, height: 26 },
+      { id: 'turn-5', name: 'Turn 5 Hairpin', distance: 0.24, offset: 46, height: 28 },
+      { id: 'back-straight', name: 'Back Straight', distance: 0.4, offset: 66, height: 39 },
+      { id: 'turn-6', name: 'Turn 6 Braking', distance: 0.51, offset: 46, height: 27 },
+      { id: 'marina', name: 'Marina Section', distance: 0.63, offset: 58, height: 34 },
+      { id: 'hotel', name: 'Yas Hotel', distance: 0.74, offset: 86, height: 82, side: -1 },
+      { id: 'turn-12', name: 'Turn 12', distance: 0.82, offset: 44, height: 26 },
+      { id: 'turn-16', name: 'Turn 16', distance: 0.92, offset: 43, height: 25 },
+      { id: 'pit-straight', name: 'Pit Straight', distance: 0.985, offset: 150, height: 170, side: -1 },
+    ],
+  },
 });
 
 const transformPoint = (point, matrix) => [
@@ -181,6 +298,18 @@ function centroid(points) {
     total[2] + point[2],
   ], [0, 0, 0]);
   return sum.map((value) => value / points.length);
+}
+
+function pointBounds(points) {
+  const min = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
+  const max = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+  for (const point of points) {
+    for (let axis = 0; axis < 3; axis += 1) {
+      min[axis] = Math.min(min[axis], point[axis]);
+      max[axis] = Math.max(max[axis], point[axis]);
+    }
+  }
+  return { min, max };
 }
 
 function materialVertices(root, pattern) {
@@ -419,7 +548,55 @@ function fitCenterline(points, tracePoint, config, zeroPoint = tracePoint) {
     Math.abs(attempt.travelled - config.officialLengthMeters) / config.officialLengthMeters
     + Math.min(1, attempt.closureGap / (config.disc * 2))
   );
-  const selected = attempts.sort((a, b) => score(a) - score(b))[0];
+  let selected = [...attempts].sort((a, b) => score(a) - score(b))[0];
+  let sourceEndpointJoin = null;
+  if (config.bidirectionalSourceJoin) {
+    const sourceEndpoints = attempts.map((attempt) => points[nearestIndex(points, attempt.path.at(-1))]);
+    const sourceEndpointDistance = pointDistance(sourceEndpoints[0], sourceEndpoints[1]);
+    const pathsAreLongEnough = attempts.every((attempt) => (
+      attempt.travelled >= config.bidirectionalSourceJoin.minimumPathSourceUnits
+    ));
+    const pathsStopAtSourceEdges = attempts.every((attempt) => attempt.termination.startsWith('no-forward-points'));
+    if (
+      !pathsAreLongEnough
+      || !pathsStopAtSourceEdges
+      || sourceEndpointDistance > config.bidirectionalSourceJoin.maximumEndpointGapSourceUnits
+    ) {
+      const error = new Error(`Bidirectional source join rejected (endpoint gap ${sourceEndpointDistance.toFixed(2)} source units; terminations ${attempts.map((attempt) => attempt.termination).join(', ')})`);
+      Object.defineProperty(error, 'fitEvidence', { value: { attempts, seed }, enumerable: false });
+      throw error;
+    }
+    const joinedPath = [
+      ...attempts[0].path.slice(0, -1),
+      sourceEndpoints[0],
+      sourceEndpoints[1],
+      ...attempts[1].path.slice(1, -1).reverse(),
+    ];
+    const joinedClosureGap = pointDistance(joinedPath.at(-1), joinedPath[0]);
+    sourceEndpointJoin = {
+      fromSourceVertex: [...sourceEndpoints[0]],
+      toSourceVertex: [...sourceEndpoints[1]],
+      sourceEndpointDistance,
+      maximumEndpointGapSourceUnits: config.bidirectionalSourceJoin.maximumEndpointGapSourceUnits,
+      acceptanceBasis: config.bidirectionalSourceJoin.acceptanceBasis,
+    };
+    selected = {
+      path: joinedPath,
+      travelled: loopLength(joinedPath),
+      closureGap: joinedClosureGap,
+      closestClosure: { gap: joinedClosureGap, travelled: loopLength(joinedPath), pathIndex: joinedPath.length - 1 },
+      termination: 'bidirectional-source-endpoint-join',
+      seamBridgeSteps: 1,
+      maximumSeamBridgeDistance: sourceEndpointDistance,
+      maximumSeamBridge: {
+        fromCursor: [...sourceEndpoints[0]],
+        fromSourceVertex: [...sourceEndpoints[0]],
+        toSourceVertex: [...sourceEndpoints[1]],
+        cursorToSourceDistance: sourceEndpointDistance,
+        sourceEndpointDistance,
+      },
+    };
+  }
   if (selected.closureGap > (config.closureTolerance ?? config.step * 3)) {
     const evidence = attempts.map(({ path, travelled, closureGap, closestClosure, termination, seamBridgeSteps, maximumSeamBridgeDistance }) => (
       `${path.length} points/${travelled.toFixed(1)} m/${closureGap.toFixed(1)} m gap/closest ${closestClosure.gap.toFixed(1)} m at ${closestClosure.travelled.toFixed(1)} m/end ${path.at(-1).map((value) => value.toFixed(1)).join(',')}/${termination}/bridges ${seamBridgeSteps} max ${maximumSeamBridgeDistance.toFixed(1)} m`
@@ -428,7 +605,10 @@ function fitCenterline(points, tracePoint, config, zeroPoint = tracePoint) {
     Object.defineProperty(error, 'fitEvidence', { value: { attempts, seed }, enumerable: false });
     throw error;
   }
-  let centerline = smoothClosed(resampleClosed(selected.path.slice(0, -1), 360), config.smoothingPasses ?? 2);
+  let centerline = smoothClosed(
+    resampleClosed(selected.path.slice(0, -1), config.outputPoints ?? 360),
+    config.smoothingPasses ?? 2,
+  );
 
   const tangent = [centerline[1][0] - centerline[0][0], centerline[1][2] - centerline[0][2]];
   if (tangent[0] * config.mainStraightDirection[0] + tangent[1] * config.mainStraightDirection[1] < 0) {
@@ -438,6 +618,17 @@ function fitCenterline(points, tracePoint, config, zeroPoint = tracePoint) {
   centerline = [...centerline.slice(zero), ...centerline.slice(0, zero)];
   return {
     centerline,
+    evidence: { attempts, seed },
+    selected: {
+      points: selected.path.length,
+      travelled: selected.travelled,
+      closureGap: selected.closureGap,
+      termination: selected.termination,
+      seamBridgeSteps: selected.seamBridgeSteps,
+      maximumSeamBridgeDistance: selected.maximumSeamBridgeDistance,
+      maximumSeamBridge: selected.maximumSeamBridge,
+    },
+    sourceEndpointJoin,
     attempts: attempts.map(({ path, travelled, closureGap, closestClosure, termination, seamBridgeSteps, maximumSeamBridgeDistance, maximumSeamBridge }) => ({
       points: path.length,
       travelled,
@@ -453,10 +644,9 @@ function fitCenterline(points, tracePoint, config, zeroPoint = tracePoint) {
 
 async function writeFitFailurePreview(id, sourcePoints, evidence) {
   const allPoints = [...sourcePoints, ...evidence.attempts.flatMap((attempt) => attempt.path)];
-  const minX = Math.min(...allPoints.map((point) => point[0]));
-  const maxX = Math.max(...allPoints.map((point) => point[0]));
-  const minZ = Math.min(...allPoints.map((point) => point[2]));
-  const maxZ = Math.max(...allPoints.map((point) => point[2]));
+  const failureBounds = pointBounds(allPoints);
+  const [minX, , minZ] = failureBounds.min;
+  const [maxX, , maxZ] = failureBounds.max;
   const width = 1600;
   const height = 1200;
   const padding = 50;
@@ -709,9 +899,16 @@ async function main() {
     }
     throw error;
   }
-  const fittedLength = loopLength(fit.centerline);
+  const fittedSourceLength = loopLength(fit.centerline);
+  const metersPerSourceUnit = config.calibrateAssetSpaceLength
+    ? config.officialLengthMeters / fittedSourceLength
+    : 1;
+  const fittedLength = fittedSourceLength * metersPerSourceUnit;
   const errorPercent = ((fittedLength - config.officialLengthMeters) / config.officialLengthMeters) * 100;
-  if (Math.abs(errorPercent) > 5) throw new Error(`Fitted length error is ${errorPercent.toFixed(2)}%`);
+  if (Math.abs(errorPercent) > 5) {
+    const diagnostic = await writeFitFailurePreview(id, sourcePoints, fit.evidence);
+    throw new Error(`Fitted length error is ${errorPercent.toFixed(2)}%; diagnostic ${diagnostic}`);
+  }
   const pit = derivePitLine(pitPoints, fit.centerline);
   const { anchors, bounds } = createCameraAnchors(fit.centerline, config);
 
@@ -742,27 +939,60 @@ async function main() {
       sourceVertices: sourcePoints.length,
       outputPoints: fit.centerline.length + 1,
       officialLengthMeters: config.officialLengthMeters,
+      fittedSourceLengthSourceUnits: fixed(fittedSourceLength, 2),
+      metersPerSourceUnit: fixed(metersPerSourceUnit, 8),
       fittedLengthMeters: fixed(fittedLength, 2),
       errorPercent: fixed(errorPercent, 3),
+      lengthCalibration: config.calibrateAssetSpaceLength ? {
+        strategy: 'official-distance-metadata-over-source-aligned-asset-space-loop',
+        rationale: config.calibrateAssetSpaceLength.rationale,
+      } : null,
+      selectedRoute: {
+        points: fit.selected.points,
+        travelledSourceUnits: fixed(fit.selected.travelled, 2),
+        travelledMeters: fixed(fit.selected.travelled * metersPerSourceUnit, 2),
+        closureGapSourceUnits: fixed(fit.selected.closureGap, 2),
+        closureGapMeters: fixed(fit.selected.closureGap * metersPerSourceUnit, 2),
+        termination: fit.selected.termination,
+        seamBridgeSteps: fit.selected.seamBridgeSteps,
+        maximumSeamBridgeDistanceSourceUnits: fixed(fit.selected.maximumSeamBridgeDistance, 2),
+        maximumSeamBridgeDistanceMeters: fixed(fit.selected.maximumSeamBridgeDistance * metersPerSourceUnit, 2),
+      },
+      sourceEndpointJoin: fit.sourceEndpointJoin ? {
+        fromSourceVertexWorld: fit.sourceEndpointJoin.fromSourceVertex.map((value) => fixed(value, 3)),
+        toSourceVertexWorld: fit.sourceEndpointJoin.toSourceVertex.map((value) => fixed(value, 3)),
+        sourceEndpointDistanceSourceUnits: fixed(fit.sourceEndpointJoin.sourceEndpointDistance, 3),
+        sourceEndpointDistanceMeters: fixed(fit.sourceEndpointJoin.sourceEndpointDistance * metersPerSourceUnit, 3),
+        maximumEndpointGapSourceUnits: fit.sourceEndpointJoin.maximumEndpointGapSourceUnits,
+        acceptanceBasis: fit.sourceEndpointJoin.acceptanceBasis,
+      } : null,
       closureAttempts: fit.attempts.map((attempt) => ({
         points: attempt.points,
-        travelledMeters: fixed(attempt.travelled, 2),
-        closureGapMeters: fixed(attempt.closureGap, 2),
+        travelledSourceUnits: fixed(attempt.travelled, 2),
+        travelledMeters: fixed(attempt.travelled * metersPerSourceUnit, 2),
+        closureGapSourceUnits: fixed(attempt.closureGap, 2),
+        closureGapMeters: fixed(attempt.closureGap * metersPerSourceUnit, 2),
         termination: attempt.termination,
         seamBridgeSteps: attempt.seamBridgeSteps,
-        maximumSeamBridgeDistanceMeters: fixed(attempt.maximumSeamBridgeDistance, 2),
+        maximumSeamBridgeDistanceSourceUnits: fixed(attempt.maximumSeamBridgeDistance, 2),
+        maximumSeamBridgeDistanceMeters: fixed(attempt.maximumSeamBridgeDistance * metersPerSourceUnit, 2),
         maximumSeamBridge: attempt.maximumSeamBridge ? {
           fromCursorWorld: attempt.maximumSeamBridge.fromCursor.map((value) => fixed(value, 3)),
           fromSourceVertexWorld: attempt.maximumSeamBridge.fromSourceVertex.map((value) => fixed(value, 3)),
           toSourceVertexWorld: attempt.maximumSeamBridge.toSourceVertex.map((value) => fixed(value, 3)),
-          cursorToSourceDistanceMeters: fixed(attempt.maximumSeamBridge.cursorToSourceDistance, 2),
-          sourceEndpointDistanceMeters: fixed(attempt.maximumSeamBridge.sourceEndpointDistance, 2),
+          cursorToSourceDistanceSourceUnits: fixed(attempt.maximumSeamBridge.cursorToSourceDistance, 2),
+          cursorToSourceDistanceMeters: fixed(attempt.maximumSeamBridge.cursorToSourceDistance * metersPerSourceUnit, 2),
+          sourceEndpointDistanceSourceUnits: fixed(attempt.maximumSeamBridge.sourceEndpointDistance, 2),
+          sourceEndpointDistanceMeters: fixed(attempt.maximumSeamBridge.sourceEndpointDistance * metersPerSourceUnit, 2),
         } : null,
       })),
       parameters: {
-        stepMeters: config.step,
-        samplingDiscMeters: config.disc,
-        seamBridgeRadiusMeters: config.seamBridgeRadius ?? null,
+        stepSourceUnits: config.step,
+        stepMeters: fixed(config.step * metersPerSourceUnit, 3),
+        samplingDiscSourceUnits: config.disc,
+        samplingDiscMeters: fixed(config.disc * metersPerSourceUnit, 3),
+        seamBridgeRadiusSourceUnits: config.seamBridgeRadius ?? null,
+        seamBridgeRadiusMeters: config.seamBridgeRadius ? fixed(config.seamBridgeRadius * metersPerSourceUnit, 3) : null,
         elevationWeight: config.heightWeight,
         headingDamping: config.headingDamping,
       },
@@ -772,7 +1002,8 @@ async function main() {
     pit: {
       sourceVertices: pitPoints.length,
       availableSourceVertices: allPitPoints.length,
-      selectionRadiusFromStartMeters: config.pitSelectionRadius ?? null,
+      selectionRadiusFromStartSourceUnits: config.pitSelectionRadius ?? null,
+      selectionRadiusFromStartMeters: config.pitSelectionRadius ? fixed(config.pitSelectionRadius * metersPerSourceUnit, 3) : null,
       outputPoints: pit.line.length,
       entry: fixed(pit.entry, 4),
       exit: fixed(pit.exit, 4),
@@ -798,8 +1029,13 @@ async function main() {
 - Geometry: ${runtimeManifest.inspection.triangles.toLocaleString('en-US')} triangles, ${runtimeManifest.inspection.meshes} meshes, ${runtimeManifest.inspection.materials} materials
 - Centerline source: material \`${centerMatches.map((match) => match.material).join(', ')}\`, transformed by its preserved GLB node world matrix
 - Pit source: material \`${pitMatches.map((match) => match.material).join(', ')}\`
-${config.pitSelectionRadius ? `- Pit selection: ${pitPoints.length} of ${allPitPoints.length} source vertices within ${config.pitSelectionRadius} m of the GLB start-marker material centroid
-` : ''}- Fitted lap: ${fittedLength.toFixed(2)} m versus ${config.officialLengthMeters} m official (${errorPercent.toFixed(3)}%)
+${config.pitSelectionRadius ? `- Pit selection: ${pitPoints.length} of ${allPitPoints.length} source vertices within ${config.pitSelectionRadius} source units (${(config.pitSelectionRadius * metersPerSourceUnit).toFixed(2)} m calibrated) of the GLB start-marker material centroid
+` : ''}- Source-aligned loop: ${fittedSourceLength.toFixed(2)} asset-space units; distance scale: ${metersPerSourceUnit.toFixed(8)} m/source unit
+- Fitted lap metadata: ${fittedLength.toFixed(2)} m versus ${config.officialLengthMeters} m official (${errorPercent.toFixed(3)}%)
+${config.calibrateAssetSpaceLength ? `- Asset-space calibration: ${config.calibrateAssetSpaceLength.rationale}
+` : ''}${fit.sourceEndpointJoin ? `- Bidirectional source join: exact source vertex [${fit.sourceEndpointJoin.fromSourceVertex.map((value) => fixed(value, 3)).join(', ')}] to [${fit.sourceEndpointJoin.toSourceVertex.map((value) => fixed(value, 3)).join(', ')}], ${fit.sourceEndpointJoin.sourceEndpointDistance.toFixed(3)} source units (${(fit.sourceEndpointJoin.sourceEndpointDistance * metersPerSourceUnit).toFixed(3)} m calibrated), bounded by ${fit.sourceEndpointJoin.maximumEndpointGapSourceUnits} source units
+- Join acceptance: ${fit.sourceEndpointJoin.acceptanceBasis}
+` : ''}
 ${config.seamBridgeReview ? `- Seam bridge review: ${config.seamBridgeReview.rejectedRadiusMeters} m was rejected (${config.seamBridgeReview.rejectedResult})
 - Accepted seam evidence: ${config.seamBridgeReview.acceptanceBasis}
 - Maximum bridge endpoints: ${fit.attempts.map((attempt) => attempt.maximumSeamBridge ? `cursor [${attempt.maximumSeamBridge.fromCursor.map((value) => fixed(value, 3)).join(', ')}], nearest source [${attempt.maximumSeamBridge.fromSourceVertex.map((value) => fixed(value, 3)).join(', ')}], target source [${attempt.maximumSeamBridge.toSourceVertex.map((value) => fixed(value, 3)).join(', ')}]` : 'none').join('; ')}
@@ -811,6 +1047,8 @@ The optimizer used mesh deduplication, instancing/palette consolidation, flatten
   console.log(JSON.stringify({
     circuitId: id,
     sourceVertices: sourcePoints.length,
+    fittedSourceLengthSourceUnits: fixed(fittedSourceLength, 2),
+    metersPerSourceUnit: fixed(metersPerSourceUnit, 8),
     fittedLengthMeters: fixed(fittedLength, 2),
     officialLengthMeters: config.officialLengthMeters,
     errorPercent: fixed(errorPercent, 3),

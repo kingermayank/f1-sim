@@ -1,0 +1,620 @@
+{
+  "schemaVersion": 1,
+  "circuitId": "abu-dhabi",
+  "displayName": "Yas Marina Circuit",
+  "outlinePoints": [
+    {
+      "x": -199.221,
+      "z": -120.126
+    },
+    {
+      "x": -191.709,
+      "z": -86.192
+    },
+    {
+      "x": -174.671,
+      "z": -49.892
+    },
+    {
+      "x": -157.022,
+      "z": -13.604
+    },
+    {
+      "x": -138.045,
+      "z": 22.017
+    },
+    {
+      "x": -116.744,
+      "z": 56.21
+    },
+    {
+      "x": -97.329,
+      "z": 90.647
+    },
+    {
+      "x": -84.592,
+      "z": 126.71
+    },
+    {
+      "x": -59.362,
+      "z": 138.155
+    },
+    {
+      "x": -40.688,
+      "z": 106.738
+    },
+    {
+      "x": -11.695,
+      "z": 80.339
+    },
+    {
+      "x": 22.724,
+      "z": 59.163
+    },
+    {
+      "x": 57.032,
+      "z": 37.756
+    },
+    {
+      "x": 90.615,
+      "z": 15.354
+    },
+    {
+      "x": 117.62,
+      "z": -13.879
+    },
+    {
+      "x": 132.66,
+      "z": -50.992
+    },
+    {
+      "x": 143.642,
+      "z": -89.883
+    },
+    {
+      "x": 154.987,
+      "z": -128.672
+    },
+    {
+      "x": 169.638,
+      "z": -166.149
+    },
+    {
+      "x": 193.956,
+      "z": -197.852
+    },
+    {
+      "x": 226.844,
+      "z": -220.767
+    },
+    {
+      "x": 264.474,
+      "z": -234.509
+    },
+    {
+      "x": 297.11,
+      "z": -250.906
+    },
+    {
+      "x": 298.699,
+      "z": -287.441
+    },
+    {
+      "x": 286.419,
+      "z": -325.013
+    },
+    {
+      "x": 296.977,
+      "z": -361.311
+    },
+    {
+      "x": 312.603,
+      "z": -394.729
+    },
+    {
+      "x": 292.516,
+      "z": -423.66
+    },
+    {
+      "x": 255.642,
+      "z": -437.803
+    },
+    {
+      "x": 216.271,
+      "z": -443.151
+    },
+    {
+      "x": 176.038,
+      "z": -445.005
+    },
+    {
+      "x": 140.433,
+      "z": -436.099
+    },
+    {
+      "x": 109.998,
+      "z": -411.835
+    },
+    {
+      "x": 73.767,
+      "z": -409.909
+    },
+    {
+      "x": 42.681,
+      "z": -432.594
+    },
+    {
+      "x": 4.359,
+      "z": -443.126
+    },
+    {
+      "x": -35.954,
+      "z": -444.731
+    },
+    {
+      "x": -76.394,
+      "z": -444.517
+    },
+    {
+      "x": -116.811,
+      "z": -443.178
+    },
+    {
+      "x": -157.201,
+      "z": -441.289
+    },
+    {
+      "x": -197.612,
+      "z": -441.568
+    },
+    {
+      "x": -238.03,
+      "z": -441.032
+    },
+    {
+      "x": -278.463,
+      "z": -440.737
+    },
+    {
+      "x": -318.852,
+      "z": -440.511
+    },
+    {
+      "x": -359.067,
+      "z": -440.512
+    },
+    {
+      "x": -398.361,
+      "z": -445.309
+    },
+    {
+      "x": -437.755,
+      "z": -448.393
+    },
+    {
+      "x": -463.064,
+      "z": -426.92
+    },
+    {
+      "x": -461.648,
+      "z": -388.486
+    },
+    {
+      "x": -469.194,
+      "z": -354.032
+    },
+    {
+      "x": -501.266,
+      "z": -330.562
+    },
+    {
+      "x": -535.135,
+      "z": -308.98
+    },
+    {
+      "x": -567.015,
+      "z": -285.221
+    },
+    {
+      "x": -598.055,
+      "z": -262.773
+    },
+    {
+      "x": -622.756,
+      "z": -235.139
+    },
+    {
+      "x": -647.53,
+      "z": -208.696
+    },
+    {
+      "x": -657.41,
+      "z": -170.101
+    },
+    {
+      "x": -671.286,
+      "z": -132.293
+    },
+    {
+      "x": -684.608,
+      "z": -94.195
+    },
+    {
+      "x": -696.711,
+      "z": -55.734
+    },
+    {
+      "x": -712.091,
+      "z": -18.593
+    },
+    {
+      "x": -724.138,
+      "z": 19.921
+    },
+    {
+      "x": -736.653,
+      "z": 58.355
+    },
+    {
+      "x": -749.009,
+      "z": 96.841
+    },
+    {
+      "x": -761.76,
+      "z": 135.195
+    },
+    {
+      "x": -773.297,
+      "z": 173.924
+    },
+    {
+      "x": -780.946,
+      "z": 213.572
+    },
+    {
+      "x": -786.187,
+      "z": 253.656
+    },
+    {
+      "x": -789.682,
+      "z": 293.943
+    },
+    {
+      "x": -792.95,
+      "z": 334.255
+    },
+    {
+      "x": -796.23,
+      "z": 374.566
+    },
+    {
+      "x": -799.511,
+      "z": 414.849
+    },
+    {
+      "x": -804.051,
+      "z": 453.164
+    },
+    {
+      "x": -779.4,
+      "z": 475.31
+    },
+    {
+      "x": -741.739,
+      "z": 487.109
+    },
+    {
+      "x": -707.816,
+      "z": 507.009
+    },
+    {
+      "x": -668.856,
+      "z": 510.103
+    },
+    {
+      "x": -630.34,
+      "z": 499.056
+    },
+    {
+      "x": -593.562,
+      "z": 487.722
+    },
+    {
+      "x": -572.794,
+      "z": 457.623
+    },
+    {
+      "x": -581.439,
+      "z": 421.146
+    },
+    {
+      "x": -600.616,
+      "z": 385.717
+    },
+    {
+      "x": -623.819,
+      "z": 353.083
+    },
+    {
+      "x": -642.347,
+      "z": 317.288
+    },
+    {
+      "x": -663.406,
+      "z": 283.81
+    },
+    {
+      "x": -684.71,
+      "z": 250.581
+    },
+    {
+      "x": -693.692,
+      "z": 211.681
+    },
+    {
+      "x": -690.434,
+      "z": 172.092
+    },
+    {
+      "x": -679.857,
+      "z": 133.1
+    },
+    {
+      "x": -664.494,
+      "z": 96.394
+    },
+    {
+      "x": -643.267,
+      "z": 62.524
+    },
+    {
+      "x": -612.457,
+      "z": 38.334
+    },
+    {
+      "x": -583.804,
+      "z": 14.014
+    },
+    {
+      "x": -548.128,
+      "z": 13.146
+    },
+    {
+      "x": -523.372,
+      "z": 35.826
+    },
+    {
+      "x": -515.953,
+      "z": 71.98
+    },
+    {
+      "x": -484.611,
+      "z": 91.773
+    },
+    {
+      "x": -446.837,
+      "z": 92.492
+    },
+    {
+      "x": -410.043,
+      "z": 77.948
+    },
+    {
+      "x": -382.469,
+      "z": 51.121
+    },
+    {
+      "x": -379.939,
+      "z": 15.453
+    },
+    {
+      "x": -398.668,
+      "z": -18.516
+    },
+    {
+      "x": -415.395,
+      "z": -54.816
+    },
+    {
+      "x": -433.759,
+      "z": -90.808
+    },
+    {
+      "x": -454.166,
+      "z": -124.576
+    },
+    {
+      "x": -475.801,
+      "z": -157.642
+    },
+    {
+      "x": -489.508,
+      "z": -193.039
+    },
+    {
+      "x": -478.123,
+      "z": -228.635
+    },
+    {
+      "x": -462.671,
+      "z": -264.124
+    },
+    {
+      "x": -436.241,
+      "z": -294.479
+    },
+    {
+      "x": -409.189,
+      "z": -324.542
+    },
+    {
+      "x": -379.978,
+      "z": -351.304
+    },
+    {
+      "x": -342.01,
+      "z": -360.077
+    },
+    {
+      "x": -306.543,
+      "z": -354.323
+    },
+    {
+      "x": -289.246,
+      "z": -323.577
+    },
+    {
+      "x": -290.188,
+      "z": -288.155
+    },
+    {
+      "x": -275.328,
+      "z": -251.026
+    },
+    {
+      "x": -257.304,
+      "z": -214.899
+    },
+    {
+      "x": -238.691,
+      "z": -179.035
+    },
+    {
+      "x": -222.781,
+      "z": -143.067
+    }
+  ],
+  "source": {
+    "archive": "/Users/mayankkinger/Downloads/yas-marina-circuit-abu-dhabi-2021-layout.zip",
+    "stagedArchive": "/Users/mayankkinger/Documents/Codex/2026-08-04/f1-simulation/.worktrees/feat-f1-simulation/work/assets-source/tracks/abu-dhabi/original/yas-marina-circuit-abu-dhabi-2021-layout.zip",
+    "model": "source/abudhabi_compressed.glb",
+    "archiveSha256": "6fa4490b42b4f75d3cd6f4127067c72ff00c9ced4b482b78c24c0bd22f0fcc7e",
+    "centerlineMaterials": [
+      "rmbl_s",
+      "roada"
+    ],
+    "pitMaterials": [
+      "roada"
+    ],
+    "traceStartMaterials": [
+      "rdltglowa"
+    ]
+  },
+  "visibleTransform": {
+    "strategy": "source-node-world-matrix-preserved",
+    "matrices": [
+      [
+        1,
+        0,
+        0,
+        0,
+        0,
+        -1.3435885648505064e-7,
+        1.0000001343588565,
+        0,
+        0,
+        -1.0000001343588565,
+        -1.3435885648505064e-7,
+        0,
+        0,
+        0,
+        0,
+        1
+      ]
+    ]
+  },
+  "fit": {
+    "method": "height-aware forward centroid march over source road material",
+    "sourceVertices": 120241,
+    "outputPoints": 721,
+    "officialLengthMeters": 5281,
+    "fittedSourceLengthSourceUnits": 4701.13,
+    "metersPerSourceUnit": 1.12334801,
+    "fittedLengthMeters": 5281,
+    "errorPercent": 0,
+    "lengthCalibration": {
+      "strategy": "official-distance-metadata-over-source-aligned-asset-space-loop",
+      "rationale": "The supplied GLB uses arbitrary asset-space units. The complete source-aligned Grand Prix loop remains in those coordinates for exact visual registration; only its simulation distance metadata is calibrated to the official 5,281 m lap."
+    },
+    "selectedRoute": {
+      "points": 968,
+      "travelledSourceUnits": 4835.74,
+      "travelledMeters": 5432.22,
+      "closureGapSourceUnits": 19.37,
+      "closureGapMeters": 21.76,
+      "termination": "closed",
+      "seamBridgeSteps": 0,
+      "maximumSeamBridgeDistanceSourceUnits": 0,
+      "maximumSeamBridgeDistanceMeters": 0
+    },
+    "sourceEndpointJoin": null,
+    "closureAttempts": [
+      {
+        "points": 345,
+        "travelledSourceUnits": 1720.86,
+        "travelledMeters": 1933.13,
+        "closureGapSourceUnits": 749.51,
+        "closureGapMeters": 841.96,
+        "termination": "no-forward-points(20.0m:0,30.0m:0,40.0m:0,60.0m:0)",
+        "seamBridgeSteps": 0,
+        "maximumSeamBridgeDistanceSourceUnits": 0,
+        "maximumSeamBridgeDistanceMeters": 0,
+        "maximumSeamBridge": null
+      },
+      {
+        "points": 968,
+        "travelledSourceUnits": 4835.74,
+        "travelledMeters": 5432.22,
+        "closureGapSourceUnits": 19.37,
+        "closureGapMeters": 21.76,
+        "termination": "closed",
+        "seamBridgeSteps": 0,
+        "maximumSeamBridgeDistanceSourceUnits": 0,
+        "maximumSeamBridgeDistanceMeters": 0,
+        "maximumSeamBridge": null
+      }
+    ],
+    "parameters": {
+      "stepSourceUnits": 5,
+      "stepMeters": 5.617,
+      "samplingDiscSourceUnits": 20,
+      "samplingDiscMeters": 22.467,
+      "seamBridgeRadiusSourceUnits": null,
+      "seamBridgeRadiusMeters": null,
+      "elevationWeight": 4,
+      "headingDamping": 0.53
+    },
+    "seamBridgeReview": null,
+    "worldBounds": {
+      "min": [
+        -804.1648391075657,
+        -4.778190638322693,
+        -448.70534230733443
+      ],
+      "max": [
+        312.6025536810332,
+        5.191120731547649,
+        511.2508076831514
+      ]
+    }
+  },
+  "pit": {
+    "sourceVertices": 3442,
+    "availableSourceVertices": 75743,
+    "selectionRadiusFromStartSourceUnits": 120,
+    "selectionRadiusFromStartMeters": 134.802,
+    "outputPoints": 30,
+    "entry": 0.9736,
+    "exit": 0.025
+  },
+  "runtime": {
+    "runtimeFile": "/assets/models/tracks/abu-dhabi.glb",
+    "bytes": 13874976,
+    "sha256": "948b1865657b5481190678e155947b8ed16375c38dc3de204b589b756df3aabb"
+  },
+  "diagnostics": [
+    "work/assets-source/tracks/abu-dhabi/diagnostics/overhead.png",
+    "work/assets-source/tracks/abu-dhabi/diagnostics/track-level-1.png",
+    "work/assets-source/tracks/abu-dhabi/diagnostics/track-level-2.png"
+  ]
+}

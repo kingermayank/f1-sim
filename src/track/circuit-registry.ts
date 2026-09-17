@@ -55,6 +55,33 @@ const LOADERS = {
       track: SILVERSTONE_TRACK,
     };
   },
+  singapore: async (): Promise<CircuitRuntime> => {
+    const { SINGAPORE_RACE_LAPS, SINGAPORE_TRACK } = await import('./generated/singapore-track');
+    return {
+      id: 'singapore',
+      laps: SINGAPORE_RACE_LAPS,
+      assetUrl: '/assets/models/tracks/singapore.glb',
+      track: SINGAPORE_TRACK,
+    };
+  },
+  'red-bull-ring': async (): Promise<CircuitRuntime> => {
+    const { RED_BULL_RING_RACE_LAPS, RED_BULL_RING_TRACK } = await import('./generated/red-bull-ring-track');
+    return {
+      id: 'red-bull-ring',
+      laps: RED_BULL_RING_RACE_LAPS,
+      assetUrl: '/assets/models/tracks/red-bull-ring.glb',
+      track: RED_BULL_RING_TRACK,
+    };
+  },
+  austin: async (): Promise<CircuitRuntime> => {
+    const { AUSTIN_RACE_LAPS, AUSTIN_TRACK } = await import('./generated/austin-track');
+    return {
+      id: 'austin',
+      laps: AUSTIN_RACE_LAPS,
+      assetUrl: '/assets/models/tracks/austin.glb',
+      track: AUSTIN_TRACK,
+    };
+  },
 } as const;
 
 export type PlayableCircuitId = keyof typeof LOADERS;

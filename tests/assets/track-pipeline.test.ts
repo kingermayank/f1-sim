@@ -193,6 +193,47 @@ function createLargeSemanticGlb(byteLength = 30_000_004) {
   return glb;
 }
 
+function createDensePreviewGlb(pointCount = 140_000) {
+  const byteLength = pointCount * 12;
+  const json = Buffer.from(JSON.stringify({
+    asset: { version: '2.0' },
+    buffers: [{ byteLength }],
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength }],
+    accessors: [{
+      bufferView: 0,
+      componentType: 5126,
+      count: pointCount,
+      type: 'VEC3',
+      min: [0, 0, 0],
+      max: [1, 0, 1],
+    }],
+    materials: [{ name: 'dense-road' }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 }, material: 0, mode: 0 }] }],
+    nodes: [{ mesh: 0 }],
+    scenes: [{ nodes: [0] }],
+    scene: 0,
+  }));
+  const jsonPadding = (4 - (json.length % 4)) % 4;
+  const paddedJson = Buffer.concat([json, Buffer.alloc(jsonPadding, 0x20)]);
+  const totalLength = 12 + 8 + paddedJson.length + 8 + byteLength;
+  const glb = Buffer.alloc(totalLength);
+  glb.write('glTF', 0);
+  glb.writeUInt32LE(2, 4);
+  glb.writeUInt32LE(totalLength, 8);
+  glb.writeUInt32LE(paddedJson.length, 12);
+  glb.write('JSON', 16);
+  paddedJson.copy(glb, 20);
+  const binHeader = 20 + paddedJson.length;
+  glb.writeUInt32LE(byteLength, binHeader);
+  glb.write('BIN\0', binHeader + 4);
+  const positions = new Float32Array(glb.buffer, glb.byteOffset + binHeader + 8, pointCount * 3);
+  for (let index = 0; index < pointCount; index += 1) {
+    positions[index * 3] = index / (pointCount - 1);
+    positions[index * 3 + 2] = (pointCount - 1 - index) / (pointCount - 1);
+  }
+  return glb;
+}
+
 afterEach(() => {
   while (temporaryRoots.length) rmSync(temporaryRoots.pop()!, { recursive: true, force: true });
 });
@@ -218,6 +259,56 @@ describe('track source inventory', () => {
 });
 
 describe('track pipeline CLI contract', () => {
+  it('depth-tests every overlay in the required track-level diagnostic views', () => {
+    const diagnosticSource = readFileSync('scripts/track-diagnostic-browser.ts', 'utf8');
+
+    expect(diagnosticSource).toContain("const overlayDepthTest = view !== 'overhead';");
+    expect(diagnosticSource.match(/depthTest: overlayDepthTest/gu)).toHaveLength(5);
+    expect(diagnosticSource).not.toContain('depthTest: false');
+  });
+
+  it('limits bidirectional seam joins to exact source endpoints with recorded evidence', () => {
+    const generatorSource = readFileSync('scripts/generate-circuit-definition.mjs', 'utf8');
+
+    expect(generatorSource).toContain('config.bidirectionalSourceJoin');
+    expect(generatorSource).toContain('fromSourceVertex: [...sourceEndpoints[0]]');
+    expect(generatorSource).toContain('toSourceVertex: [...sourceEndpoints[1]]');
+    expect(generatorSource).toContain('sourceEndpointDistance > config.bidirectionalSourceJoin.maximumEndpointGapSourceUnits');
+    expect(generatorSource).toContain("termination: 'bidirectional-source-endpoint-join'");
+  });
+
+  it('keeps arbitrary-unit circuit geometry source-aligned while calibrating only distance metadata', () => {
+    const generatorSource = readFileSync('scripts/generate-circuit-definition.mjs', 'utf8');
+
+    expect(generatorSource).toContain('const fittedSourceLength = loopLength(fit.centerline);');
+    expect(generatorSource).toContain('const metersPerSourceUnit = config.calibrateAssetSpaceLength');
+    expect(generatorSource).toContain('config.officialLengthMeters / fittedSourceLength');
+    expect(generatorSource).toContain('fittedSourceLengthSourceUnits: fixed(fittedSourceLength, 2)');
+    expect(generatorSource).toContain("strategy: 'source-node-world-matrix-preserved'");
+  });
+
+  it('previews dense candidate materials without overflowing the JavaScript argument stack', () => {
+    const root = mkdtempSync(join(tmpdir(), 'track-preview-'));
+    temporaryRoots.push(root);
+    const source = join(root, 'dense.glb');
+    const output = join(root, 'dense.png');
+    writeFileSync(source, createDensePreviewGlb());
+
+    const preview = runCli('preview-track-materials.mjs', [source, output, 'dense-road']);
+
+    expect(preview.status, preview.stderr).toBe(0);
+    expect(existsSync(output)).toBe(true);
+    expect(JSON.parse(preview.stdout)).toMatchObject({ samples: 140_000 });
+  });
+
+  it('bounds dense fit-failure evidence without spreading every source point', () => {
+    const generatorSource = readFileSync('scripts/generate-circuit-definition.mjs', 'utf8');
+
+    expect(generatorSource).not.toContain('Math.min(...allPoints.map');
+    expect(generatorSource).not.toContain('Math.max(...allPoints.map');
+    expect(generatorSource).toContain('const failureBounds = pointBounds(allPoints);');
+  });
+
   it('uses an isolated temp output sandbox only in test mode', () => {
     const testRoot = mkdtempSync(join(tmpdir(), 'track-output-root-'));
     temporaryRoots.push(testRoot);
@@ -335,6 +426,29 @@ describe('track pipeline CLI contract', () => {
     expect(envelope).toMatchObject({ schemaVersion: 1, ok: true, command: 'optimize' });
     expect(envelope.data.warnings).toContain('Optimizer: warning-from-test-optimizer');
     expect(optimized.stderr).toContain('warning-from-test-optimizer');
+  });
+
+  it('disables sparse accessor output in every track optimization', () => {
+    const fixture = createSourceFixture();
+    const argumentsPath = join(fixture.sourceRoot, 'optimizer-arguments.json');
+    const optimizer = join(fixture.sourceRoot, 'argument-capturing-optimizer.mjs');
+    writeFileSync(optimizer, [
+      '#!/usr/bin/env node',
+      "import { copyFileSync, writeFileSync } from 'node:fs';",
+      `writeFileSync(${JSON.stringify(argumentsPath)}, JSON.stringify(process.argv.slice(2)));`,
+      "copyFileSync(process.argv[3], process.argv[4]);",
+    ].join('\n'));
+    chmodSync(optimizer, 0o755);
+
+    const optimized = runCli('optimize-track.mjs', ['--circuit', 'suzuka'], pipelineEnv(fixture, {
+      TRACK_PIPELINE_TEST_OPTIMIZER: optimizer,
+    }));
+
+    expect(optimized.status, optimized.stderr).toBe(0);
+    const optimizerArguments = JSON.parse(readFileSync(argumentsPath, 'utf8')) as string[];
+    const sparseIndex = optimizerArguments.indexOf('--sparse');
+    expect(sparseIndex).toBeGreaterThan(-1);
+    expect(optimizerArguments[sparseIndex + 1]).toBe('false');
   });
 
   it.each([

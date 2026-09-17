@@ -306,5 +306,53 @@
     "runtimeBytes": 18201852,
     "publicationAllowed": false,
     "modifications": "Local-prototype-only optimization with conservative geometry simplification, 1024px WebP textures, pruning, and meshopt compression. The racing spline is derived from the GLB's groove, groove2, groove3, and asphalt materials; the current Grand Prix pit line is selected from asph_pitlane relative to the walls2 start marker, with the authored node world transform preserved. No license or source-page URL has been verified; publication remains blocked."
+  },
+  {
+    "id": "track-singapore-local-prototype",
+    "circuitId": "singapore",
+    "title": "Marina Bay Street Circuit",
+    "creator": "UNRECORDED - source-page and author details not supplied",
+    "source": "User-supplied local archive: marina-bay-street-circuit.zip",
+    "license": "UNVERIFIED",
+    "downloadedAt": "2026-08-05 (supplied by the project owner)",
+    "originalFile": "work/assets-source/tracks/singapore/original/marina-bay-street-circuit.zip",
+    "runtimeFile": "/assets/models/tracks/singapore.glb",
+    "sourceSha256": "6fefd251ceb3db66e19a6cba493c4270c6676fd03db93f953bb99e5137c33614",
+    "runtimeSha256": "a1d8e7e57444fd48b012fa0cb95a8504173b96b171126cebd2ddfe3821ee7975",
+    "runtimeBytes": 10632992,
+    "publicationAllowed": false,
+    "modifications": "Local-prototype-only optimization with conservative geometry simplification, 1024px WebP textures, pruning, and meshopt compression. The racing spline is derived from the GLB's continuous 151Mtl road surface; the pit line and start reference are derived from the physically aligned 11761Mtl pit-side strip, with the authored node world transform preserved. No license or source-page URL has been verified; publication remains blocked."
+  },
+  {
+    "id": "track-red-bull-ring-local-prototype",
+    "circuitId": "red-bull-ring",
+    "title": "Red Bull Ring - 2025 layout",
+    "creator": "UNRECORDED - source-page and author details not supplied",
+    "source": "User-supplied local archive: redbull-ring-2025-layout.zip",
+    "license": "UNVERIFIED",
+    "downloadedAt": "2026-08-05 (supplied by the project owner)",
+    "originalFile": "work/assets-source/tracks/red-bull-ring/original/redbull-ring-2025-layout.zip",
+    "runtimeFile": "/assets/models/tracks/red-bull-ring.glb",
+    "sourceSha256": "c9d28259ee938ddbbbbf2cc0887f703bf4c4b066cd6e792b4b4d6e734137caa5",
+    "runtimeSha256": "aecb3ab218a463eab4c1cdf45dedfde5ff38e558cebd8cbdbbdd6edb8dc1af91",
+    "runtimeBytes": 11518576,
+    "publicationAllowed": false,
+    "modifications": "Local-prototype-only optimization with conservative geometry simplification, 1024px WebP textures, pruning, and meshopt compression. The racing spline is derived from the GLB's full-route Acuredbullring201Mtl.003 road surface; the pit line is selected from Acuredbullring131Mtl.003 relative to the physically aligned Acuredbullring101Mtl.003 start reference, with the authored node world transform preserved. No license or source-page URL has been verified; publication remains blocked."
+  },
+  {
+    "id": "track-austin-local-prototype",
+    "circuitId": "austin",
+    "title": "Circuit of the Americas - 2012 layout",
+    "creator": "UNRECORDED - source-page and author details not supplied",
+    "source": "User-supplied local archive: austin-circuit-of-the-americas-2012-layout.zip",
+    "license": "UNVERIFIED",
+    "downloadedAt": "2026-08-05 (supplied by the project owner)",
+    "originalFile": "work/assets-source/tracks/austin/original/austin-circuit-of-the-americas-2012-layout.zip",
+    "runtimeFile": "/assets/models/tracks/austin.glb",
+    "sourceSha256": "ac1d58aeb90957a8c62936217c302c134f05cdf0944fb469c7153efb7e1c61f5",
+    "runtimeSha256": "575134ec539a0b83cfac1a7c1f36c4d36156a057cd4b7b2792d5af721f070aff",
+    "runtimeBytes": 7664944,
+    "publicationAllowed": false,
+    "modifications": "Local-prototype-only optimization with conservative geometry simplification, 1024px WebP textures, pruning, and meshopt compression. The racing spline is derived from the GLB's complete roada surface; the pit line is derived from roadpitlane and the start reference from the explicit decalpitgrid source material, with the authored node world transform preserved. No license or source-page URL has been verified; publication remains blocked."
   }
 ]

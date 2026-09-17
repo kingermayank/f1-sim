@@ -14,6 +14,7 @@ declare global {
 const parameters = new URLSearchParams(location.search);
 const id = parameters.get('circuit');
 const view = parameters.get('view') ?? 'overhead';
+const overlayDepthTest = view !== 'overhead';
 if (!id || !/^[a-z0-9-]+$/u.test(id)) throw new Error('Missing or invalid circuit ID');
 
 const module = await import(/* @vite-ignore */ `/src/track/generated/${id}-track.ts`);
@@ -22,7 +23,7 @@ const track = Object.values(module).find((value): value is TrackDefinition => (
 ));
 if (!track) throw new Error(`Track definition export not found for ${id}`);
 
-document.querySelector('#title')!.textContent = `${id} · ${view.replaceAll('-', ' ')}`;
+document.querySelector('#title')!.textContent = `${id} · ${view.replaceAll('-', ' ')} · ${overlayDepthTest ? 'depth-tested' : 'overview overlay'}`;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(1);
@@ -60,7 +61,7 @@ scene.add(gltf.scene);
 const toVector = (point: TrackPoint, lift = 0) => new THREE.Vector3(point.x, point.y + lift, point.z);
 function line(points: readonly TrackPoint[], color: string, lift: number, opacity = 1): THREE.Line {
   const geometry = new THREE.BufferGeometry().setFromPoints(points.map((point) => toVector(point, lift)));
-  const material = new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity, depthTest: false });
+  const material = new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity, depthTest: overlayDepthTest });
   const result = new THREE.Line(geometry, material);
   result.renderOrder = 10;
   return result;
@@ -85,7 +86,7 @@ function sample(fraction: number): { point: THREE.Vector3; tangent: THREE.Vector
   return { point, tangent, normal };
 }
 
-const markerMaterial = new THREE.MeshBasicMaterial({ color: '#ffe055', depthTest: false });
+const markerMaterial = new THREE.MeshBasicMaterial({ color: '#ffe055', depthTest: overlayDepthTest });
 for (const slot of track.gridSlots) {
   const { point, tangent, normal } = sample(slot.distance);
   const marker = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.55, 5.1), markerMaterial);
@@ -96,7 +97,7 @@ for (const slot of track.gridSlots) {
   scene.add(marker);
 }
 
-const sectorMaterial = new THREE.MeshBasicMaterial({ color: '#ff6d43', depthTest: false });
+const sectorMaterial = new THREE.MeshBasicMaterial({ color: '#ff6d43', depthTest: overlayDepthTest });
 for (const boundary of track.sectors) {
   const { point } = sample(boundary % 1);
   const marker = new THREE.Mesh(new THREE.SphereGeometry(5.2, 16, 12), sectorMaterial);
@@ -106,7 +107,7 @@ for (const boundary of track.sectors) {
   scene.add(marker);
 }
 
-const cameraMaterial = new THREE.MeshBasicMaterial({ color: '#8bff70', depthTest: false });
+const cameraMaterial = new THREE.MeshBasicMaterial({ color: '#8bff70', depthTest: overlayDepthTest });
 for (const anchor of track.cameraAnchors) {
   const marker = new THREE.Mesh(new THREE.ConeGeometry(5, 13, 10), cameraMaterial);
   marker.position.copy(toVector(anchor.position));
@@ -115,7 +116,7 @@ for (const anchor of track.cameraAnchors) {
   const target = sample(anchor.distance).point;
   const ray = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([marker.position, target]),
-    new THREE.LineBasicMaterial({ color: '#8bff70', transparent: true, opacity: 0.52, depthTest: false }),
+    new THREE.LineBasicMaterial({ color: '#8bff70', transparent: true, opacity: 0.52, depthTest: overlayDepthTest }),
   );
   ray.renderOrder = 11;
   scene.add(ray);
@@ -139,6 +140,10 @@ if (view === 'overhead') {
     barcelona: ['pit-straight', 'campsa'],
     spa: ['pit-straight', 'raidillon'],
     silverstone: ['hamilton-straight', 'hangar-straight'],
+    singapore: ['pit-straight', 'bayfront-drone'],
+    'red-bull-ring': ['pit-straight', 'remus'],
+    austin: ['pit-straight', 'turn-1'],
+    'abu-dhabi': ['pit-straight', 'hotel'],
   };
   const preferredId = preferredAnchorIds[id]?.[view === 'track-level-1' ? 0 : 1];
   const anchor = trackLevelAnchors.find((candidate) => candidate.id === preferredId)
