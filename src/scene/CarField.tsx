@@ -258,11 +258,11 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
         <group scale={CAR_LENGTH_METRES / 4.15}>
           <mesh castShadow position={[0, 0.47, 0.05]}>
             <boxGeometry args={[1.12, 0.4, 2.55]} />
-            <meshStandardMaterial color={team.color} roughness={0.38} metalness={0.2} />
+            <meshStandardMaterial color={team.color} roughness={0.35} metalness={0.25} envMapIntensity={1.1} />
           </mesh>
           <mesh castShadow position={[0, 0.42, -1.55]} rotation={[Math.PI / 2, 0, 0]}>
             <coneGeometry args={[0.46, 2.2, 8]} />
-            <meshStandardMaterial color={team.accent} roughness={0.4} />
+            <meshStandardMaterial color={team.accent} roughness={0.38} envMapIntensity={1.1} />
           </mesh>
           <mesh position={[0, 0.18, 0]}>
             <boxGeometry args={[1.55, 0.08, 4.15]} />
@@ -307,8 +307,11 @@ function LoadedTeamCar({ car, selected, selectDriver, showLabel }: CarProps) {
     // metal materials. Keep them and only tame the extremes so every car sits
     // in the same lighting rather than repainting them with flat team colours.
     const material = ownedMaterial;
-    material.roughness = Math.min(0.95, Math.max(0.18, material.roughness));
-    material.envMapIntensity = 0.85;
+    material.roughness = Math.min(0.92, Math.max(0.18, material.roughness));
+    material.envMapIntensity = 1.05;
+    if (material.color.r + material.color.g + material.color.b > 0.5) {
+      material.color.multiplyScalar(1.08);
+    }
   }), [gltf.scene]);
 
   useEffect(() => () => cloneResources.dispose(), [cloneResources]);

@@ -172,13 +172,13 @@ export function Environment({ quality }: { quality: SceneQualityTier }) {
   return (
     <>
       <color attach="background" args={['#4a5d70']} />
-      <fog attach="fog" args={['#3d4f5f', 1200, 3600]} />
-      <hemisphereLight args={['#a8c4dc', '#1a2228', quality === 'high' ? 1.2 : 1.5]} />
+      <fog attach="fog" args={['#455a6a', 1500, 3800]} />
+      <hemisphereLight args={['#b8d0e8', '#1a2228', quality === 'high' ? 1.35 : 1.65]} />
       <directionalLight
         castShadow={quality === 'high'}
-        color="#d8e8f8"
-        intensity={2.8}
-        position={[720, 880, 520]}
+        color="#e8f2ff"
+        intensity={3.2}
+        position={[720, 920, 520]}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-CIRCUIT_EXTENT / 2}
         shadow-camera-right={CIRCUIT_EXTENT / 2}
@@ -187,7 +187,7 @@ export function Environment({ quality }: { quality: SceneQualityTier }) {
         shadow-camera-far={2600}
         shadow-bias={-0.0006}
       />
-      <ambientLight intensity={0.3} color="#b4c8dc" />
+      <ambientLight intensity={0.38} color="#b8cce0" />
       {/* Sits below the circuit datum so the supplied terrain reads as the
           surface and this only fills the far horizon. */}
       <mesh position={[0, -8, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
