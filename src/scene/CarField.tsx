@@ -241,8 +241,8 @@ function AnimatedCar({ car, selected, selectDriver, model, showLabel = false }: 
     >
       {selected && (
         <mesh position={[0, 1.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.25, 1.48, 28]} />
-          <meshBasicMaterial color="#fff3bd" transparent opacity={0.9} depthWrite={false} />
+          <ringGeometry args={[1.25, 1.48, 32]} />
+          <meshBasicMaterial color="#e8f2ff" transparent opacity={0.75} depthWrite={false} />
         </mesh>
       )}
       {showLabel && (
