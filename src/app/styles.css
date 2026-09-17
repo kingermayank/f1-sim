@@ -84,7 +84,7 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 
 .race-hud { position: absolute; z-index: 4; inset: 0; pointer-events: none; }
 .race-hud button, .race-hud select, .race-hud a, .race-hud__left, .race-hud__right, .race-header, .playback-controls, .finish-screen, .credits-panel, .more-panel { pointer-events: auto; }
-.race-header { position: absolute; top: .75rem; left: .75rem; right: .75rem; min-height: 4rem; display: grid; grid-template-columns: minmax(15rem, 1fr) auto minmax(15rem, 1fr); align-items: center; gap: 1rem; border: 1px solid var(--glass-chrome); border-radius: .35rem; padding: .45rem .7rem; background: var(--glass); box-shadow: 0 .5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 6%); backdrop-filter: blur(20px) saturate(110%); }
+.race-header { position: absolute; top: 1rem; left: 1rem; right: 1rem; min-height: 4rem; display: grid; grid-template-columns: minmax(15rem, 1fr) auto minmax(15rem, 1fr); align-items: center; gap: 1rem; border: 1px solid var(--glass-chrome); border-radius: .35rem; padding: .45rem .7rem; background: var(--glass); box-shadow: 0 .5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 6%); backdrop-filter: blur(20px) saturate(110%); }
 .race-header__brand { display: flex; align-items: center; gap: .65rem; min-width: 0; }
 .race-header__mark { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; flex: none; border-radius: .2rem; background: var(--ink); border: 1px solid var(--glass-chrome); color: var(--broadcast-white); font-family: var(--font-wide); font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; }
 .race-header__brand p, .race-meta span { margin: 0 0 .12rem; color: var(--broadcast-blue); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
@@ -106,7 +106,7 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .race-meta button { grid-column: 2; grid-row: 1 / span 2; border: 1px solid var(--line); border-radius: .3rem; margin-left: .65rem; padding: 0 .8rem; background: transparent; color: #ecf0f5; cursor: pointer; font-size: .6875rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 
 .panel-kicker { min-height: 1.85rem; display: flex; align-items: center; justify-content: space-between; margin: 0; padding: 0 .65rem; border-bottom: 1px solid var(--line-subtle); color: var(--broadcast-blue); font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; background: rgb(0 0 0 / 8%); }
-.race-hud__left { position: absolute; top: 5.45rem; bottom: 6.8rem; left: .75rem; width: clamp(20rem, 25.5vw, 23rem); overflow: hidden; border: 1px solid var(--glass-chrome); border-radius: .35rem; background: var(--glass); box-shadow: 0 .5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 5%); backdrop-filter: blur(20px) saturate(110%); }
+.race-hud__left { position: absolute; top: 5.5rem; bottom: 7rem; left: 1rem; width: clamp(20rem, 25.5vw, 23rem); overflow: hidden; border: 1px solid var(--glass-chrome); border-radius: .35rem; background: var(--glass); box-shadow: 0 .5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 5%); backdrop-filter: blur(20px) saturate(110%); }
 .timing-tower { height: 100%; display: flex; flex-direction: column; }
 .timing-list { margin: 0; padding: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--glass-chrome) transparent; list-style: none; }
 .timing-list li { border-bottom: 1px solid var(--line-subtle); }
@@ -135,7 +135,7 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .timing-row__status { grid-column: 3 / -1; margin-top: -.25rem; color: #ffb845; font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .timing-row__status--retired { color: var(--coral); }
 
-.race-hud__right { position: absolute; top: 5.45rem; right: .75rem; bottom: 6.8rem; width: clamp(17.5rem, 21vw, 20rem); display: grid; grid-template-rows: auto minmax(11rem, 1fr) auto; gap: .6rem; }
+.race-hud__right { position: absolute; top: 5.5rem; right: 1rem; bottom: 7rem; width: clamp(17.5rem, 21vw, 20rem); display: grid; grid-template-rows: auto minmax(11rem, 1fr) auto; gap: .6rem; }
 .driver-panel, .track-map, .event-feed { overflow: hidden; border: 1px solid var(--glass-chrome); border-radius: .35rem; background: var(--glass); box-shadow: 0 .5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 5%); backdrop-filter: blur(20px) saturate(110%); }
 .driver-panel { border-top: 3px solid var(--team-color); }
 .driver-panel__identity { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .55rem; padding: .65rem; }
@@ -165,7 +165,7 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 @keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.65; } }
 .panel-kicker span:last-child::before { content: '● '; animation: live-pulse 2s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
 
-.playback-controls { position: absolute; right: .75rem; bottom: .7rem; left: .75rem; min-height: 5.35rem; display: grid; grid-template-columns: auto 1fr auto; align-items: stretch; gap: .75rem; border: 1px solid var(--glass-chrome); border-radius: .35rem; padding: .5rem; background: var(--glass); box-shadow: 0 -.5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 5%); backdrop-filter: blur(20px); }
+.playback-controls { position: absolute; right: 1rem; bottom: 1rem; left: 1rem; min-height: 5.35rem; display: grid; grid-template-columns: auto 1fr auto; align-items: stretch; gap: .75rem; border: 1px solid var(--glass-chrome); border-radius: .35rem; padding: .5rem; background: var(--glass); box-shadow: 0 -.5rem 2.5rem rgb(0 0 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 5%); backdrop-filter: blur(20px); }
 .playback-controls button, .playback-controls select { border: 1px solid var(--glass-chrome); border-radius: .25rem; background: rgb(255 255 255 / 4%); cursor: pointer; transition: all 150ms cubic-bezier(0.22, 1, 0.36, 1); }
 .playback-controls button:hover, .playback-controls button[aria-pressed='true'] { border-color: var(--glass-chrome); background: rgb(255 255 255 / 10%); transform: translateY(-1px); }
 .playback-controls__primary { display: flex; align-items: stretch; gap: .35rem; }
