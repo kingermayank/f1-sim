@@ -83,7 +83,12 @@ function createRibbon(points: readonly TrackPoint[], width: number, closed = tru
 function LoadedTrack() {
   const gltf = useGLTF(ASSETS.track);
   const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
-    if (material instanceof MeshStandardMaterial) material.roughness = Math.max(0.55, material.roughness);
+    if (material instanceof MeshStandardMaterial) {
+      material.roughness = Math.max(0.62, material.roughness);
+      if (material.color.r < 0.3 && material.color.g < 0.3 && material.color.b < 0.3) {
+        material.color.multiplyScalar(0.7);
+      }
+    }
   }), [gltf.scene]);
   useEffect(() => () => resources.dispose(), [resources]);
   useEffect(() => {
@@ -126,16 +131,16 @@ function CircuitFallback() {
   return (
     <group name="procedural circuit fallback">
       <mesh geometry={trackGeometry} receiveShadow>
-        <meshStandardMaterial color="#171d22" roughness={0.88} metalness={0.04} />
+        <meshStandardMaterial color="#0f1418" roughness={0.92} metalness={0.02} />
       </mesh>
       <mesh geometry={pitGeometry} receiveShadow>
-        <meshStandardMaterial color="#22292e" roughness={0.9} />
+        <meshStandardMaterial color="#1a2024" roughness={0.94} />
       </mesh>
       <mesh geometry={outerBarrier} castShadow receiveShadow>
-        <meshStandardMaterial color="#f0eee7" roughness={0.72} />
+        <meshStandardMaterial color="#d8dce0" roughness={0.78} />
       </mesh>
       <mesh geometry={innerBarrier} castShadow receiveShadow>
-        <meshStandardMaterial color="#b72b2b" roughness={0.75} />
+        <meshStandardMaterial color="#a82828" roughness={0.82} />
       </mesh>
     </group>
   );
@@ -158,7 +163,7 @@ function RacingLineOverlay({ quality }: { quality: SceneQualityTier }) {
   if (quality === 'mobile') return null;
   return (
     <mesh geometry={geometry} renderOrder={2}>
-      <meshBasicMaterial color="#dbff4a" transparent opacity={0.15} depthWrite={false} />
+      <meshBasicMaterial color="#b4c8dc" transparent opacity={0.08} depthWrite={false} />
     </mesh>
   );
 }
@@ -166,14 +171,14 @@ function RacingLineOverlay({ quality }: { quality: SceneQualityTier }) {
 export function Environment({ quality }: { quality: SceneQualityTier }) {
   return (
     <>
-      <color attach="background" args={['#8fb2c4']} />
-      <fog attach="fog" args={['#9db9c8', 900, 3400]} />
-      <hemisphereLight args={['#dceaf3', '#2b3338', quality === 'high' ? 1.05 : 1.35]} />
+      <color attach="background" args={['#4a5d70']} />
+      <fog attach="fog" args={['#3d4f5f', 1200, 3600]} />
+      <hemisphereLight args={['#a8c4dc', '#1a2228', quality === 'high' ? 1.2 : 1.5]} />
       <directionalLight
         castShadow={quality === 'high'}
-        color="#ffe6c4"
-        intensity={2.35}
-        position={[620, 780, 420]}
+        color="#d8e8f8"
+        intensity={2.8}
+        position={[720, 880, 520]}
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-CIRCUIT_EXTENT / 2}
         shadow-camera-right={CIRCUIT_EXTENT / 2}
@@ -182,11 +187,12 @@ export function Environment({ quality }: { quality: SceneQualityTier }) {
         shadow-camera-far={2600}
         shadow-bias={-0.0006}
       />
+      <ambientLight intensity={0.3} color="#b4c8dc" />
       {/* Sits below the circuit datum so the supplied terrain reads as the
           surface and this only fills the far horizon. */}
       <mesh position={[0, -8, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[CIRCUIT_EXTENT * 4, CIRCUIT_EXTENT * 4, 1, 1]} />
-        <meshStandardMaterial color="#5d6a54" roughness={1} />
+        <meshStandardMaterial color="#3a4a54" roughness={1} />
       </mesh>
       <RacingLineOverlay quality={quality} />
       <TrackAssetBoundary fallback={<CircuitFallback />}>

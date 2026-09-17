@@ -74,8 +74,8 @@ code, time, .timing-row__gap, .timing-row__laps, .telemetry-grid dd {
 .timing-row__position, .driver-panel__position { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 .app-shell { position: relative; min-height: 100vh; overflow: hidden; background: var(--ink); }
-.race-viewport { position: relative; width: 100%; min-height: 100vh; overflow: hidden; isolation: isolate; background: linear-gradient(165deg, #f5c782 0%, #86bad0 31%, #1c5d70 68%, #09242b 100%); }
-.race-viewport::after { position: absolute; inset: 0; content: ''; pointer-events: none; background: linear-gradient(90deg, rgb(3 6 10 / 52%) 0, transparent 28%, transparent 72%, rgb(3 6 10 / 48%) 100%), linear-gradient(0deg, rgb(3 6 10 / 72%), transparent 20%, transparent 80%, rgb(3 6 10 / 38%)); }
+.race-viewport { position: relative; width: 100%; min-height: 100vh; overflow: hidden; isolation: isolate; background: linear-gradient(165deg, #6a8090 0%, #7a9db0 28%, #2a4858 65%, #0a1820 100%); }
+.race-viewport::after { position: absolute; inset: 0; content: ''; pointer-events: none; background: linear-gradient(90deg, rgb(5 8 13 / 48%) 0, transparent 32%, transparent 68%, rgb(5 8 13 / 45%) 100%), linear-gradient(0deg, rgb(5 8 13 / 65%), transparent 22%, transparent 78%, rgb(5 8 13 / 35%)); }
 .race-canvas { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; outline: none; }
 .race-viewport__status { position: absolute; z-index: 3; right: 1rem; bottom: 7.1rem; margin: 0; border: 1px solid var(--line); border-radius: 999px; padding: .5rem .75rem; background: rgb(5 9 14 / 74%); color: #e4e9ef; font-size: .6875rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; backdrop-filter: blur(14px); }
 .race-viewport__fallback { position: absolute; inset: 0; background: radial-gradient(ellipse at 70% 25%, rgb(255 235 176 / 42%), transparent 28%), linear-gradient(156deg, transparent 0 48%, rgb(5 32 38 / 50%) 49% 52%, transparent 53%), linear-gradient(21deg, transparent 0 60%, rgb(224 170 105 / 20%) 61% 75%, transparent 76%); }
