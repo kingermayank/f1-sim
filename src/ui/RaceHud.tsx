@@ -8,6 +8,7 @@ import { DriverPanel } from './DriverPanel';
 import { EventFeed } from './EventFeed';
 import { FinishScreen } from './FinishScreen';
 import { Leaderboard } from './Leaderboard';
+import { PitDecisionCard } from './PitDecisionCard';
 import { PlaybackControls, PreferenceControls } from './PlaybackControls';
 import { TrackMap } from './TrackMap';
 import { formatDuration, titleCase } from './formatters';
@@ -19,6 +20,11 @@ export function RaceHud() {
   const [compactLayout, setCompactLayout] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 760);
   const [secondaryLayout, setSecondaryLayout] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1200);
   const timingToggleRef = useRef<HTMLButtonElement>(null);
+  
+  // Freeze QA deep-link: ?freeze=1 or ?freeze=auto mounts PitDecisionCard placeholder
+  const freezeParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('freeze') : null;
+  const showFreezeDemo = freezeParam === '1' || freezeParam === 'auto';
+  const freezeIsAuto = freezeParam === 'auto';
   useEffect(() => {
     const update = () => {
       setCompactLayout(window.innerWidth <= 760);
@@ -96,6 +102,19 @@ export function RaceHud() {
       )}
       {snapshot.phase === 'finished' && <FinishScreen snapshot={snapshot} onReplay={replaySeed} onNewRace={() => restart()} />}
       <CreditsPanel open={creditsOpen} onClose={() => setCreditsOpen(false)} />
+      
+      {/* Freeze QA deep-link: ?freeze=1 or ?freeze=auto shows pit decision placeholder */}
+      {showFreezeDemo && (
+        <PitDecisionCard
+          driverName="Max Verstappen"
+          driverCode="VER"
+          teamColor="#3671C6"
+          currentLap={42}
+          currentTire="medium"
+          tireWear={0.78}
+          isAuto={freezeIsAuto}
+        />
+      )}
     </div>
   );
 }

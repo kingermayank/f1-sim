@@ -91,6 +91,25 @@ function LoadedTrack() {
       if (material.color.r > 0.6 || material.color.g > 0.6 || material.color.b > 0.6) {
         material.color.multiplyScalar(1.22);
       }
+      
+      // Fix z-fighting: Shanghai GLB has coplanar decals (racing line, skid marks, grid lines)
+      const name = material.name.toLowerCase();
+      const isDecal = /raceline|skid|line_asf|linea_pit|gridline|pit.*line/i.test(material.name);
+      
+      if (isDecal || name.includes('raceline') || name.includes('skid')) {
+        // Hide redundant decals — RacingLineOverlay ribbon already shows racing line
+        material.visible = false;
+      } else if (/line_asf|linea_pit|gridline/i.test(material.name)) {
+        // Grid lines / pit lane markings: polygon offset to float above tarmac
+        material.polygonOffset = true;
+        material.polygonOffsetFactor = -2;
+        material.polygonOffsetUnits = -2;
+        material.depthWrite = false;
+      } else {
+        // Main surfaces (tarmac, pit lane, runoff, kerbs): ensure proper depth
+        material.depthWrite = true;
+        material.polygonOffset = false;
+      }
     }
   }), [gltf.scene]);
   useEffect(() => () => resources.dispose(), [resources]);
@@ -134,10 +153,10 @@ function CircuitFallback() {
   return (
     <group name="procedural circuit fallback">
       <mesh geometry={trackGeometry} receiveShadow>
-        <meshStandardMaterial color="#0f1418" roughness={0.92} metalness={0.02} />
+        <meshStandardMaterial color="#0f1418" roughness={0.92} metalness={0.02} depthWrite polygonOffset={false} />
       </mesh>
-      <mesh geometry={pitGeometry} receiveShadow>
-        <meshStandardMaterial color="#1a2024" roughness={0.94} />
+      <mesh geometry={pitGeometry} receiveShadow position={[0, 0.02, 0]}>
+        <meshStandardMaterial color="#1a2024" roughness={0.94} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </mesh>
       <mesh geometry={outerBarrier} castShadow receiveShadow>
         <meshStandardMaterial color="#d8dce0" roughness={0.78} />
@@ -161,12 +180,21 @@ class TrackAssetBoundary extends Component<{ children: ReactNode; fallback: Reac
  * and it keeps the line readable in wide aerial shots.
  */
 function RacingLineOverlay({ quality }: { quality: SceneQualityTier }) {
-  const geometry = useMemo(() => createRibbon(SHANGHAI_TRACK.centerLine, 0.3), []);
+  const geometry = useMemo(() => {
+    const ribbon = createRibbon(SHANGHAI_TRACK.centerLine, 0.3);
+    // Lift racing line slightly above tarmac to prevent z-fighting
+    const positions = ribbon.getAttribute('position');
+    for (let i = 0; i < positions.count; i += 1) {
+      positions.setY(i, positions.getY(i) + 0.12);
+    }
+    positions.needsUpdate = true;
+    return ribbon;
+  }, []);
   useEffect(() => () => geometry.dispose(), [geometry]);
   if (quality === 'mobile') return null;
   return (
     <mesh geometry={geometry} renderOrder={2}>
-      <meshBasicMaterial color="#9ab4c8" transparent opacity={0.04} depthWrite={false} />
+      <meshBasicMaterial color="#9ab4c8" transparent opacity={0.04} depthWrite={false} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
     </mesh>
   );
 }
@@ -188,7 +216,7 @@ export function Environment({ quality }: { quality: SceneQualityTier }) {
         shadow-camera-top={CIRCUIT_EXTENT / 2}
         shadow-camera-bottom={-CIRCUIT_EXTENT / 2}
         shadow-camera-far={2600}
-        shadow-bias={-0.0006}
+        shadow-bias={-0.00028}
       />
       <ambientLight intensity={0.32} color="#a8c0d8" />
       {/* Sits below the circuit datum so the supplied terrain reads as the

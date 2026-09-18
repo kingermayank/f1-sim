@@ -41,11 +41,11 @@
   --font-body: 'Formula1 Display', Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'MonoSpec', ui-monospace, SFMono-Regular, Menlo, monospace;
   --ink: #05080d;
-  --panel: rgb(18 21 26 / 92%);
+  --panel: rgb(12 18 28 / 62%);
   --panel-solid: #12151a;
-  --glass: rgb(18 21 26 / 92%);
+  --glass: rgb(12 18 28 / 62%);
   --glass-solid: #12151a;
-  --glass-chrome: rgb(180 200 220 / 16%);
+  --glass-chrome: rgb(180 200 220 / 22%);
   --stroke: #2a3140;
   --line: #2a3140;
   --line-subtle: rgb(42 49 64 / 50%);
