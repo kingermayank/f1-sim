@@ -83,7 +83,35 @@ function createRibbon(points: readonly TrackPoint[], width: number, closed = tru
 function LoadedTrack() {
   const gltf = useGLTF(ASSETS.track);
   const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
-    if (material instanceof MeshStandardMaterial) material.roughness = Math.max(0.55, material.roughness);
+    if (material instanceof MeshStandardMaterial) {
+      material.roughness = Math.max(0.65, material.roughness);
+      if (material.color.r < 0.3 && material.color.g < 0.3 && material.color.b < 0.3) {
+        material.color.multiplyScalar(0.6);
+      }
+      if (material.color.r > 0.6 || material.color.g > 0.6 || material.color.b > 0.6) {
+        material.color.multiplyScalar(1.22);
+      }
+      
+      // Fix z-fighting: Shanghai GLB has coplanar decals (racing line, skid marks, grid lines)
+      const name = material.name.toLowerCase();
+      const isRedundantDecal = /raceline|skid|rubber/i.test(material.name);
+      const isCoplanarMarking = /line|marking|gridline|pit.*line|decal/i.test(material.name);
+      
+      if (isRedundantDecal) {
+        // Hide redundant decals — RacingLineOverlay ribbon already shows racing line
+        material.visible = false;
+      } else if (isCoplanarMarking) {
+        // Grid lines / pit lane markings: polygon offset to float above tarmac
+        material.polygonOffset = true;
+        material.polygonOffsetFactor = -2;
+        material.polygonOffsetUnits = -2;
+        material.depthWrite = false;
+      } else {
+        // Main surfaces (tarmac, pit lane, runoff, kerbs): ensure proper depth
+        material.depthWrite = true;
+        material.polygonOffset = false;
+      }
+    }
   }), [gltf.scene]);
   useEffect(() => () => resources.dispose(), [resources]);
   useEffect(() => {
@@ -126,16 +154,16 @@ function CircuitFallback() {
   return (
     <group name="procedural circuit fallback">
       <mesh geometry={trackGeometry} receiveShadow>
-        <meshStandardMaterial color="#171d22" roughness={0.88} metalness={0.04} />
+        <meshStandardMaterial color="#0f1418" roughness={0.92} metalness={0.02} depthWrite polygonOffset={false} />
       </mesh>
-      <mesh geometry={pitGeometry} receiveShadow>
-        <meshStandardMaterial color="#22292e" roughness={0.9} />
+      <mesh geometry={pitGeometry} receiveShadow position={[0, 0.02, 0]}>
+        <meshStandardMaterial color="#1a2024" roughness={0.94} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
       </mesh>
       <mesh geometry={outerBarrier} castShadow receiveShadow>
-        <meshStandardMaterial color="#f0eee7" roughness={0.72} />
+        <meshStandardMaterial color="#d8dce0" roughness={0.78} />
       </mesh>
       <mesh geometry={innerBarrier} castShadow receiveShadow>
-        <meshStandardMaterial color="#b72b2b" roughness={0.75} />
+        <meshStandardMaterial color="#a82828" roughness={0.82} />
       </mesh>
     </group>
   );
@@ -153,12 +181,21 @@ class TrackAssetBoundary extends Component<{ children: ReactNode; fallback: Reac
  * and it keeps the line readable in wide aerial shots.
  */
 function RacingLineOverlay({ quality }: { quality: SceneQualityTier }) {
-  const geometry = useMemo(() => createRibbon(SHANGHAI_TRACK.centerLine, 0.3), []);
+  const geometry = useMemo(() => {
+    const ribbon = createRibbon(SHANGHAI_TRACK.centerLine, 0.3);
+    // Lift racing line slightly above tarmac to prevent z-fighting
+    const positions = ribbon.getAttribute('position');
+    for (let i = 0; i < positions.count; i += 1) {
+      positions.setY(i, positions.getY(i) + 0.12);
+    }
+    positions.needsUpdate = true;
+    return ribbon;
+  }, []);
   useEffect(() => () => geometry.dispose(), [geometry]);
   if (quality === 'mobile') return null;
   return (
     <mesh geometry={geometry} renderOrder={2}>
-      <meshBasicMaterial color="#dbff4a" transparent opacity={0.15} depthWrite={false} />
+      <meshBasicMaterial color="#9ab4c8" transparent opacity={0.04} depthWrite={false} polygonOffset polygonOffsetFactor={-1} polygonOffsetUnits={-1} />
     </mesh>
   );
 }
@@ -166,27 +203,28 @@ function RacingLineOverlay({ quality }: { quality: SceneQualityTier }) {
 export function Environment({ quality }: { quality: SceneQualityTier }) {
   return (
     <>
-      <color attach="background" args={['#8fb2c4']} />
-      <fog attach="fog" args={['#9db9c8', 900, 3400]} />
-      <hemisphereLight args={['#dceaf3', '#2b3338', quality === 'high' ? 1.05 : 1.35]} />
+      <color attach="background" args={['#3a4858']} />
+      <fog attach="fog" args={['#354555', 1500, 3800]} />
+      <hemisphereLight args={['#a8c0d8', '#1a2228', quality === 'high' ? 1.25 : 1.55]} />
       <directionalLight
         castShadow={quality === 'high'}
-        color="#ffe6c4"
-        intensity={2.35}
-        position={[620, 780, 420]}
-        shadow-mapSize={[2048, 2048]}
+        color="#d8e8f8"
+        intensity={3.5}
+        position={[720, 920, 520]}
+        shadow-mapSize={quality === 'high' ? [2048, 2048] : [1024, 1024]}
         shadow-camera-left={-CIRCUIT_EXTENT / 2}
         shadow-camera-right={CIRCUIT_EXTENT / 2}
         shadow-camera-top={CIRCUIT_EXTENT / 2}
         shadow-camera-bottom={-CIRCUIT_EXTENT / 2}
         shadow-camera-far={2600}
-        shadow-bias={-0.0006}
+        shadow-bias={-0.00028}
       />
+      <ambientLight intensity={0.32} color="#a8c0d8" />
       {/* Sits below the circuit datum so the supplied terrain reads as the
           surface and this only fills the far horizon. */}
       <mesh position={[0, -8, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[CIRCUIT_EXTENT * 4, CIRCUIT_EXTENT * 4, 1, 1]} />
-        <meshStandardMaterial color="#5d6a54" roughness={1} />
+        <meshStandardMaterial color="#2a3540" roughness={1} />
       </mesh>
       <RacingLineOverlay quality={quality} />
       <TrackAssetBoundary fallback={<CircuitFallback />}>

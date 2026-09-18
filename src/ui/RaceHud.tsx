@@ -8,6 +8,7 @@ import { DriverPanel } from './DriverPanel';
 import { EventFeed } from './EventFeed';
 import { FinishScreen } from './FinishScreen';
 import { Leaderboard } from './Leaderboard';
+import { PitDecisionCard } from './PitDecisionCard';
 import { PlaybackControls, PreferenceControls } from './PlaybackControls';
 import { TrackMap } from './TrackMap';
 import { formatDuration, titleCase } from './formatters';
@@ -19,6 +20,39 @@ export function RaceHud() {
   const [compactLayout, setCompactLayout] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 760);
   const [secondaryLayout, setSecondaryLayout] = useState(() => typeof window !== 'undefined' && window.innerWidth < 1200);
   const timingToggleRef = useRef<HTMLButtonElement>(null);
+  
+  // Freeze QA deep-link: ?freeze=1 or ?freeze=auto mounts PitDecisionCard placeholder
+  // Handles both ?freeze=1#/race AND #/race?freeze=1
+  const [freezeMode, setFreezeMode] = useState<'1' | 'auto' | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const fromSearch = new URLSearchParams(window.location.search).get('freeze');
+    const hash = window.location.hash;
+    const q = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '';
+    const fromHash = new URLSearchParams(q).get('freeze');
+    const v = fromSearch ?? fromHash;
+    if (v === '1' || v === 'true') return '1';
+    if (v === 'auto') return 'auto';
+    return null;
+  });
+  
+  useEffect(() => {
+    const updateFreezeMode = () => {
+      const fromSearch = new URLSearchParams(window.location.search).get('freeze');
+      const hash = window.location.hash;
+      const q = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '';
+      const fromHash = new URLSearchParams(q).get('freeze');
+      const v = fromSearch ?? fromHash;
+      if (v === '1' || v === 'true') setFreezeMode('1');
+      else if (v === 'auto') setFreezeMode('auto');
+      else setFreezeMode(null);
+    };
+    window.addEventListener('hashchange', updateFreezeMode);
+    window.addEventListener('popstate', updateFreezeMode);
+    return () => {
+      window.removeEventListener('hashchange', updateFreezeMode);
+      window.removeEventListener('popstate', updateFreezeMode);
+    };
+  }, []);
   useEffect(() => {
     const update = () => {
       setCompactLayout(window.innerWidth <= 760);
@@ -48,6 +82,7 @@ export function RaceHud() {
   const replaySeed = useRaceStore((state) => state.replaySeed);
   const restart = useRaceStore((state) => state.restart);
   const totalLaps = useRaceStore((state) => state.config.laps);
+  const cameraMode = useRaceStore((state) => state.cameraMode);
   const currentLap = Math.min(totalLaps, Math.max(1, ...snapshot.cars.map((car) => car.lap + 1)));
   const leader = getClassification(snapshot)[0];
   const leaderName = DRIVERS_2026.find((driver) => driver.id === leader?.driverId)?.name ?? '—';
@@ -55,8 +90,9 @@ export function RaceHud() {
     setTimingOpen(false);
     timingToggleRef.current?.focus();
   };
+  const immersive = cameraMode === 'chase' || cameraMode === 'cockpit';
   return (
-    <div className="race-hud">
+    <div className="race-hud" data-immersive={immersive || undefined}>
       <header className="race-header">
         <div className="race-header__brand"><span className="race-header__mark" aria-hidden="true">SH</span><div><p>Shanghai · 2026</p><strong>Chinese Grand Prix</strong></div></div>
         <div className="race-state">
@@ -94,6 +130,19 @@ export function RaceHud() {
       )}
       {snapshot.phase === 'finished' && <FinishScreen snapshot={snapshot} onReplay={replaySeed} onNewRace={() => restart()} />}
       <CreditsPanel open={creditsOpen} onClose={() => setCreditsOpen(false)} />
+      
+      {/* Freeze QA deep-link: ?freeze=1 or ?freeze=auto shows pit decision placeholder */}
+      {freezeMode && (
+        <PitDecisionCard
+          driverName="Max Verstappen"
+          driverCode="VER"
+          teamColor="#1E41FF"
+          currentLap={12}
+          currentTire="M"
+          tireWear={0.62}
+          isAuto={freezeMode === 'auto'}
+        />
+      )}
     </div>
   );
 }

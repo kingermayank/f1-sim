@@ -97,15 +97,15 @@ export function RaceEffects() {
     <group name="pooled-race-effects">
       <instancedMesh ref={smoke} args={[undefined, undefined, EFFECT_POOL_CAPACITY.smoke]} frustumCulled={false}>
         <icosahedronGeometry args={[1, 1]} />
-        <meshStandardMaterial color={new Color('#a9aaa4')} transparent opacity={0.28} depthWrite={false} roughness={1} />
+        <meshStandardMaterial color={new Color('#98a5b0')} transparent opacity={0.22} depthWrite={false} roughness={1} />
       </instancedMesh>
       <instancedMesh ref={sparks} args={[undefined, undefined, EFFECT_POOL_CAPACITY.sparks]} frustumCulled={false}>
         <tetrahedronGeometry args={[1, 0]} />
-        <meshBasicMaterial color="#ffbe55" toneMapped={false} />
+        <meshBasicMaterial color="#e8ac45" toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={debris} args={[undefined, undefined, EFFECT_POOL_CAPACITY.debris]} frustumCulled={false}>
         <boxGeometry args={[1, 0.35, 0.65]} />
-        <meshStandardMaterial color="#17191a" roughness={0.85} />
+        <meshStandardMaterial color="#14181a" roughness={0.88} />
       </instancedMesh>
     </group>
   );

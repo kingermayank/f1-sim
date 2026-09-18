@@ -27,43 +27,201 @@ function driversOf(teamId: string) {
 /* ------------------------------------------------------------------ home -- */
 
 export function HomeView() {
-  const featured = findCircuit('shanghai') ?? PLAYABLE_CIRCUITS[0];
   return (
-    <div className="shell-view">
-      <section className="hero-panel">
-        <p className="shell-eyebrow">Playable now</p>
-        <h1 className="hero-panel__title">{featured.name}</h1>
-        <p className="hero-panel__lede">
-          Watch the {featured.laps}-lap Chinese Grand Prix simulated on the real circuit — then ask it
-          why every decision happened.
-        </p>
-        <div className="shell-actions">
-          <a className="shell-btn shell-btn--primary" href={routeHref('race')}>Watch the race</a>
-          <a className="shell-btn" href={routeHref('circuit', featured.id)}>Explore the circuit</a>
+    <div className="shell-view lights-out-view">
+      {/* Dusk car still plate — crush into void; Motion can swap in a low-opacity loop via data-hook */}
+      <div
+        className="lights-out-plate"
+        aria-hidden="true"
+        data-motion-hook="lights-out-loop"
+        data-motion-fallback="still"
+      >
+        <img
+          className="lights-out-plate__photo"
+          src="/assets/lights-out-plate.png"
+          alt=""
+          decoding="async"
+        />
+        <svg className="lights-out-plate__car" viewBox="0 0 640 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="320" cy="190" rx="210" ry="14" fill="#000" opacity="0.55" />
+          <path
+            d="M78 148c18-28 62-52 118-60 22-28 58-46 102-46 48 0 86 16 112 44 54 6 98 24 122 48 8 8 6 22-6 28l-36 10c-22 6-48 8-86 8H168c-36 0-64-4-82-12-14-6-18-14-8-20z"
+            fill="#0A0E14"
+            stroke="#3D6F9C"
+            strokeOpacity="0.55"
+            strokeWidth="1.25"
+          />
+          <path
+            d="M210 112c28-18 62-28 98-28 34 0 66 8 90 26"
+            stroke="#7EB6FF"
+            strokeOpacity="0.35"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <circle cx="168" cy="162" r="28" fill="#05070B" stroke="#2A4A66" strokeWidth="2" />
+          <circle cx="168" cy="162" r="12" fill="#0A1018" stroke="#7EB6FF" strokeOpacity="0.25" strokeWidth="1" />
+          <circle cx="468" cy="162" r="28" fill="#05070B" stroke="#2A4A66" strokeWidth="2" />
+          <circle cx="468" cy="162" r="12" fill="#0A1018" stroke="#7EB6FF" strokeOpacity="0.25" strokeWidth="1" />
+          <path d="M292 98h78c8 0 14 4 16 10l6 18H278l6-18c2-6 8-10 14-10z" fill="#101820" stroke="#7EB6FF" strokeOpacity="0.2" strokeWidth="1" />
+        </svg>
+      </div>
+      <div className="lights-out-wash" aria-hidden="true">
+        <span>LIGHTS OUT</span>
+        <span>HOW TO RACE</span>
+      </div>
+      <div className="lights-out-container">
+        <div className="start-lights" aria-hidden="true">
+          <div className="start-light-pod">
+            <div className="start-light" />
+            <div className="start-light" />
+          </div>
+          <div className="start-light-pod">
+            <div className="start-light" />
+            <div className="start-light" />
+          </div>
+          <div className="start-light-pod">
+            <div className="start-light" />
+            <div className="start-light" />
+          </div>
+          <div className="start-light-pod">
+            <div className="start-light" />
+            <div className="start-light" />
+          </div>
+          <div className="start-light-pod">
+            <div className="start-light" />
+            <div className="start-light" />
+          </div>
         </div>
-        <div className="hero-panel__map" aria-hidden="true">
-          <CircuitMap circuit={featured} />
+        
+        <p className="session-ready">SESSION READY</p>
+        <h1 className="lights-out-title">LIGHTS OUT</h1>
+        <p className="lights-out-lede">One click. One car. One race.</p>
+        
+        <a className="shell-btn shell-btn--primary lights-out-cta" href={routeHref('lock-in')}>
+          WATCH THE RACE
+        </a>
+        <p className="lights-out-hint">Watch opens lock-in · pick circuit + primary driver, then go racing.</p>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- lock-in -- */
+
+export function LockInView() {
+  const [selectedCircuit, setSelectedCircuit] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'shanghai';
+    return localStorage.getItem('apex:circuit') ?? 'shanghai';
+  });
+  
+  const [selectedDriver, setSelectedDriver] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('apex:driver');
+  });
+  const [circuitStamp, setCircuitStamp] = useState<string | null>(null);
+  const [driverStamp, setDriverStamp] = useState<string | null>(null);
+  const [confirmSlam, setConfirmSlam] = useState(false);
+
+  const stampCircuit = (id: string) => {
+    setSelectedCircuit(id);
+    setCircuitStamp(id);
+    window.setTimeout(() => setCircuitStamp((cur) => (cur === id ? null : cur)), 240);
+  };
+
+  const stampDriver = (id: string) => {
+    setSelectedDriver(id);
+    setDriverStamp(id);
+    window.setTimeout(() => setDriverStamp((cur) => (cur === id ? null : cur)), 200);
+  };
+
+  const handleConfirm = () => {
+    setConfirmSlam(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('apex:circuit', selectedCircuit);
+      if (selectedDriver) {
+        localStorage.setItem('apex:driver', selectedDriver);
+      }
+    }
+    window.setTimeout(() => {
+      window.location.hash = '#/race';
+    }, 220);
+  };
+
+  const circuit = findCircuit(selectedCircuit);
+  const displayedDrivers = DRIVERS_2026.slice(0, 8);
+
+  return (
+    <div className="shell-view lock-in-view">
+      <header className="lock-in-header">
+        <a className="shell-mark" href={routeHref('home')} aria-label="Back to APEX home">
+          <span>A</span>
+        </a>
+        <p className="lock-in-breadcrumb">
+          LOCK-IN · <strong>BEFORE LIGHTS OUT</strong>
+        </p>
+      </header>
+
+      <section className="lock-in-section">
+        <h2 className="lock-in-kicker">1 · CIRCUIT</h2>
+        <div className="circuit-chips">
+          {PLAYABLE_CIRCUITS.map((c) => (
+            <button
+              key={c.id}
+              className={`circuit-chip ${selectedCircuit === c.id ? 'is-selected' : ''} ${circuitStamp === c.id ? 'is-stamping' : ''}`}
+              onClick={() => stampCircuit(c.id)}
+              type="button"
+            >
+              <span className="circuit-chip__map" aria-hidden="true">
+                <CircuitMap circuit={c} />
+              </span>
+              <span className="circuit-chip__meta">
+                <strong>{c.name}</strong>
+                <span>{c.countryCode} · {c.lengthKm.toFixed(3)} km · {c.laps}L</span>
+              </span>
+            </button>
+          ))}
         </div>
       </section>
 
-      <div className="tile-grid">
-        <a className="tile" href={routeHref('circuits')}>
-          <h2>Circuits</h2>
-          <p>{PLAYABLE_CIRCUITS.length} playable, {CIRCUITS.length - PLAYABLE_CIRCUITS.length} on the way</p>
-        </a>
-        <a className="tile" href={routeHref('garage')}>
-          <h2>Garage</h2>
-          <p>{TEAMS_2026.length} cars — inspect and compare</p>
-        </a>
-        <a className="tile" href={routeHref('drivers')}>
-          <h2>Drivers</h2>
-          <p>{DRIVERS_2026.length} on the grid — find yours</p>
-        </a>
-        <a className="tile" href={routeHref('learn')}>
-          <h2>Learn</h2>
-          <p>What DRS, an undercut and tyre wear actually mean</p>
-        </a>
-      </div>
+      <section className="lock-in-section">
+        <h2 className="lock-in-kicker">2 · PRIMARY DRIVER / CAR</h2>
+        <div className="driver-grid">
+          {displayedDrivers.map((driver) => {
+            const team = teamOf(driver.teamId);
+            const isSelected = selectedDriver === driver.id;
+            return (
+              <button
+                key={driver.id}
+                className={`driver-card ${isSelected ? 'is-selected' : ''} ${driverStamp === driver.id ? 'is-stamping' : ''}`}
+                onClick={() => stampDriver(driver.id)}
+                style={{ '--team-color': team.color } as React.CSSProperties}
+                type="button"
+              >
+                <div className="driver-card__header">
+                  <strong>{driver.abbreviation}</strong>
+                  <span className="driver-card__default">{isSelected ? 'DEFAULT' : ''}</span>
+                </div>
+                <p className="driver-card__name">{driver.name}</p>
+                <p className="driver-card__team">{team.name}</p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <footer className="lock-in-footer">
+        <p className="lock-in-summary">
+          {circuit?.name ?? 'Shanghai'} · {selectedDriver ? DRIVERS_2026.find(d => d.id === selectedDriver)?.abbreviation : 'NOR'} (McLaren) locked as primary.
+        </p>
+        <button
+          className={`shell-btn shell-btn--primary lock-in-confirm ${selectedCircuit && selectedDriver ? 'is-armed' : ''} ${confirmSlam ? 'is-slamming' : ''}`}
+          onClick={handleConfirm}
+          type="button"
+          disabled={!selectedDriver}
+        >
+          CONFIRM → RACE
+        </button>
+      </footer>
     </div>
   );
 }
