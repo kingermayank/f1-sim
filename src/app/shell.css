@@ -367,3 +367,129 @@
   .grid-list__row { grid-template-columns: 2.2rem 1fr; }
   .grid-list__team, .grid-list__flag { grid-column: 2; }
 }
+
+
+/* ------------------------------------------------------------------ Pass 18 lock-in stamp beats (Motion God) -- */
+@keyframes lock-in-stamp-circuit {
+  0% { transform: scale(1); box-shadow: none; }
+  40% { transform: scale(1.04); box-shadow: 0 0 0 1px rgb(126 182 255 / 55%), 0 0 18px rgb(126 182 255 / 28%); }
+  100% { transform: scale(1); box-shadow: 0 0 0 1px rgb(126 182 255 / 35%); }
+}
+@keyframes lock-in-stamp-driver {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+@keyframes lock-in-rail-pulse {
+  0%, 100% { box-shadow: inset 3px 0 0 var(--team-color); filter: brightness(1); }
+  40% { box-shadow: inset 4px 0 0 var(--team-color), 0 0 14px color-mix(in srgb, var(--team-color) 45%, transparent); filter: brightness(1.15); }
+}
+@keyframes lock-in-confirm-slam {
+  0% { transform: scale(1); box-shadow: 0 0 24px rgb(126 182 255 / 30%); }
+  45% { transform: scale(0.97); box-shadow: 0 0 32px rgb(126 182 255 / 55%); }
+  100% { transform: scale(1); box-shadow: 0 0 24px rgb(126 182 255 / 35%); }
+}
+
+.circuit-chip {
+  transition: border-color 220ms cubic-bezier(0.22, 1, 0.36, 1), background 220ms cubic-bezier(0.22, 1, 0.36, 1), transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.circuit-chip.is-stamping {
+  animation: lock-in-stamp-circuit 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  border-color: #7EB6FF;
+}
+
+.driver-card {
+  transition: border-color 180ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.driver-card.is-stamping {
+  animation: lock-in-stamp-driver 180ms cubic-bezier(0.22, 1, 0.36, 1), lock-in-rail-pulse 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.driver-card.is-stamping .driver-card__header strong,
+.driver-card.is-stamping .driver-card__name {
+  color: #E8EEF7;
+}
+
+.lock-in-confirm.is-armed {
+  box-shadow: 0 0 24px rgb(126 182 255 / 32%);
+}
+.lock-in-confirm.is-slamming {
+  animation: lock-in-confirm-slam 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lock-in-confirm:disabled {
+  opacity: .45; cursor: not-allowed; box-shadow: none;
+}
+
+
+/* ------------------------------------------------------------------ Pass 18 Lights Out void backdrop -- */
+.lights-out-view {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 4rem);
+  background: radial-gradient(120% 80% at 50% 20%, #070B12 0%, #05070B 55%, #05070B 100%);
+  overflow: hidden;
+}
+.lights-out-wash {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 4vh;
+  opacity: 0.06;
+  user-select: none;
+}
+.lights-out-wash span {
+  font-family: var(--font-wide, var(--font-display));
+  font-weight: 800;
+  font-size: clamp(3.5rem, 14vw, 9rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #E8EEF7;
+  line-height: 0.9;
+  white-space: nowrap;
+}
+.lights-out-view > *:not(.lights-out-wash) {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* ------------------------------------------------------------------ Pass 18b dusk car still plate -- */
+.lights-out-plate {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: min(18vh, 9rem);
+  background:
+    radial-gradient(70% 45% at 50% 70%, rgb(20 40 70 / 28%) 0%, transparent 70%),
+    radial-gradient(120% 80% at 50% 20%, #0a1018 0%, #070B12 45%, #05070B 100%);
+}
+.lights-out-plate__car {
+  width: min(78vw, 52rem);
+  height: auto;
+  opacity: 0.22;
+  filter: saturate(0.3) brightness(0.5) contrast(1.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lights-out-plate[data-motion-hook] {
+    /* Motion: freeze any future loop on the still */
+    animation: none !important;
+  }
+}
+/* Hook for Motion God: replace/augment plate with muted loop ≤15–20% opacity */
+.lights-out-plate[data-motion-loop='on'] {
+  /* reserved — Motion fills video/canvas child */
+}
+.lights-out-wash {
+  z-index: 0;
+  opacity: 1; /* per-line opacities below */
+  color: #E8EEF7;
+}
+.lights-out-wash span:nth-child(1) { opacity: 0.06; } /* LIGHTS OUT */
+.lights-out-wash span:nth-child(2) { opacity: 0.045; } /* HOW TO RACE */
+
