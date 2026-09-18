@@ -36,6 +36,12 @@ export function HomeView() {
         data-motion-hook="lights-out-loop"
         data-motion-fallback="still"
       >
+        <img
+          className="lights-out-plate__photo"
+          src="/assets/lights-out-plate.png"
+          alt=""
+          decoding="async"
+        />
         <svg className="lights-out-plate__car" viewBox="0 0 640 220" fill="none" xmlns="http://www.w3.org/2000/svg">
           <ellipse cx="320" cy="190" rx="210" ry="14" fill="#000" opacity="0.55" />
           <path
@@ -165,8 +171,13 @@ export function LockInView() {
               onClick={() => stampCircuit(c.id)}
               type="button"
             >
-              <strong>{c.name}</strong>
-              <span>{c.countryCode} · {c.lengthKm.toFixed(3)} km · {c.laps}L</span>
+              <span className="circuit-chip__map" aria-hidden="true">
+                <CircuitMap circuit={c} />
+              </span>
+              <span className="circuit-chip__meta">
+                <strong>{c.name}</strong>
+                <span>{c.countryCode} · {c.lengthKm.toFixed(3)} km · {c.laps}L</span>
+              </span>
             </button>
           ))}
         </div>
