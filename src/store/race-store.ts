@@ -10,6 +10,9 @@ import { SHANGHAI_TRACK } from '../track/shanghai-track';
 export const PLAYBACK_SPEEDS = [0.25, 0.5, 1, 2, 4, 8] as const;
 export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number];
 
+// Presentation feel scale: at playback speed 1×, sim advances 0.6× wall-clock for better race viewing pace
+const PRESENTATION_FEEL = 0.6;
+
 export const CAMERA_MODES = ['broadcast', 'trackside', 'aerial', 'drone', 'chase', 'cockpit', 'overhead', 'free'] as const;
 export type CameraMode = (typeof CAMERA_MODES)[number];
 
@@ -195,7 +198,7 @@ export function createRaceStore(initialConfig: RaceConfig = DEFAULT_RACE_CONFIG,
         const { isPaused, speed, eventFeed } = get();
         if (isPaused) return;
 
-        engine.advance(deltaSeconds * speed);
+        engine.advance(deltaSeconds * speed * PRESENTATION_FEEL);
         const nextFeed = [...eventFeed, ...engine.drainEvents()].slice(-EVENT_FEED_LIMIT);
         set({ snapshot: engine.snapshot(), eventFeed: immutableEventFeed(nextFeed) });
       },

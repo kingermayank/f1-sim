@@ -26,6 +26,7 @@ export interface SceneQuality {
 export function selectQualityTier(signals: QualitySignals): SceneQuality {
   const tier = signals.override
     ?? (signals.viewportWidth < 900 || signals.coarsePointer ? 'mobile' : 'high');
+  // Cap DPR: mobile/auto=1 for perf, high=1.5 max
   return tier === 'mobile' ? { tier, dpr: 1 } : { tier, dpr: [1, 1.5] };
 }
 

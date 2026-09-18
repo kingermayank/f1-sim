@@ -94,12 +94,13 @@ function LoadedTrack() {
       
       // Fix z-fighting: Shanghai GLB has coplanar decals (racing line, skid marks, grid lines)
       const name = material.name.toLowerCase();
-      const isDecal = /raceline|skid|line_asf|linea_pit|gridline|pit.*line/i.test(material.name);
+      const isRedundantDecal = /raceline|skid|rubber/i.test(material.name);
+      const isCoplanarMarking = /line|marking|gridline|pit.*line|decal/i.test(material.name);
       
-      if (isDecal || name.includes('raceline') || name.includes('skid')) {
+      if (isRedundantDecal) {
         // Hide redundant decals — RacingLineOverlay ribbon already shows racing line
         material.visible = false;
-      } else if (/line_asf|linea_pit|gridline/i.test(material.name)) {
+      } else if (isCoplanarMarking) {
         // Grid lines / pit lane markings: polygon offset to float above tarmac
         material.polygonOffset = true;
         material.polygonOffsetFactor = -2;
@@ -210,7 +211,7 @@ export function Environment({ quality }: { quality: SceneQualityTier }) {
         color="#d8e8f8"
         intensity={3.5}
         position={[720, 920, 520]}
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={quality === 'high' ? [2048, 2048] : [1024, 1024]}
         shadow-camera-left={-CIRCUIT_EXTENT / 2}
         shadow-camera-right={CIRCUIT_EXTENT / 2}
         shadow-camera-top={CIRCUIT_EXTENT / 2}
