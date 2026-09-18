@@ -14,7 +14,7 @@ import { routeHref, useRoute } from '../shell/router';
 function RaceRoute() {
   return (
     <>
-      <a className="race-exit" href={routeHref('home')} aria-label="Exit to APEX home">← APEX</a>
+      <a className="race-exit" href={routeHref('home')} aria-label="Exit to APEX home">← APEX <span className="race-exit__sub">/ Exit</span></a>
       <RaceScene />
       <RaceHud />
       <ExplainPanel />
