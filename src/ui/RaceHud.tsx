@@ -22,9 +22,37 @@ export function RaceHud() {
   const timingToggleRef = useRef<HTMLButtonElement>(null);
   
   // Freeze QA deep-link: ?freeze=1 or ?freeze=auto mounts PitDecisionCard placeholder
-  const freezeParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('freeze') : null;
-  const showFreezeDemo = freezeParam === '1' || freezeParam === 'auto';
-  const freezeIsAuto = freezeParam === 'auto';
+  // Handles both ?freeze=1#/race AND #/race?freeze=1
+  const [freezeMode, setFreezeMode] = useState<'1' | 'auto' | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const fromSearch = new URLSearchParams(window.location.search).get('freeze');
+    const hash = window.location.hash;
+    const q = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '';
+    const fromHash = new URLSearchParams(q).get('freeze');
+    const v = fromSearch ?? fromHash;
+    if (v === '1' || v === 'true') return '1';
+    if (v === 'auto') return 'auto';
+    return null;
+  });
+  
+  useEffect(() => {
+    const updateFreezeMode = () => {
+      const fromSearch = new URLSearchParams(window.location.search).get('freeze');
+      const hash = window.location.hash;
+      const q = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '';
+      const fromHash = new URLSearchParams(q).get('freeze');
+      const v = fromSearch ?? fromHash;
+      if (v === '1' || v === 'true') setFreezeMode('1');
+      else if (v === 'auto') setFreezeMode('auto');
+      else setFreezeMode(null);
+    };
+    window.addEventListener('hashchange', updateFreezeMode);
+    window.addEventListener('popstate', updateFreezeMode);
+    return () => {
+      window.removeEventListener('hashchange', updateFreezeMode);
+      window.removeEventListener('popstate', updateFreezeMode);
+    };
+  }, []);
   useEffect(() => {
     const update = () => {
       setCompactLayout(window.innerWidth <= 760);
@@ -104,15 +132,15 @@ export function RaceHud() {
       <CreditsPanel open={creditsOpen} onClose={() => setCreditsOpen(false)} />
       
       {/* Freeze QA deep-link: ?freeze=1 or ?freeze=auto shows pit decision placeholder */}
-      {showFreezeDemo && (
+      {freezeMode && (
         <PitDecisionCard
           driverName="Max Verstappen"
           driverCode="VER"
-          teamColor="#3671C6"
-          currentLap={42}
-          currentTire="medium"
-          tireWear={0.78}
-          isAuto={freezeIsAuto}
+          teamColor="#1E41FF"
+          currentLap={12}
+          currentTire="M"
+          tireWear={0.62}
+          isAuto={freezeMode === 'auto'}
         />
       )}
     </div>

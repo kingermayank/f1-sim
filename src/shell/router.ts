@@ -22,7 +22,9 @@ export function parseHash(hash: string): Route {
   const cleaned = hash.replace(/^#\/?/, '').replace(/\/+$/, '');
   if (!cleaned) return HOME;
 
-  const [head, tail] = cleaned.split('/');
+  // Strip query string before routing (e.g. #/race?freeze=1 → race)
+  const pathOnly = cleaned.split('?')[0];
+  const [head, tail] = pathOnly.split('/');
   switch (head) {
     case 'circuits':
       return tail ? { name: 'circuit', param: tail } : { name: 'circuits' };
