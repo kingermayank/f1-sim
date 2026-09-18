@@ -70,8 +70,8 @@
    outranks `.shell-btn--primary` on specificity and used to strip the lime fill,
    leaving near-black text on a dark panel. */
 .shell-btn:not(.shell-btn--primary):hover { background: rgb(255 255 255 / 10%); border-color: rgb(255 255 255 / 40%); }
-.shell-btn--primary { background: rgb(255 255 255 / 12%); border-color: var(--glass-chrome); color: var(--broadcast-white); font-weight: 700; }
-.shell-btn--primary:hover, .shell-btn--primary:focus-visible { background: rgb(255 255 255 / 18%); border-color: var(--broadcast-blue); color: var(--broadcast-white); }
+.shell-btn--primary { background: #7EB6FF; border-color: #7EB6FF; color: #070B12; font-weight: 700; letter-spacing: .02em; }
+.shell-btn--primary:hover, .shell-btn--primary:focus-visible { background: #9BC8FF; border-color: #9BC8FF; color: #070B12; }
 /* A disabled button states WHY it is disabled ("Pick 3 more"), so it has to stay
    readable. The global 50% dimming turned the lime fill olive under dark text;
    swap to a muted surface with light text instead of fading it out. */
@@ -88,13 +88,38 @@
 .shell-tag--soon { color: #ffb020; border-color: rgb(255 176 32 / 40%); background: rgb(255 176 32 / 8%); }
 
 /* ------------------------------------------------------------------ home -- */
-.hero-panel { position: relative; border: 1px solid var(--glass-chrome); border-radius: .65rem; padding: clamp(1.25rem, 4vw, 2.25rem); overflow: hidden;
-  background: linear-gradient(150deg, #1a3248, var(--glass-solid) 68%); box-shadow: 0 .5rem 2rem rgb(0 0 0 / 30%), inset 0 1px 0 rgb(255 255 255 / 5%); }
+.hero-panel { position: relative; border: 1px solid rgba(180,200,230,.22); border-radius: .65rem; padding: clamp(1.25rem, 4vw, 2.25rem); overflow: hidden;
+  background: linear-gradient(150deg, #1a3248, var(--glass-solid) 68%);
+  box-shadow: 0 .5rem 2rem rgb(0 0 0 / 30%), inset 0 2px 0 rgba(126,182,255,.45); }
 @media (min-width: 861px) { .hero-panel { padding-right: 38%; } }
-.hero-panel__title { font-family: var(--font-wide); font-size: clamp(1.6rem, 4vw, 2.9rem); text-transform: uppercase; line-height: 1.04; margin: 0 0 .6rem; max-width: 14ch; }
-.hero-panel__lede { color: var(--muted); font-size: 1rem; max-width: 52ch; margin: 0; }
-.hero-panel__map { position: absolute; right: 2%; top: 50%; transform: translateY(-50%); width: min(30%, 260px); opacity: .28; pointer-events: none; }
+.hero-panel__chip {
+  display: inline-flex; align-items: center; gap: .4rem; margin: 0 0 .75rem;
+  font-family: var(--font-mono); font-size: .68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: #E8EEF7; padding: .28rem .55rem; border-radius: 999px;
+  border: 1px solid rgba(180,200,230,.28); background: rgba(12,18,28,.72);
+}
+.hero-panel__chip-dot { width: .45rem; height: .45rem; border-radius: 50%; background: #FF604D; box-shadow: 0 0 8px rgba(255,96,77,.65); }
+.hero-panel__title { font-family: var(--font-wide); font-size: clamp(1.6rem, 4vw, 2.9rem); text-transform: uppercase; line-height: 1.04; margin: 0 0 .6rem; max-width: 14ch; color: var(--broadcast-white); }
+.hero-panel__lede { color: #8B9BB0; font-size: 1rem; max-width: 52ch; margin: 0; }
+.hero-panel__map { position: absolute; right: 2%; top: 50%; transform: translateY(-50%); width: min(34%, 300px); opacity: .88; pointer-events: none; filter: drop-shadow(0 0 12px rgba(126,182,255,.25)); }
 .hero-panel__map .circuit-map { height: auto; }
+.hero-panel__map .circuit-map__line { stroke: #7EB6FF; stroke-width: 2.6; }
+.hero-mini-tower {
+  display: grid; gap: 0; width: min(100%, 220px); margin-top: 1rem;
+  border: 1px solid rgba(180,200,230,.22); border-radius: .4rem; overflow: hidden;
+  background: rgba(12,18,28,.78); backdrop-filter: blur(16px);
+}
+.hero-mini-tower__row {
+  display: grid; grid-template-columns: 1.4rem 2.4rem 1fr auto; align-items: center; gap: .35rem;
+  min-height: 28px; padding: 0 .45rem 0 .35rem;
+  border-left: 3px solid var(--team, #7EB6FF);
+  border-bottom: 1px solid rgba(180,200,230,.12);
+  font-family: var(--font-mono); font-size: .68rem; font-variant-numeric: tabular-nums; color: #E8EEF7;
+}
+.hero-mini-tower__row:last-child { border-bottom: 0; }
+.hero-mini-tower__row span:nth-child(1) { color: #7EB6FF; font-weight: 700; }
+.hero-mini-tower__row span:nth-child(2) { font-weight: 800; letter-spacing: .04em; }
+.hero-mini-tower__row span:nth-child(4) { color: #8B9BB0; }
 
 .tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .8rem; margin-top: 1rem; }
 .tile { border: 1px solid var(--glass-chrome); border-radius: .5rem; padding: 1rem; text-decoration: none; color: inherit;

@@ -31,7 +31,10 @@ export function HomeView() {
   return (
     <div className="shell-view">
       <section className="hero-panel">
-        <p className="shell-eyebrow">Playable now</p>
+        <p className="hero-panel__chip">
+          <span className="hero-panel__chip-dot" aria-hidden="true" />
+          LIVE SIM · {featured.laps} LAPS
+        </p>
         <h1 className="hero-panel__title">{featured.name}</h1>
         <p className="hero-panel__lede">
           Watch the {featured.laps}-lap Chinese Grand Prix simulated on the real circuit — then ask it
@@ -40,6 +43,17 @@ export function HomeView() {
         <div className="shell-actions">
           <a className="shell-btn shell-btn--primary" href={routeHref('race')}>Watch the race</a>
           <a className="shell-btn" href={routeHref('circuit', featured.id)}>Explore the circuit</a>
+        </div>
+        <div className="hero-mini-tower" aria-hidden="true">
+          <div className="hero-mini-tower__row" style={{ ['--team' as string]: '#E10600' }}>
+            <span>1</span><span>VER</span><span>Red Bull</span><span>LEADER</span>
+          </div>
+          <div className="hero-mini-tower__row" style={{ ['--team' as string]: '#FF8000' }}>
+            <span>2</span><span>NOR</span><span>McLaren</span><span>+0.842</span>
+          </div>
+          <div className="hero-mini-tower__row" style={{ ['--team' as string]: '#E10600' }}>
+            <span>3</span><span>LEC</span><span>Ferrari</span><span>+1.604</span>
+          </div>
         </div>
         <div className="hero-panel__map" aria-hidden="true">
           <CircuitMap circuit={featured} />
