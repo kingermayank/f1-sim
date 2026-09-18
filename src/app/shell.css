@@ -566,7 +566,7 @@
   height: 100%;
   object-fit: cover;
   object-position: center 62%;
-  opacity: 0.22;
+  opacity: 0.72;
   filter: saturate(0.25) brightness(0.42) contrast(1.15);
   mix-blend-mode: screen;
   pointer-events: none;
@@ -574,5 +574,6 @@
 .lights-out-plate__car {
   position: relative;
   z-index: 1;
-  opacity: 0.18;
+  opacity: 0.72;
+  filter: saturate(0.2) brightness(0.55) contrast(1.25);
 }
