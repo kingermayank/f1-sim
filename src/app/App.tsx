@@ -1,5 +1,6 @@
 import './styles.css';
 import './shell.css';
+import { useEffect } from 'react';
 import { RaceScene } from '../scene/RaceScene';
 import { RaceHud } from '../ui/RaceHud';
 import { RaceAudioBridge } from '../audio/RaceAudioBridge';
@@ -7,11 +8,23 @@ import { RacePreferenceBridge } from '../store/RacePreferenceBridge';
 import { ExplainPanel } from '../explain/ExplainPanel';
 import { AppNav } from '../shell/AppNav';
 import { LearnView } from '../shell/LearnView';
-import { CircuitView, CircuitsView, DriversView, GarageView, HomeView } from '../shell/views';
+import { CircuitView, CircuitsView, DriversView, GarageView, HomeView, LockInView } from '../shell/views';
 import { routeHref, useRoute } from '../shell/router';
+import { useRaceStore } from '../store/race-store';
 
 /** The race view, unchanged, with Explain Mode layered beside it. */
 function RaceRoute() {
+  const selectDriver = useRaceStore((state) => state.selectDriver);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedDriver = localStorage.getItem('apex:driver');
+      if (savedDriver) {
+        selectDriver(savedDriver);
+      }
+    }
+  }, [selectDriver]);
+  
   return (
     <>
       <a className="race-exit" href={routeHref('home')} aria-label="Exit to APEX home">← APEX <span className="race-exit__sub">/ Exit</span></a>
@@ -40,6 +53,7 @@ export function App() {
     <main className="app-shell app-shell--browse">
       <AppNav active={route.name} />
       {route.name === 'home' && <HomeView />}
+      {route.name === 'lock-in' && <LockInView />}
       {route.name === 'circuits' && <CircuitsView />}
       {route.name === 'circuit' && <CircuitView id={route.param} />}
       {route.name === 'garage' && <GarageView />}

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
  * with no server rewrite rules, which matters because this product is
  * frontend-only with no backend.
  */
-export const ROUTES = ['home', 'circuits', 'circuit', 'garage', 'drivers', 'learn', 'race'] as const;
+export const ROUTES = ['home', 'lock-in', 'circuits', 'circuit', 'garage', 'drivers', 'learn', 'race'] as const;
 export type RouteName = (typeof ROUTES)[number];
 
 export interface Route {
@@ -26,6 +26,8 @@ export function parseHash(hash: string): Route {
   const pathOnly = cleaned.split('?')[0];
   const [head, tail] = pathOnly.split('/');
   switch (head) {
+    case 'lock-in':
+      return { name: 'lock-in' };
     case 'circuits':
       return tail ? { name: 'circuit', param: tail } : { name: 'circuits' };
     case 'garage':
@@ -44,6 +46,7 @@ export function parseHash(hash: string): Route {
 
 export function routeHref(name: RouteName, param?: string): string {
   if (name === 'home') return '#/';
+  if (name === 'lock-in') return '#/lock-in';
   if (name === 'circuit') return `#/circuits/${param ?? ''}`;
   return `#/${name}`;
 }
