@@ -131,12 +131,25 @@
   background: #05070B;
   overflow: hidden;
 }
-.lights-out-container { max-width: 680px; }
+.lights-out-container {
+  max-width: min(680px, 100%);
+  padding-inline: 1rem;
+  box-sizing: border-box;
+}
 .start-lights { display: flex; justify-content: center; gap: 1.2rem; margin-bottom: 2.5rem; }
 .start-light-pod { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; padding: .75rem .68rem; border: 1px solid var(--stroke); border-radius: .35rem; background: var(--panel); }
 .start-light { width: 1.8rem; height: 1.8rem; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #4a0e0e, #1a0505); box-shadow: inset 0 2px 4px rgb(0 0 0 / 60%), 0 0 0 1px rgb(0 0 0 / 40%); }
 .session-ready { font-family: var(--font-body); font-weight: 700; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: #7EB6FF; margin: 0 0 1rem; }
-.lights-out-title { font-family: var(--font-wide); font-size: clamp(3.5rem, 10vw, 6rem); font-weight: 900; text-transform: uppercase; line-height: .95; letter-spacing: -.02em; margin: 0 0 .65rem; color: var(--broadcast-white); }
+.lights-out-title {
+  font-family: var(--font-wide);
+  font-size: clamp(2.25rem, 12vw, 6rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: .95;
+  letter-spacing: -.02em;
+  margin: 0 0 .65rem;
+  color: var(--broadcast-white);
+}
 .lights-out-lede { font-size: 1.15rem; color: var(--muted); margin: 0 0 2.5rem; }
 .lights-out-cta { display: inline-block; font-size: .92rem; padding: .85rem 2rem; margin-bottom: .85rem; }
 .lights-out-hint { font-family: var(--font-body); font-size: .75rem; font-weight: 600; color: var(--broadcast-blue); margin: 0; }
@@ -518,5 +531,37 @@
   width: min(40rem, 100%);
   margin-inline: auto;
   padding-block: 2rem;
+}
+
+/* Pass 18f mobile — scale down start-lights at 390px, prevent title/lede clip, reduce dead space */
+@media (max-width: 500px) {
+  .lights-out-view {
+    min-height: calc(100vh - 2rem);
+    padding-block: 1rem;
+  }
+  .lights-out-container {
+    padding-block: 1rem;
+  }
+  .start-lights {
+    gap: 0.35rem;
+    margin-bottom: 1.75rem;
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .start-light-pod {
+    padding: 0.4rem 0.35rem;
+    gap: 0.25rem;
+  }
+  .start-light {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+  .lights-out-lede {
+    font-size: 1rem;
+    margin: 0 0 1.75rem;
+  }
+  .session-ready {
+    margin: 0 0 0.75rem;
+  }
 }
 
