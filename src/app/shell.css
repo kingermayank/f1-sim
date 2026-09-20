@@ -628,7 +628,7 @@
   position: absolute;
   inset: 0;
   /* Mayank: ~32–35% black overlay (was ~48%+ crush) */
-  background: rgb(5 7 11 / 0.34);
+  background: rgb(5 7 11 / 0.40); /* Mayank lock: 40% veil */
 }
 .lights-out-container {
   position: relative;
