@@ -441,29 +441,10 @@
   overflow: hidden;
 }
 .lights-out-wash {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 4vh;
-  opacity: 1; /* per-span opacities below */
-  user-select: none;
+  /* Pass 18e hotfix: ghost wash hidden to prevent right-edge clip at 1440/1024/390.
+     Void-only composition — clean plate, no type decoration. */
+  display: none;
 }
-.lights-out-wash span {
-  font-family: var(--font-wide, var(--font-display));
-  font-weight: 800;
-  font-size: clamp(3.5rem, 14vw, 9rem);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #E8EEF7;
-  line-height: 0.9;
-  white-space: nowrap;
-}
-.lights-out-wash span:nth-child(1) { opacity: 0.05; } /* LIGHTS OUT */
-.lights-out-wash span:nth-child(2) { opacity: 0.04; } /* HOW TO RACE */
 .lights-out-view > *:not(.lights-out-wash) {
   position: relative;
   z-index: 1;
