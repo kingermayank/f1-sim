@@ -583,6 +583,13 @@
 
 
 /* ------------------------------------------------------------------ Pass 18g — atmosphere bg + ink CTA + mid-Y -- */
+/* Break out of .shell-view max-width/padding so plate is true full-bleed */
+.shell-view.lights-out-view {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
 .lights-out-view {
   position: relative;
   isolation: isolate;
@@ -603,6 +610,9 @@
   margin: 0;
   padding: 0;
   overflow: hidden;
+  /* full-bleed against any parent padding */
+  width: 100%;
+  min-width: 100%;
 }
 .lights-out-atmosphere__img {
   position: absolute;
@@ -610,16 +620,15 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 45%;
-  /* crush into void — atmosphere only */
-  filter: saturate(0.55) brightness(0.42) contrast(1.05);
+  object-position: center 42%;
+  /* keep photo readable — darken via veil only */
+  filter: saturate(0.75) brightness(0.88) contrast(1.02);
 }
 .lights-out-atmosphere__veil {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(90% 70% at 50% 40%, rgb(5 7 11 / 35%) 0%, rgb(5 7 11 / 72%) 55%, rgb(5 7 11 / 88%) 100%),
-    linear-gradient(180deg, rgb(5 7 11 / 55%) 0%, rgb(5 7 11 / 40%) 40%, rgb(5 7 11 / 78%) 100%);
+  /* Mayank: ~32–35% black overlay (was ~48%+ crush) */
+  background: rgb(5 7 11 / 0.34);
 }
 .lights-out-container {
   position: relative;
