@@ -29,6 +29,16 @@ function driversOf(teamId: string) {
 export function HomeView() {
   return (
     <div className="shell-view lights-out-view">
+      {/* Pass 18g — atmosphere only: absolute cover+darken, never in document flow */}
+      <div className="lights-out-atmosphere" aria-hidden="true">
+        <img
+          className="lights-out-atmosphere__img"
+          src="/assets/lights-out-bg.jpg"
+          alt=""
+          decoding="async"
+        />
+        <div className="lights-out-atmosphere__veil" />
+      </div>
       <div className="lights-out-wash" aria-hidden="true">
         <span>LIGHTS OUT</span>
         <span>HOW TO RACE</span>

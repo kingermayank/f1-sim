@@ -458,7 +458,7 @@
      Void-only composition — clean plate, no type decoration. */
   display: none;
 }
-.lights-out-view > *:not(.lights-out-wash) {
+.lights-out-view > *:not(.lights-out-wash):not(.lights-out-atmosphere) {
   position: relative;
   z-index: 1;
 }
@@ -580,3 +580,76 @@
   }
 }
 
+
+
+/* ------------------------------------------------------------------ Pass 18g — atmosphere bg + ink CTA + mid-Y -- */
+.lights-out-view {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  /* Pass 17 mid Y: fill viewport under shell nav, no sunk stack */
+  min-height: calc(100dvh - 3.5rem);
+  min-height: calc(100vh - 3.5rem);
+  background: #05070B;
+  overflow: hidden;
+  padding-block: 0;
+}
+.lights-out-atmosphere {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.lights-out-atmosphere__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 45%;
+  /* crush into void — atmosphere only */
+  filter: saturate(0.55) brightness(0.42) contrast(1.05);
+}
+.lights-out-atmosphere__veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(90% 70% at 50% 40%, rgb(5 7 11 / 35%) 0%, rgb(5 7 11 / 72%) 55%, rgb(5 7 11 / 88%) 100%),
+    linear-gradient(180deg, rgb(5 7 11 / 55%) 0%, rgb(5 7 11 / 40%) 40%, rgb(5 7 11 / 78%) 100%);
+}
+.lights-out-container {
+  position: relative;
+  z-index: 1;
+  justify-content: center;
+  padding-block: 1.25rem;
+}
+/* Entry CTA: Broadcast ink fill / white type (not pastel ice) */
+.lights-out-view .lights-out-cta.shell-btn--primary,
+.lights-out-view a.lights-out-cta {
+  background: #0A0E14;
+  border: 1px solid #F2F6FC;
+  color: #F2F6FC;
+  font-weight: 700;
+}
+.lights-out-view .lights-out-cta.shell-btn--primary:hover,
+.lights-out-view .lights-out-cta.shell-btn--primary:focus-visible,
+.lights-out-view a.lights-out-cta:hover,
+.lights-out-view a.lights-out-cta:focus-visible {
+  background: #121821;
+  border-color: #FFFFFF;
+  color: #FFFFFF;
+}
+@media (max-width: 500px) {
+  .lights-out-view {
+    min-height: calc(100dvh - 3.25rem);
+    min-height: calc(100vh - 3.25rem);
+    padding-block: 0.5rem;
+  }
+  .lights-out-container {
+    padding-block: 0.75rem;
+  }
+}
