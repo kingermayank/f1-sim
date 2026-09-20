@@ -74,7 +74,6 @@ export function HomeView() {
         <a className="shell-btn shell-btn--primary lights-out-cta" href={routeHref('lock-in')}>
           WATCH THE RACE
         </a>
-        <p className="lights-out-hint">Watch opens lock-in · pick circuit + primary driver, then go racing.</p>
       </div>
     </div>
   );
