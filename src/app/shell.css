@@ -538,9 +538,14 @@
   .lights-out-view {
     min-height: calc(100vh - 2rem);
     padding-block: 1rem;
+    overflow-x: hidden;
   }
   .lights-out-container {
     padding-block: 1rem;
+    padding-inline: 0.75rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   .start-lights {
     gap: 0.35rem;
@@ -556,9 +561,19 @@
     width: 1.05rem;
     height: 1.05rem;
   }
+  /* Pass 18f.1 — title was ~423px at 390; tighten clamp + tracking */
+  .lights-out-title {
+    font-size: clamp(1.85rem, 9vw, 2.75rem);
+    letter-spacing: -0.04em;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
   .lights-out-lede {
     font-size: 1rem;
     margin: 0 0 1.75rem;
+    max-width: 100%;
+    padding-inline: 0.15rem;
+    box-sizing: border-box;
   }
   .session-ready {
     margin: 0 0 0.75rem;
