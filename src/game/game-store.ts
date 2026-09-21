@@ -3,7 +3,7 @@ import { useStore } from 'zustand';
 import { DEFAULT_RACE_CONFIG } from '../domain/race-config';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import type { Driver } from '../domain/race-types';
-import { createRaceEngine, type RaceEngine } from '../simulation/race-engine';
+import { TICK_SECONDS, createRaceEngine, type RaceEngine } from '../simulation/race-engine';
 import type { CarState as AiCarState } from '../simulation/events';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { CAR, createCarState, gearFor, stepCar, type CarInput, type CarState } from './car-physics';
@@ -229,8 +229,17 @@ export function createGameStore() {
   function stepField(dt: number, playerProgress: number, playerLateral: number): AiCarState[] {
     if (!engine) return [];
     engine.advance(dt);
+    // The engine moves in tenth-of-a-second ticks. Between ticks, carry each
+    // running car forward along its own speed so it moves every frame.
+    const between = engine.tickFraction() * TICK_SECONDS;
+    const smoothed = engine.snapshot().cars.map((rival) => {
+      if (rival.status !== 'running' || rival.pitState !== 'track' || between <= 0) return rival;
+      const progress = progressOf(rival) + rival.speed * between;
+      const lap = Math.floor(progress);
+      return { ...rival, lap, distance: progress - lap };
+    });
     const ease = 1 - Math.exp(-dt * AVOIDANCE_RATE);
-    return spaceField(engine.snapshot().cars, projectedTrack.lengthMeters).map((rival) => {
+    return spaceField(smoothed, projectedTrack.lengthMeters).map((rival) => {
       let target = 0;
       if (rival.status === 'running' && rival.pitState === 'track') {
         const inRange = Math.abs(progressOf(rival) - playerProgress) * projectedTrack.lengthMeters <= AVOIDANCE_RANGE_METRES;

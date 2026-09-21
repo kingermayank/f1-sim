@@ -57,7 +57,8 @@ function GameLoop({ muted }: { muted: boolean }) {
   useEffect(() => audio.setMuted(muted), [audio, muted]);
 
   const lastLights = useRef(0);
-  const lastPhase = useRef(gameStore.getState().phase);
+  // Starts at 'setup' so the first frame applies the levels for whatever phase the race is in.
+  const lastPhase = useRef<ReturnType<typeof gameStore.getState>['phase']>('setup');
   const lastEventId = useRef(0);
   const loading = useProgress((state) => state.active);
 
@@ -86,7 +87,8 @@ function GameLoop({ muted }: { muted: boolean }) {
     if (after.phase !== lastPhase.current) {
       if (after.phase === 'racing' && lastPhase.current === 'lights') audio.lightsOut();
       if (after.phase === 'lights') lastLights.current = 0;
-      audio.setAmbience(after.phase === 'intro' ? 1 : after.phase === 'lights' ? 0.7 : after.phase === 'finished' ? 0.8 : 0.25);
+      audio.setAmbience(after.phase === 'intro' ? 0.6 : after.phase === 'lights' ? 0.7 : after.phase === 'finished' ? 0.8 : 0.25);
+      audio.setIntro(after.phase === 'intro' ? 1 : 0);
       lastPhase.current = after.phase;
     }
     const newest = after.events[after.events.length - 1];

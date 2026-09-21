@@ -1,16 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { findCircuit } from '../content/circuits';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
-import { formatLapTime, gameStore, teamOfDriver, useGameStore, type GameEvent } from './game-store';
+import { formatLapTime, gameStore, teamOfDriver, useGameStore } from './game-store';
 import { MINIMAP_OUTLINE, MINIMAP_PASSING_ZONES, MINIMAP_START, mapPoint } from './minimap';
 
 const CAR_NAMES: Record<string, string> = {
   'red-bull': 'RB21', ferrari: 'SF-25', mclaren: 'MCL39', 'aston-martin': 'AMR25',
   alpine: 'A525', williams: 'FW47', 'racing-bulls': 'VCARB01',
 };
-
-/** Toasts live this long on screen. */
-const EVENT_TTL_SECONDS = 3.6;
 
 /**
  * The race HUD. Layout follows broadcast and game convention: position and
@@ -27,7 +24,6 @@ export function GameHud() {
       {phase !== 'intro' && (
         <>
           <Timing />
-          <Toasts />
           <Banners />
           <MiniMap />
           <Wheel />
@@ -132,23 +128,6 @@ function Timing() {
       </dl>
     </div>
   );
-}
-
-/** Short-lived event feedback: passes, lap times, DRS, track limits. */
-function Toasts() {
-  const events = useGameStore((state) => state.events);
-  const elapsed = useGameStore((state) => state.elapsed);
-  const phase = useGameStore((state) => state.phase);
-  const live = phase === 'finished' ? [] : events.filter((event) => elapsed - event.at < EVENT_TTL_SECONDS).slice(-3);
-  return (
-    <ul className="game-toasts" aria-live="polite">
-      {live.map((event) => <Toast key={event.id} event={event} />)}
-    </ul>
-  );
-}
-
-function Toast({ event }: { event: GameEvent }) {
-  return <li className={`game-toast game-toast--${event.kind}`}>{event.text}</li>;
 }
 
 /** Full-width moments: lights out, final lap, the flag. */

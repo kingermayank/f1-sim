@@ -7,17 +7,19 @@
  * with a credit link (see `public/assets/audio/sfx/README.md` and
  * `src/assets/credits.json`). A missing file simply means that layer is silent.
  */
-export type SfxName = 'onboard' | 'passby' | 'ambience' | 'straight';
+export type SfxName = 'onboard' | 'passby' | 'passbyB' | 'ambience' | 'straight';
 
 export const SFX_FILES: Record<SfxName, { file: string; source: string }> = {
-  /** A steady full-throttle stretch from "Inside Formula Car Around Track", looped and pitched by RPM. */
-  onboard: { file: '/assets/audio/sfx/f1-onboard-loop.mp3', source: 'Inside Formula Car Around Track' },
-  /** "Formula 1 Race Cars Pass By Fast": one-shot when a rival goes by. */
-  passby: { file: '/assets/audio/sfx/f1-passby.mp3', source: 'Formula 1 Race Cars Pass By Fast' },
-  /** "Formula 500 General Ambience": paddock and crowd bed under the intro and grid. */
-  ambience: { file: '/assets/audio/sfx/f1-ambience.mp3', source: 'Formula 500 General Ambience' },
+  /** A six-second steady-revs stretch cut from a Sound Ideas F1 recording, crossfaded into a seamless loop and pitched by RPM. WAV so the loop is sample-exact. */
+  onboard: { file: '/assets/audio/sfx/f1-onboard-loop.wav', source: 'Sound Ideas Series 1000 · Formula 1 (freesfx 13458)' },
+  /** "Formula 1 Race Cars Pass By Fast", trimmed to the pass: one-shot when a rival goes by. */
+  passby: { file: '/assets/audio/sfx/f1-passby.mp3', source: 'Formula 1 Race Cars Pass By Fast (freesfx 13461)' },
+  /** Digiffects "Race car, Formula 1, several passing", trimmed: a second pass-by voice so repeats do not sound identical. */
+  passbyB: { file: '/assets/audio/sfx/f1-passby-b.mp3', source: 'Digiffects Power Pack · Formula 1 several passing (freesfx 18920)' },
+  /** "Formula 1 Racing", crossfaded into a loop: trackside bed under the intro and grid. */
+  ambience: { file: '/assets/audio/sfx/f1-ambience.mp3', source: 'Formula 1 Racing (freesfx 13462)' },
   /** "Formula 1 Cars on Straight Away": the flyover bed. */
-  straight: { file: '/assets/audio/sfx/f1-straight.mp3', source: 'Formula 1 Cars on Straight Away' },
+  straight: { file: '/assets/audio/sfx/f1-straight.mp3', source: 'Formula 1 Cars on Straight Away (freesfx 13463)' },
 };
 
 export type SfxLibrary = Partial<Record<SfxName, AudioBuffer>>;

@@ -19,7 +19,7 @@ import { createStrategy, shouldPit, type RaceStrategy } from './strategy';
 import { updateTire } from './tires';
 import { createWeatherSchedule, weatherTrackTemperature } from './weather';
 
-const TICK_SECONDS = 0.1;
+export const TICK_SECONDS = 0.1;
 const TICKS_PER_SECOND = 1 / TICK_SECONDS;
 const REFERENCE_LAP_SECONDS = 76.2;
 const MAX_FINISH_TICKS = 2_000_000;
@@ -94,6 +94,13 @@ export const DEFAULT_AI_DRIVER_CONTROLLER: DriverController = Object.freeze({
 
 export interface RaceEngine {
   advance(presentationSeconds: number): void;
+  /**
+   * How far presentation time has run into the next tick, in [0, 1). A
+   * renderer drawing between ticks can carry each car forward by
+   * `speed × TICK_SECONDS × tickFraction()` instead of holding it at the
+   * last tick, which at ten ticks a second reads as stutter.
+   */
+  tickFraction(): number;
   snapshot(): Readonly<RaceState>;
   drainEvents(): RaceEvent[];
   runToFinish(): void;
@@ -795,6 +802,10 @@ export function createRaceEngine(
         step();
         if (state.cars.every((car) => car.status !== 'running')) break;
       }
+    },
+
+    tickFraction(): number {
+      return Math.max(0, Math.min(1, pendingTicks));
     },
 
     snapshot(): Readonly<RaceState> {

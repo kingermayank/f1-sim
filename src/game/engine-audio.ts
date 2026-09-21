@@ -33,6 +33,8 @@ export interface EngineAudio {
   passBy(pan: number): void;
   /** Crowd and paddock bed level, 0-1, for the intro and grid. */
   setAmbience(level: number): void;
+  /** The flyover bed (cars on the straight), 0-1, for the intro only. */
+  setIntro(level: number): void;
   setMuted(muted: boolean): void;
   dispose(): void;
 }
@@ -141,6 +143,9 @@ export function createEngineAudio(): EngineAudio {
   let ambience: AudioBufferSourceNode | null = null;
   let ambienceGain: GainNode | null = null;
   let ambienceLevel = 0;
+  let flyover: AudioBufferSourceNode | null = null;
+  let flyoverGain: GainNode | null = null;
+  let flyoverLevel = 0;
 
   function start() {
     if (typeof window === 'undefined' || !('AudioContext' in window)) return;
@@ -232,6 +237,15 @@ export function createEngineAudio(): EngineAudio {
         onboardGain.gain.value = 0;
         onboard.connect(onboardGain).connect(compressor);
         onboard.start();
+      }
+      if (library.straight) {
+        flyover = owner.createBufferSource();
+        flyover.buffer = library.straight;
+        flyover.loop = true;
+        flyoverGain = owner.createGain();
+        flyoverGain.gain.value = flyoverLevel * 0.5;
+        flyover.connect(flyoverGain).connect(compressor);
+        flyover.start();
       }
       if (library.ambience) {
         ambience = owner.createBufferSource();
@@ -373,7 +387,8 @@ export function createEngineAudio(): EngineAudio {
 
     passBy(pan) {
       if (!context || !compressor) return;
-      const buffer = samples.passby;
+      const choices = [samples.passby, samples.passbyB].filter((buffer): buffer is AudioBuffer => Boolean(buffer));
+      const buffer = choices[Math.floor(Math.random() * choices.length)];
       if (!buffer) return;
       const source = context.createBufferSource();
       source.buffer = buffer;
@@ -390,6 +405,11 @@ export function createEngineAudio(): EngineAudio {
       if (ambienceGain && context) ambienceGain.gain.setTargetAtTime(level * 0.35, context.currentTime, 0.4);
     },
 
+    setIntro(level) {
+      flyoverLevel = level;
+      if (flyoverGain && context) flyoverGain.gain.setTargetAtTime(level * 0.5, context.currentTime, 0.6);
+    },
+
     setMuted(value) {
       muted = value;
       if (master && context) master.gain.setTargetAtTime(value ? 0 : MASTER_LEVEL, context.currentTime, 0.05);
@@ -402,6 +422,7 @@ export function createEngineAudio(): EngineAudio {
         whine?.stop();
         onboard?.stop();
         ambience?.stop();
+        flyover?.stop();
       } catch { /* already stopped */ }
       void context?.close();
       context = null;
