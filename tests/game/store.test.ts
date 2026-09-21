@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
-import { createGameStore, projectedTrack } from '../../src/game/game-store';
+import { INTRO_SECONDS, JUMP_START_PENALTY_SECONDS, createGameStore, projectedTrack } from '../../src/game/game-store';
 
 const FULL_THROTTLE = { throttle: 1, brake: 0, steer: 0, drs: false };
 const COAST = { throttle: 0, brake: 0, steer: 0, drs: false };
@@ -36,17 +36,56 @@ describe('game store', () => {
     expect(fraction).toBeGreaterThan(0.95);
   });
 
-  it('holds the car during the countdown, then races', () => {
+  it('runs the intro, then the five lights, then races', () => {
     const store = createGameStore();
-    store.getState().configure({ driverId: 'norris', laps: 3, seed: 'countdown' });
+    store.getState().configure({ driverId: 'norris', laps: 3, seed: 'lights' });
     store.getState().start();
-    expect(store.getState().phase).toBe('countdown');
+    expect(store.getState().phase).toBe('intro');
     store.getState().step(1, FULL_THROTTLE);
     expect(store.getState().car.speed).toBe(0);
-    store.getState().step(2.5, FULL_THROTTLE);
+    store.getState().step(INTRO_SECONDS, COAST);
+    expect(store.getState().phase).toBe('lights');
+    expect(store.getState().lights).toBe(0);
+    for (let light = 1; light <= 5; light += 1) {
+      store.getState().step(1.001, COAST);
+      expect(store.getState().lights).toBe(light);
+      expect(store.getState().phase).toBe('lights');
+    }
+    // A hold of unpredictable but bounded length, then lights out.
+    store.getState().step(1.7, COAST);
     expect(store.getState().phase).toBe('racing');
+    expect(store.getState().elapsed).toBe(0);
+    expect(store.getState().jumpStart).toBe(false);
     store.getState().step(0.5, FULL_THROTTLE);
     expect(store.getState().car.speed).toBeGreaterThan(0);
+  });
+
+  it('Enter skips the intro straight to the lights', () => {
+    const store = createGameStore();
+    store.getState().configure({ driverId: 'norris', laps: 3, seed: 'skip' });
+    store.getState().start();
+    store.getState().step(0.5, COAST);
+    store.getState().skipIntro();
+    expect(store.getState().phase).toBe('lights');
+  });
+
+  it('punishes moving before the lights go out with a five-second penalty', () => {
+    const store = createGameStore();
+    store.getState().configure({ driverId: 'norris', laps: 1, seed: 'jump', difficulty: 'easy' });
+    store.getState().start();
+    store.getState().skipIntro();
+    for (let t = 0; t < 3; t += 1 / 60) store.getState().step(1 / 60, FULL_THROTTLE);
+    expect(store.getState().jumpStart).toBe(true);
+    expect(store.getState().events.some((event) => event.kind === 'jump')).toBe(true);
+    // The car crept but was held to a crawl: nowhere near Turn 1.
+    expect(store.getState().car.speed).toBeLessThanOrEqual(6);
+    launch(store);
+    autopilot(store, 300);
+    const state = store.getState();
+    expect(state.phase).toBe('finished');
+    const me = state.classification.find((row) => row.isPlayer)!;
+    expect(me.penaltySeconds).toBe(JUMP_START_PENALTY_SECONDS);
+    expect(state.raceTime).toBeCloseTo(state.elapsed + JUMP_START_PENALTY_SECONDS, 6);
   });
 
   it('runs the AI field without the player driver in it', () => {
@@ -60,8 +99,7 @@ describe('game store', () => {
   it('counts laps as the player crosses the line and records lap times', () => {
     const store = createGameStore();
     store.getState().configure({ driverId: 'norris', laps: 3, difficulty: 'easy', seed: 'laps' });
-    store.getState().start();
-    store.getState().step(COUNTDOWN(), COAST);
+    launch(store);
     autopilot(store, 240);
     const { lap, lapTimes, bestLap } = store.getState();
     expect(lap).toBeGreaterThanOrEqual(1);
@@ -76,8 +114,7 @@ describe('game store', () => {
   it('finishes after the configured laps and reports a final position', () => {
     const store = createGameStore();
     store.getState().configure({ driverId: 'norris', laps: 2, difficulty: 'easy', seed: 'finish' });
-    store.getState().start();
-    store.getState().step(COUNTDOWN(), COAST);
+    launch(store);
     autopilot(store, 400);
     const state = store.getState();
     expect(state.phase).toBe('finished');
@@ -85,12 +122,22 @@ describe('game store', () => {
     expect(state.finishPosition!).toBeGreaterThanOrEqual(1);
     expect(state.finishPosition!).toBeLessThanOrEqual(DRIVERS_2026.length);
     expect(state.lapTimes).toHaveLength(2);
+    // Everyone is classified exactly once, in order, gaps from the winner.
+    expect(state.classification).toHaveLength(DRIVERS_2026.length);
+    expect(state.classification.map((row) => row.position)).toEqual(DRIVERS_2026.map((_, index) => index + 1));
+    expect(state.classification[0].gap).toBe(0);
+    for (let index = 1; index < state.classification.length; index += 1) {
+      expect(state.classification[index].raceTime).toBeGreaterThanOrEqual(state.classification[index - 1].raceTime);
+    }
+    expect(state.classification.filter((row) => row.fastestLap)).toHaveLength(1);
+    expect(state.classification.find((row) => row.isPlayer)!.position).toBe(state.finishPosition);
+    expect(state.events[state.events.length - 1].kind).toBe('flag');
   });
 
   it('never lets two rivals in the same lane share tarmac', () => {
     const store = createGameStore();
     store.getState().configure({ driverId: 'norris', laps: 3, seed: 'spacing', difficulty: 'hard' });
-    store.getState().start();
+    launch(store);
     let closest = Number.POSITIVE_INFINITY;
     for (let t = 0; t < 90; t += 1 / 60) {
       store.getState().step(1 / 60, COAST);
@@ -117,8 +164,7 @@ describe('game store', () => {
     }
     expect(closest).toBeGreaterThan(6);
     // The first racing step must not shove the car sideways out of its slot.
-    store.getState().start();
-    for (let t = 0; t < 3.1; t += 1 / 60) store.getState().step(1 / 60, COAST);
+    launch(store);
     expect(Math.abs(store.getState().lateral)).toBeLessThan(3.4);
     expect(store.getState().hitCar).toBe(0);
   });
@@ -126,8 +172,7 @@ describe('game store', () => {
   it('moves rivals near the player to the other side of the track', () => {
     const store = createGameStore();
     store.getState().configure({ driverId: 'norris', laps: 3, seed: 'avoid', difficulty: 'easy' });
-    store.getState().start();
-    for (let t = 0; t < 3.1; t += 1 / 60) store.getState().step(1 / 60, COAST);
+    launch(store);
     let checked = 0;
     for (let t = 0; t < 6; t += 1 / 60) {
       store.getState().step(1 / 60, FULL_THROTTLE);
@@ -147,8 +192,7 @@ describe('game store', () => {
   it('resets the car onto the racing line after going off', () => {
     const store = createGameStore();
     store.getState().configure({ driverId: 'norris', laps: 3, seed: 'reset' });
-    store.getState().start();
-    store.getState().step(COUNTDOWN(), COAST);
+    launch(store);
     // Drive off the road sideways.
     for (let i = 0; i < 240; i += 1) store.getState().step(1 / 60, { throttle: 1, brake: 0, steer: 1, drs: false });
     store.getState().step(1 / 60, COAST);
@@ -160,4 +204,10 @@ describe('game store', () => {
   });
 });
 
-function COUNTDOWN() { return 3.05; }
+/** Skips the intro and steps through the lights until the race is live. */
+function launch(store: ReturnType<typeof createGameStore>) {
+  if (store.getState().phase === 'setup') store.getState().start();
+  store.getState().skipIntro();
+  for (let t = 0; t < 10 && store.getState().phase === 'lights'; t += 1 / 60) store.getState().step(1 / 60, COAST);
+  expect(store.getState().phase).toBe('racing');
+}

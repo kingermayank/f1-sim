@@ -13,3 +13,7 @@ work/*
 # work/assets-source/ so licensing is auditable without bloating the repo.
 work/assets-source/incoming/
 work/assets-source/**/original/
+
+# Recorded sound effects are per-developer downloads (see public/assets/audio/sfx/README.md).
+public/assets/audio/sfx/*.mp3
+public/assets/audio/sfx/*.wav

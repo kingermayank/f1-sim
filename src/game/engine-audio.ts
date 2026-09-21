@@ -26,9 +26,18 @@ export interface EngineAudio {
   update(frame: EngineAudioFrame): void;
   /** Short impact burst for a barrier or car contact. */
   thud(intensity: number): void;
+  /** One gantry light coming on (index 0-4), or all going out. */
+  light(index: number): void;
+  lightsOut(): void;
+  /** A rival going past, or being passed: the recorded pass-by if present, panned to its side. */
+  passBy(pan: number): void;
+  /** Crowd and paddock bed level, 0-1, for the intro and grid. */
+  setAmbience(level: number): void;
   setMuted(muted: boolean): void;
   dispose(): void;
 }
+
+import { loadSfx, type SfxLibrary } from './sfx';
 
 /** Firing frequency at rpm 0 and the range up to the limiter. */
 const FIRING_BASE_HZ = 190;
@@ -124,6 +133,14 @@ export function createEngineAudio(): EngineAudio {
   let lastRivalAt = 0;
   let rivalRpm = 0.6;
   let muted = false;
+  let compressor: DynamicsCompressorNode | null = null;
+  let samples: SfxLibrary = {};
+  // The recorded onboard loop, pitched by RPM, once it has loaded.
+  let onboard: AudioBufferSourceNode | null = null;
+  let onboardGain: GainNode | null = null;
+  let ambience: AudioBufferSourceNode | null = null;
+  let ambienceGain: GainNode | null = null;
+  let ambienceLevel = 0;
 
   function start() {
     if (context || typeof window === 'undefined' || !('AudioContext' in window)) return;
@@ -131,7 +148,7 @@ export function createEngineAudio(): EngineAudio {
     noise = noiseBuffer(context, 2);
 
     // Everything meets at a compressor so the layers never add up to clipping.
-    const compressor = context.createDynamicsCompressor();
+    compressor = context.createDynamicsCompressor();
     compressor.threshold.value = -16;
     compressor.knee.value = 12;
     compressor.ratio.value = 4;
@@ -196,6 +213,46 @@ export function createEngineAudio(): EngineAudio {
     rival.filter.frequency.value = 900;
 
     if (context.state === 'suspended') void context.resume();
+
+    // Recordings arrive whenever they arrive; the synth carries the game until then.
+    const owner = context;
+    void loadSfx(owner).then((library) => {
+      if (context !== owner || !compressor) return;
+      samples = library;
+      if (library.onboard) {
+        onboard = owner.createBufferSource();
+        onboard.buffer = library.onboard;
+        onboard.loop = true;
+        onboardGain = owner.createGain();
+        onboardGain.gain.value = 0;
+        onboard.connect(onboardGain).connect(compressor);
+        onboard.start();
+      }
+      if (library.ambience) {
+        ambience = owner.createBufferSource();
+        ambience.buffer = library.ambience;
+        ambience.loop = true;
+        ambienceGain = owner.createGain();
+        ambienceGain.gain.value = ambienceLevel * 0.35;
+        ambience.connect(ambienceGain).connect(compressor);
+        ambience.start();
+      }
+    });
+  }
+
+  /** A short sine blip: the gantry lights, pitched up for each light and down for lights out. */
+  function tone(frequency: number, seconds: number, level: number) {
+    if (!context || !master) return;
+    const now = context.currentTime;
+    const oscillator = context.createOscillator();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = frequency;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(level, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + seconds);
+    oscillator.connect(gain).connect(master);
+    oscillator.start(now);
+    oscillator.stop(now + seconds);
   }
 
   function setVoice(voice: EngineVoice, firingHz: number, cutoff: number, level: number, now: number, glide = 0.03) {
@@ -244,7 +301,12 @@ export function createEngineAudio(): EngineAudio {
       const load = throttle > 0 ? throttle : brake > 0 ? 0 : 0.08;
       const cutoff = 500 + load * 2600 + rpm * 2600;
       const level = 0.09 + load * 0.2 + rpm * 0.1;
-      setVoice(engine, firing, cutoff, level, now);
+      // With the recorded onboard present the synth steps back to a bed under it.
+      setVoice(engine, firing, cutoff, onboard ? level * 0.45 : level, now);
+      if (onboard && onboardGain) {
+        onboard.playbackRate.setTargetAtTime(0.72 + rpm * 0.62, now, 0.04);
+        onboardGain.gain.setTargetAtTime(0.16 + load * 0.3 + rpm * 0.12, now, 0.05);
+      }
 
       whine.frequency.setTargetAtTime(1800 + rpm * 4200, now, 0.05);
       whineGain.gain.setTargetAtTime(0.006 + throttle * 0.018 * rpm, now, 0.08);
@@ -296,6 +358,33 @@ export function createEngineAudio(): EngineAudio {
       source.stop(now + length);
     },
 
+    light(index) {
+      tone(440 + index * 60, 0.16, 0.12);
+    },
+
+    lightsOut() {
+      tone(660, 0.5, 0.16);
+    },
+
+    passBy(pan) {
+      if (!context || !compressor) return;
+      const buffer = samples.passby;
+      if (!buffer) return;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      const panner = context.createStereoPanner();
+      panner.pan.value = Math.max(-1, Math.min(1, pan));
+      const gain = context.createGain();
+      gain.gain.value = 0.5;
+      source.connect(panner).connect(gain).connect(compressor);
+      source.start();
+    },
+
+    setAmbience(level) {
+      ambienceLevel = level;
+      if (ambienceGain && context) ambienceGain.gain.setTargetAtTime(level * 0.35, context.currentTime, 0.4);
+    },
+
     setMuted(value) {
       muted = value;
       if (master && context) master.gain.setTargetAtTime(value ? 0 : MASTER_LEVEL, context.currentTime, 0.05);
@@ -306,6 +395,8 @@ export function createEngineAudio(): EngineAudio {
         engine?.oscillators.forEach((oscillator) => oscillator.stop());
         rival?.oscillators.forEach((oscillator) => oscillator.stop());
         whine?.stop();
+        onboard?.stop();
+        ambience?.stop();
       } catch { /* already stopped */ }
       void context?.close();
       context = null;

@@ -10,7 +10,19 @@ import { CAR, createCarState, gearFor, stepCar, type CarInput, type CarState } f
 import { avoidanceTarget, resolveCarContact, spaceField, type Pose } from './field';
 import { constrainToWalls, createProjectedTrack } from './track-projection';
 
-export type GamePhase = 'setup' | 'countdown' | 'racing' | 'finished';
+/**
+ * The race as a journey: an intro flyover of the grid, the five-light start,
+ * the race, and the chequered flag with a full classification.
+ *
+ * - `setup`: configured, nothing moving.
+ * - `intro`: cinematic over the grid; Enter skips it.
+ * - `lights`: cars held on the grid while the gantry lights up. Moving early
+ *   is a jump start and costs five seconds.
+ * - `racing`: the race. Ends when the player completes the final lap.
+ * - `finished`: cool-down; the classification is fixed at the moment of the
+ *   player's finish.
+ */
+export type GamePhase = 'setup' | 'intro' | 'lights' | 'racing' | 'finished';
 export type Difficulty = 'easy' | 'medium' | 'hard';
 
 /**
@@ -22,15 +34,56 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 const AI_PACE: Record<Difficulty, number> = { easy: 0.72, medium: 0.86, hard: 1.0 };
 const REFERENCE_LAP_SECONDS = 76.2;
 const DRS_GAP_SECONDS = 1.0;
-const COUNTDOWN_SECONDS = 3;
 /** Rivals within this many metres of the player (either way) move off the racing line. */
 const AVOIDANCE_RANGE_METRES = 40;
 const AVOIDANCE_OFFSET_METRES = 3.6;
 const AVOIDANCE_RATE = 3;
+/** Grid row pitch, matching the engine's own grid. */
+const GRID_ROW_METRES = 9.5;
+export const INTRO_SECONDS = 11;
+/** One light per second, then a hold of unpredictable length before they go out. */
+const LIGHT_INTERVAL_SECONDS = 1;
+const LIGHTS_HOLD_MIN_SECONDS = 0.4;
+const LIGHTS_HOLD_MAX_SECONDS = 1.6;
+const JUMP_START_METRES = 1.0;
+/** A car creeping off the line before the lights: enough to be punished, not enough to reach Turn 1. */
+const JUMP_START_MAX_SPEED = 6;
+export const JUMP_START_PENALTY_SECONDS = 5;
+/** How many toasts the HUD keeps; older ones fall off. */
+const EVENT_LIMIT = 6;
+/** Rough average AI speed for projecting the gap of a car still running at the flag. */
+const PROJECTED_AI_SPEED_MPS = 52;
 
 export interface LapRecord {
   lap: number;
   seconds: number;
+}
+
+export type GameEventKind = 'pass' | 'passed' | 'lap' | 'best' | 'drs' | 'limits' | 'contact' | 'jump' | 'final' | 'flag';
+
+export interface GameEvent {
+  id: number;
+  /** Race-clock time the event happened. */
+  at: number;
+  kind: GameEventKind;
+  text: string;
+}
+
+export interface ClassificationRow {
+  driverId: string;
+  position: number;
+  /** Player's row. */
+  isPlayer: boolean;
+  /** Race time in seconds for finishers; projected for cars still running at the flag. */
+  raceTime: number;
+  /** Seconds behind the winner. */
+  gap: number;
+  bestLap: number | null;
+  penaltySeconds: number;
+  /** Set on the row with the fastest lap of the race. */
+  fastestLap: boolean;
+  /** Laps completed by cars that did not reach the flag before the player. */
+  lapsDown: number;
 }
 
 export interface GameState {
@@ -39,7 +92,16 @@ export interface GameState {
   difficulty: Difficulty;
   driverId: string;
   seed: string;
-  countdown: number;
+  /** Seconds into the intro cinematic. */
+  introSeconds: number;
+  /** Lights lit on the gantry, 0-5. */
+  lights: number;
+  /** Seconds since the last light change. */
+  lightsSeconds: number;
+  /** True once the lights go out; the HUD flashes it briefly. */
+  lightsOut: boolean;
+  jumpStart: boolean;
+  /** Race clock: 0 at lights out. */
   elapsed: number;
   car: CarState;
   fraction: number;
@@ -53,6 +115,7 @@ export interface GameState {
   position: number;
   fieldSize: number;
   gapAheadSeconds: number | null;
+  gapBehindSeconds: number | null;
   drsAvailable: boolean;
   drsActive: boolean;
   /** True on the frame the car touched a barrier, for audio and HUD. */
@@ -67,12 +130,20 @@ export interface GameState {
   gear: number;
   rpm: number;
   ai: readonly AiCarState[];
+  events: GameEvent[];
+  /** The player is on their last lap: the marshal waves the flag at the line. */
+  finalLap: boolean;
   finishPosition: number | null;
+  /** Player's race time at the flag, including penalties. */
+  raceTime: number | null;
+  classification: ClassificationRow[];
 }
 
 export interface GameActions {
   configure(options: { driverId: string; laps?: number; difficulty?: Difficulty; seed?: string }): void;
+  /** Begin the journey: the intro, then the lights. */
   start(): void;
+  skipIntro(): void;
   step(dt: number, input: CarInput): void;
   resetToTrack(): void;
   restart(): void;
@@ -86,6 +157,10 @@ function driverById(id: string): Driver {
   return DRIVERS_2026.find((driver) => driver.id === id) ?? DRIVERS_2026[0];
 }
 
+export function driverName(id: string): string {
+  return driverById(id).name;
+}
+
 function createEngine(seed: string, laps: number, difficulty: Difficulty, playerId: string): RaceEngine {
   const field = DRIVERS_2026.filter((driver) => driver.id !== playerId);
   const presentationMinutes = (laps * REFERENCE_LAP_SECONDS) / 60 / AI_PACE[difficulty];
@@ -96,8 +171,15 @@ function createEngine(seed: string, laps: number, difficulty: Difficulty, player
   );
 }
 
-/** Grid row pitch, matching the engine's own grid. */
-const GRID_ROW_METRES = 9.5;
+/** Small deterministic hash of the seed, for the lights hold. */
+function seedFraction(seed: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) % 10000) / 10000;
+}
 
 /**
  * Player starts one row behind the last AI car, on the other side of the
@@ -115,6 +197,10 @@ function gridStart(field: readonly AiCarState[]): CarState {
   return createCarState(point.x, point.z, Math.atan2(tangent.z, tangent.x));
 }
 
+function progressOf(car: AiCarState): number {
+  return car.lap + car.distance;
+}
+
 export function createGameStore() {
   let engine: RaceEngine | null = null;
   // The previous lap fraction, for detecting the line crossing.
@@ -124,6 +210,81 @@ export function createGameStore() {
   // crosses the player's nose.
   const aiLateral = new Map<string, number>();
   const aiSide = new Map<string, number>();
+  // Race clock at which each AI car took the flag.
+  const aiFinishTimes = new Map<string, number>();
+  // Where the player was when the lights came on, for the jump-start check.
+  let gridPosition = { x: 0, z: 0 };
+  let lightsHold = 1;
+  let nextEventId = 1;
+  // So the track-limits warning fires once per excursion.
+  let wasOnTrack = true;
+  let wasDrsActive = false;
+
+  function pushEvent(events: GameEvent[], at: number, kind: GameEventKind, text: string): GameEvent[] {
+    const next = [...events, { id: nextEventId, at, kind, text }];
+    nextEventId += 1;
+    return next.length > EVENT_LIMIT ? next.slice(next.length - EVENT_LIMIT) : next;
+  }
+
+  function stepField(dt: number, playerProgress: number, playerLateral: number): AiCarState[] {
+    if (!engine) return [];
+    engine.advance(dt);
+    const ease = 1 - Math.exp(-dt * AVOIDANCE_RATE);
+    return spaceField(engine.snapshot().cars, projectedTrack.lengthMeters).map((rival) => {
+      let target = 0;
+      if (rival.status === 'running' && rival.pitState === 'track') {
+        const inRange = Math.abs(progressOf(rival) - playerProgress) * projectedTrack.lengthMeters <= AVOIDANCE_RANGE_METRES;
+        if (!inRange) aiSide.delete(rival.driverId);
+        else if (!aiSide.has(rival.driverId)) aiSide.set(rival.driverId, playerLateral >= 0 ? 1 : -1);
+        const side = aiSide.get(rival.driverId) ?? 1;
+        target = avoidanceTarget(progressOf(rival), playerProgress, side, {
+          rangeLaps: AVOIDANCE_RANGE_METRES / projectedTrack.lengthMeters,
+          offsetMetres: AVOIDANCE_OFFSET_METRES,
+          halfWidth: projectedTrack.halfWidth,
+        });
+      }
+      const current = aiLateral.get(rival.driverId) ?? 0;
+      const avoidance = current + (target - current) * ease;
+      aiLateral.set(rival.driverId, avoidance);
+      return { ...rival, lateralOffset: rival.lateralOffset + avoidance };
+    });
+  }
+
+  function classify(state: GameState, ai: readonly AiCarState[], playerRaceTime: number, penalty: number): ClassificationRow[] {
+    const playerProgress = state.laps;
+    const rows: Omit<ClassificationRow, 'position' | 'gap' | 'fastestLap'>[] = [];
+    rows.push({
+      driverId: state.driverId, isPlayer: true, raceTime: playerRaceTime + penalty,
+      bestLap: state.bestLap, penaltySeconds: penalty, lapsDown: 0,
+    });
+    for (const rival of ai) {
+      const finished = aiFinishTimes.get(rival.driverId);
+      // Engine lap times are in engine seconds; the race clock runs at AI pace.
+      const bestLap = rival.timing.bestLap === null ? null : rival.timing.bestLap / AI_PACE[state.difficulty];
+      if (finished !== undefined) {
+        rows.push({ driverId: rival.driverId, isPlayer: false, raceTime: finished, bestLap, penaltySeconds: 0, lapsDown: 0 });
+        continue;
+      }
+      // Still running when the flag fell: project the time to the line from
+      // how far back it is, and note whole laps down.
+      const behind = Math.max(0, playerProgress - progressOf(rival));
+      const lapsDown = Math.floor(behind);
+      rows.push({
+        driverId: rival.driverId, isPlayer: false,
+        raceTime: playerRaceTime + (behind * projectedTrack.lengthMeters) / PROJECTED_AI_SPEED_MPS,
+        bestLap, penaltySeconds: 0, lapsDown,
+      });
+    }
+    rows.sort((a, b) => a.lapsDown - b.lapsDown || a.raceTime - b.raceTime);
+    const winner = rows[0].raceTime;
+    const fastest = rows.reduce<number | null>((best, row) => (
+      row.bestLap !== null && (best === null || row.bestLap < best) ? row.bestLap : best
+    ), null);
+    return rows.map((row, index) => ({
+      ...row, position: index + 1, gap: row.raceTime - winner,
+      fastestLap: fastest !== null && row.bestLap === fastest,
+    }));
+  }
 
   return createStore<GameStore>((set, get) => ({
     phase: 'setup',
@@ -131,7 +292,11 @@ export function createGameStore() {
     difficulty: 'easy',
     driverId: DRIVERS_2026[0].id,
     seed: 'apex-race',
-    countdown: COUNTDOWN_SECONDS,
+    introSeconds: 0,
+    lights: 0,
+    lightsSeconds: 0,
+    lightsOut: false,
+    jumpStart: false,
     elapsed: 0,
     car: gridStart([]),
     fraction: 0,
@@ -144,6 +309,7 @@ export function createGameStore() {
     position: DRIVERS_2026.length,
     fieldSize: DRIVERS_2026.length,
     gapAheadSeconds: null,
+    gapBehindSeconds: null,
     drsAvailable: false,
     drsActive: false,
     hitWall: false,
@@ -154,81 +320,125 @@ export function createGameStore() {
     gear: 1,
     rpm: 0,
     ai: [],
+    events: [],
+    finalLap: false,
     finishPosition: null,
+    raceTime: null,
+    classification: [],
 
     configure({ driverId, laps = 5, difficulty = 'easy', seed = `apex-${Date.now().toString(36)}` }) {
       engine = createEngine(seed, laps, difficulty, driverId);
       aiLateral.clear();
       aiSide.clear();
+      aiFinishTimes.clear();
+      wasOnTrack = true;
+      wasDrsActive = false;
+      lightsHold = LIGHTS_HOLD_MIN_SECONDS + seedFraction(seed) * (LIGHTS_HOLD_MAX_SECONDS - LIGHTS_HOLD_MIN_SECONDS);
       const car = gridStart(engine.snapshot().cars);
+      gridPosition = { x: car.x, z: car.z };
       previousFraction = projectedTrack.project(car.x, car.z).fraction;
       set({
         phase: 'setup', laps, difficulty, driverId, seed,
-        countdown: COUNTDOWN_SECONDS, elapsed: 0, car,
+        introSeconds: 0, lights: 0, lightsSeconds: 0, lightsOut: false, jumpStart: false,
+        elapsed: 0, car,
         fraction: previousFraction, lateral: 0, onTrack: true,
         lap: -1, lapTimes: [], bestLap: null, currentLapStart: 0,
         position: DRIVERS_2026.length, fieldSize: DRIVERS_2026.length,
-        gapAheadSeconds: null, drsAvailable: false, drsActive: false, hitWall: false, hitCar: 0,
+        gapAheadSeconds: null, gapBehindSeconds: null, drsAvailable: false, drsActive: false, hitWall: false, hitCar: 0,
         surfaceY: projectedTrack.project(car.x, car.z).point.y, bodyRoll: 0, bodyPitch: 0,
-        gear: 1, rpm: 0, ai: spaceField(engine.snapshot().cars, projectedTrack.lengthMeters), finishPosition: null,
+        gear: 1, rpm: 0, ai: spaceField(engine.snapshot().cars, projectedTrack.lengthMeters),
+        events: [], finalLap: false, finishPosition: null, raceTime: null, classification: [],
       });
     },
 
     start() {
       if (!engine) get().configure({ driverId: get().driverId });
-      set({ phase: 'countdown', countdown: COUNTDOWN_SECONDS });
+      set({ phase: 'intro', introSeconds: 0 });
+    },
+
+    skipIntro() {
+      if (get().phase === 'intro') set({ phase: 'lights', lights: 0, lightsSeconds: 0, lightsOut: false });
     },
 
     step(dt, input) {
       const state = get();
       if (!engine) return;
 
-      if (state.phase === 'countdown') {
-        const countdown = state.countdown - dt;
-        if (countdown <= 0) set({ phase: 'racing', countdown: 0 });
-        else set({ countdown });
+      if (state.phase === 'intro') {
+        const introSeconds = state.introSeconds + dt;
+        if (introSeconds >= INTRO_SECONDS) set({ phase: 'lights', introSeconds, lights: 0, lightsSeconds: 0, lightsOut: false });
+        else set({ introSeconds });
         return;
       }
+
+      if (state.phase === 'lights') {
+        // The car is live on the grid: revving is fine, moving is a jump start.
+        const projection = projectedTrack.project(state.car.x, state.car.z, state.fraction);
+        const stepped = stepCar(state.car, { ...input, drs: false }, { onTrack: true, drsAvailable: false }, dt);
+        const car = { ...stepped, speed: Math.min(stepped.speed, JUMP_START_MAX_SPEED) };
+        const moved = Math.hypot(car.x - gridPosition.x, car.z - gridPosition.z);
+        let { jumpStart, events } = state;
+        if (!jumpStart && moved > JUMP_START_METRES) {
+          jumpStart = true;
+          events = pushEvent(events, 0, 'jump', `Jump start · +${JUMP_START_PENALTY_SECONDS}s penalty`);
+        }
+        const { gear, rpm } = gearFor(car.speed);
+        const revving = input.throttle > 0 ? Math.max(rpm, 0.55 + input.throttle * 0.35) : rpm;
+
+        let { lights, lightsSeconds } = state;
+        lightsSeconds += dt;
+        if (lights < 5 && lightsSeconds >= LIGHT_INTERVAL_SECONDS) {
+          lights += 1;
+          lightsSeconds = 0;
+        } else if (lights === 5 && lightsSeconds >= lightsHold) {
+          // Lights out. The race clock starts here.
+          set({
+            phase: 'racing', lights: 0, lightsSeconds: 0, lightsOut: true, jumpStart, events,
+            car, fraction: projection.fraction, lateral: projection.lateral, gear, rpm: revving, elapsed: 0, currentLapStart: 0,
+          });
+          previousFraction = projection.fraction;
+          return;
+        }
+        set({ lights, lightsSeconds, jumpStart, events, car, fraction: projection.fraction, lateral: projection.lateral, gear, rpm: revving });
+        return;
+      }
+
+      if (state.phase === 'finished') {
+        // Cool-down: the field keeps running and the player coasts to a stop.
+        const ai = stepField(dt, state.laps, state.lateral);
+        const projection = projectedTrack.project(state.car.x, state.car.z, state.fraction);
+        const stepped = stepCar(state.car, { throttle: 0, brake: 0.25, steer: input.steer, drs: false }, { onTrack: state.onTrack, drsAvailable: false }, dt);
+        const after = projectedTrack.project(stepped.x, stepped.z, projection.fraction);
+        const walled = constrainToWalls(stepped, after, projectedTrack.wallHalfWidth);
+        const car = { ...stepped, x: walled.x, z: walled.z, heading: walled.heading, speed: walled.speed };
+        const { gear, rpm } = gearFor(car.speed);
+        set({ ai, car, fraction: after.fraction, lateral: after.lateral, surfaceY: after.point.y, gear, rpm, hitWall: false, hitCar: 0, drsActive: false, drsAvailable: false });
+        return;
+      }
+
       if (state.phase !== 'racing') return;
 
       // ---- AI -----------------------------------------------------------
-      engine.advance(dt);
       const projection = projectedTrack.project(state.car.x, state.car.z, state.fraction);
       const onTrack = Math.abs(projection.lateral) <= projectedTrack.halfWidth;
       const playerProgress = state.lap + projection.fraction;
-
-      // Space the field so no two rivals share a piece of tarmac, then move
-      // any rival near the player to the other side of the track.
-      const ease = 1 - Math.exp(-dt * AVOIDANCE_RATE);
-      const ai = spaceField(engine.snapshot().cars, projectedTrack.lengthMeters).map((rival) => {
-        let target = 0;
-        if (rival.status === 'running' && rival.pitState === 'track') {
-          const inRange = Math.abs((rival.lap + rival.distance) - playerProgress) * projectedTrack.lengthMeters <= AVOIDANCE_RANGE_METRES;
-          if (!inRange) aiSide.delete(rival.driverId);
-          else if (!aiSide.has(rival.driverId)) aiSide.set(rival.driverId, projection.lateral >= 0 ? 1 : -1);
-          const side = aiSide.get(rival.driverId) ?? 1;
-          target = avoidanceTarget(rival.lap + rival.distance, playerProgress, side, {
-            rangeLaps: AVOIDANCE_RANGE_METRES / projectedTrack.lengthMeters,
-            offsetMetres: AVOIDANCE_OFFSET_METRES,
-            halfWidth: projectedTrack.halfWidth,
-          });
-        }
-        const current = aiLateral.get(rival.driverId) ?? 0;
-        const avoidance = current + (target - current) * ease;
-        aiLateral.set(rival.driverId, avoidance);
-        return { ...rival, lateralOffset: rival.lateralOffset + avoidance };
-      });
+      const ai = stepField(dt, playerProgress, projection.lateral);
+      const elapsed = state.elapsed + dt;
+      for (const rival of ai) {
+        if (rival.status === 'finished' && !aiFinishTimes.has(rival.driverId)) aiFinishTimes.set(rival.driverId, elapsed);
+      }
 
       // ---- player -------------------------------------------------------
       // DRS: in a zone and within a second of the car directly ahead.
       let gapAheadSeconds: number | null = null;
+      let gapBehindSeconds: number | null = null;
       for (const rival of ai) {
         if (rival.status !== 'running') continue;
-        const gap = (rival.lap + rival.distance) - playerProgress;
+        const gap = progressOf(rival) - playerProgress;
+        const seconds = (Math.abs(gap) * projectedTrack.lengthMeters) / Math.max(20, state.car.speed);
         if (gap > 0) {
-          const seconds = (gap * projectedTrack.lengthMeters) / Math.max(20, state.car.speed);
           if (gapAheadSeconds === null || seconds < gapAheadSeconds) gapAheadSeconds = seconds;
-        }
+        } else if (gapBehindSeconds === null || seconds < gapBehindSeconds) gapBehindSeconds = seconds;
       }
       const drsAvailable = projectedTrack.inPassingZone(projection.fraction)
         && gapAheadSeconds !== null && gapAheadSeconds <= DRS_GAP_SECONDS;
@@ -243,8 +453,7 @@ export function createGameStore() {
       const nearby: Pose[] = [];
       for (const rival of ai) {
         if (rival.status !== 'running' || rival.pitState !== 'track') continue;
-        const rivalProgress = rival.lap + rival.distance;
-        if (Math.abs(rivalProgress - playerProgress) * projectedTrack.lengthMeters > 30) continue;
+        if (Math.abs(progressOf(rival) - playerProgress) * projectedTrack.lengthMeters > 30) continue;
         const { point, tangent } = projectedTrack.at(rival.distance, rival.lateralOffset);
         nearby.push({ x: point.x, z: point.z, heading: Math.atan2(tangent.z, tangent.x) });
       }
@@ -254,8 +463,15 @@ export function createGameStore() {
       const hitCar = touched.contact;
       const drsActive = drsAvailable && input.drs && car.speed > 30;
 
+      // ---- events -------------------------------------------------------
+      let events = state.events;
+      if (drsActive && !wasDrsActive) events = pushEvent(events, elapsed, 'drs', 'DRS open');
+      wasDrsActive = drsActive;
+      if (!onTrack && wasOnTrack && car.speed > 15) events = pushEvent(events, elapsed, 'limits', 'Track limits · slow on the grass');
+      wasOnTrack = onTrack;
+      if (hitCar > 0.35 && state.hitCar <= 0.35) events = pushEvent(events, elapsed, 'contact', 'Contact');
+
       // ---- laps -----------------------------------------------------------
-      const elapsed = state.elapsed + dt;
       let { lap, lapTimes, bestLap, currentLapStart } = state;
       const settled = projectedTrack.project(car.x, car.z, after.fraction);
       const crossedForward = previousFraction > 0.85 && settled.fraction < 0.15
@@ -265,17 +481,33 @@ export function createGameStore() {
         if (lap >= 0) {
           const seconds = elapsed - currentLapStart;
           lapTimes = [...lapTimes, { lap: lap + 1, seconds }];
-          bestLap = bestLap === null ? seconds : Math.min(bestLap, seconds);
+          const isBest = bestLap === null || seconds < bestLap;
+          bestLap = isBest ? seconds : bestLap;
+          events = pushEvent(events, elapsed, isBest ? 'best' : 'lap', `Lap ${lap + 1} · ${formatLapTime(seconds)}${isBest && lapTimes.length > 1 ? ' · personal best' : ''}`);
         }
         lap += 1;
         currentLapStart = elapsed;
+        if (lap === state.laps - 1) events = pushEvent(events, elapsed, 'final', 'Final lap');
       }
       previousFraction = settled.fraction;
+      const finalLap = lap === state.laps - 1;
 
       // ---- position -------------------------------------------------------
       const finishedAi = ai.filter((rival) => rival.status === 'finished').length;
-      const ahead = ai.filter((rival) => rival.status === 'running' && (rival.lap + rival.distance) > playerProgress).length;
+      const ahead = ai.filter((rival) => rival.status === 'running' && progressOf(rival) > playerProgress).length;
       const position = finishedAi + ahead + 1;
+      if (position < state.position && state.lap >= 0) {
+        // Who did we just get past? The closest running rival now behind us.
+        const passed = ai
+          .filter((rival) => rival.status === 'running' && progressOf(rival) <= playerProgress)
+          .sort((a, b) => progressOf(b) - progressOf(a))[0];
+        if (passed) events = pushEvent(events, elapsed, 'pass', `P${position} · passed ${driverName(passed.driverId)}`);
+      } else if (position > state.position && state.lap >= 0) {
+        const passer = ai
+          .filter((rival) => rival.status === 'running' && progressOf(rival) > playerProgress)
+          .sort((a, b) => progressOf(a) - progressOf(b))[0];
+        if (passer) events = pushEvent(events, elapsed, 'passed', `P${position} · passed by ${driverName(passer.driverId)}`);
+      }
 
       const { gear, rpm } = gearFor(car.speed);
 
@@ -295,12 +527,18 @@ export function createGameStore() {
 
       // Race ends when the player completes the final lap.
       if (lap >= state.laps) {
+        const penalty = state.jumpStart ? JUMP_START_PENALTY_SECONDS : 0;
+        const finalState: GameState = { ...state, bestLap, lapTimes };
+        const classification = classify(finalState, ai, elapsed, penalty);
+        const finishPosition = classification.find((row) => row.isPlayer)?.position ?? position;
         set({
-          phase: 'finished', car: { ...car, speed: Math.min(car.speed, 30) },
+          phase: 'finished', car,
           fraction: settled.fraction, lateral: settled.lateral, onTrack, hitWall, hitCar, surfaceY, bodyRoll, bodyPitch,
           lap, lapTimes, bestLap, currentLapStart, elapsed,
-          position, finishPosition: position, gapAheadSeconds, drsAvailable: false, drsActive: false,
-          gear, rpm, ai,
+          position: finishPosition, finishPosition, raceTime: elapsed + penalty, classification,
+          gapAheadSeconds, gapBehindSeconds, drsAvailable: false, drsActive: false,
+          gear, rpm, ai, finalLap: false,
+          events: pushEvent(events, elapsed, 'flag', `Chequered flag · P${finishPosition}`),
         });
         return;
       }
@@ -308,7 +546,7 @@ export function createGameStore() {
       set({
         car, fraction: settled.fraction, lateral: settled.lateral, onTrack, hitWall, hitCar, surfaceY, bodyRoll, bodyPitch,
         lap, lapTimes, bestLap, currentLapStart, elapsed, position,
-        gapAheadSeconds, drsAvailable, drsActive, gear, rpm, ai,
+        gapAheadSeconds, gapBehindSeconds, drsAvailable, drsActive, gear, rpm, ai, events, finalLap,
       });
     },
 
@@ -326,6 +564,17 @@ export function createGameStore() {
       get().start();
     },
   }));
+}
+
+export function formatLapTime(seconds: number | null): string {
+  if (seconds === null || !Number.isFinite(seconds)) return '—';
+  const m = Math.floor(seconds / 60);
+  const s = seconds - m * 60;
+  return `${m}:${s.toFixed(3).padStart(6, '0')}`;
+}
+
+export function formatGap(seconds: number): string {
+  return `+${seconds.toFixed(3)}s`;
 }
 
 export const gameStore = createGameStore();

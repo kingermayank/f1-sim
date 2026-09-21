@@ -8,17 +8,21 @@ import type { CarInput } from './car-physics';
 export interface InputController {
   read(): CarInput;
   consumeReset(): boolean;
+  /** Enter was pressed since the last call: skip the intro. */
+  consumeSkip(): boolean;
   dispose(): void;
 }
 
 export function createKeyboardInput(target: Window = window): InputController {
   const down = new Set<string>();
   let resetRequested = false;
+  let skipRequested = false;
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.repeat) return;
     down.add(event.code);
     if (event.code === 'KeyR') resetRequested = true;
+    if (event.code === 'Enter' || event.code === 'NumpadEnter') skipRequested = true;
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(event.code)) event.preventDefault();
   };
   const onKeyUp = (event: KeyboardEvent) => down.delete(event.code);
@@ -40,6 +44,11 @@ export function createKeyboardInput(target: Window = window): InputController {
     consumeReset() {
       const value = resetRequested;
       resetRequested = false;
+      return value;
+    },
+    consumeSkip() {
+      const value = skipRequested;
+      skipRequested = false;
       return value;
     },
     dispose() {
