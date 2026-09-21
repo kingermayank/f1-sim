@@ -8,6 +8,8 @@
 export interface EngineAudio {
   start(): void;
   update(rpm: number, gear: number, throttle: number, slip: number, speed: number): void;
+  /** Short impact burst for a barrier contact. */
+  thud(intensity: number): void;
   setMuted(muted: boolean): void;
   dispose(): void;
 }
@@ -88,6 +90,26 @@ export function createEngineAudio(): EngineAudio {
       high.frequency.setTargetAtTime(base * 3, now, 0.03);
       engineGain.gain.setTargetAtTime(0.12 + throttle * 0.16 + rpm * 0.08, now, 0.05);
       tyreGain.gain.setTargetAtTime(Math.min(0.5, slip * 0.7) * Math.min(1, speed / 30), now, 0.06);
+    },
+    thud(intensity) {
+      if (!context || !master) return;
+      const now = context.currentTime;
+      const length = 0.18;
+      const buffer = context.createBuffer(1, Math.floor(context.sampleRate * length), context.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let index = 0; index < data.length; index += 1) {
+        data[index] = (Math.random() * 2 - 1) * (1 - index / data.length) ** 2;
+      }
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      const filter = context.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 420;
+      const gain = context.createGain();
+      gain.gain.value = Math.min(0.9, 0.35 + intensity * 0.6);
+      source.connect(filter).connect(gain).connect(master);
+      source.start(now);
+      source.stop(now + length);
     },
     setMuted(value) {
       muted = value;

@@ -23,7 +23,10 @@ export interface TrackProjection {
 
 export interface ProjectedTrack {
   readonly lengthMeters: number;
+  /** Half the drivable tarmac width; beyond this is kerb and grass. */
   readonly halfWidth: number;
+  /** Half-width at the barrier. The car is physically held inside this. */
+  readonly wallHalfWidth: number;
   project(x: number, z: number, hint?: number): TrackProjection;
   /** World point and tangent at a lap fraction, for grid placement. */
   at(fraction: number, lateral?: number): { point: Vector3; tangent: Vector3 };
@@ -33,7 +36,7 @@ export interface ProjectedTrack {
 
 const SAMPLES = 2048;
 
-export function createProjectedTrack(track: TrackDefinition, halfWidth = 7): ProjectedTrack {
+export function createProjectedTrack(track: TrackDefinition, halfWidth = 6.8, wallHalfWidth = 8.4): ProjectedTrack {
   const curve = new CatmullRomCurve3(
     track.centerLine.map((p) => new Vector3(p.x, p.y, p.z)),
     true,
@@ -76,6 +79,7 @@ export function createProjectedTrack(track: TrackDefinition, halfWidth = 7): Pro
   return {
     lengthMeters: track.lengthMeters,
     halfWidth,
+    wallHalfWidth,
 
     project(x, z, hint) {
       const index = nearestIndex(x, z, hint);
@@ -109,4 +113,51 @@ export function createProjectedTrack(track: TrackDefinition, halfWidth = 7): Pro
         : f >= zone.start || f <= zone.end));
     },
   };
+}
+
+export interface WallContact {
+  x: number;
+  z: number;
+  heading: number;
+  speed: number;
+  hitWall: boolean;
+}
+
+/**
+ * Holds the car inside the barriers.
+ *
+ * If the car has crossed the wall line it is put back on it, its heading is
+ * pulled toward the track direction so it slides along the wall rather than
+ * pinning into it, and it loses speed for the contact. This is what stops a
+ * car from wandering out over terrain the circuit model never intended to be
+ * driven on — the source of the "floating above the ground" bug.
+ */
+export function constrainToWalls(
+  car: { x: number; z: number; heading: number; speed: number },
+  projection: TrackProjection,
+  wallHalfWidth: number,
+): WallContact {
+  const over = Math.abs(projection.lateral) - wallHalfWidth;
+  if (over <= 0) return { ...car, hitWall: false };
+
+  const side = Math.sign(projection.lateral);
+  const leftX = -projection.tangent.z;
+  const leftZ = projection.tangent.x;
+  // Move back to the wall line along the track normal.
+  const x = car.x - leftX * over * side;
+  const z = car.z - leftZ * over * side;
+
+  // Steer the heading toward the track direction, scaled by how hard the car
+  // went in, so a glancing touch barely deflects and a head-on hit turns it.
+  const trackHeading = Math.atan2(projection.tangent.z, projection.tangent.x);
+  let error = trackHeading - car.heading;
+  while (error > Math.PI) error -= Math.PI * 2;
+  while (error < -Math.PI) error += Math.PI * 2;
+  const heading = car.heading + error * 0.35;
+
+  // Scrub speed for the contact; harder angles cost more.
+  const impact = Math.min(1, Math.abs(Math.sin(error)));
+  const speed = car.speed * (0.92 - impact * 0.4);
+
+  return { x, z, heading, speed, hitWall: true };
 }

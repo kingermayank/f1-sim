@@ -45,6 +45,7 @@ function GameLoop({ muted }: { muted: boolean }) {
     }
     const after = gameStore.getState();
     audio.update(after.rpm, after.gear, controls.throttle, after.car.slip, after.car.speed);
+    if (after.hitWall && after.car.speed > 8) audio.thud(Math.min(1, after.car.speed / 60));
   });
   return null;
 }
@@ -58,12 +59,12 @@ function PlayerCar() {
   useFrame(() => {
     const object = group.current;
     if (!object) return;
-    const { car, fraction } = gameStore.getState();
-    // Sit on the track surface: the spline carries the elevation.
-    const surface = projectedTrack.at(fraction).point;
-    object.position.set(car.x, surface.y, car.z);
-    // Model noses face -Z; heading 0 faces +X.
-    object.rotation.set(0, -car.heading + Math.PI / 2, 0);
+    const { car, surfaceY, bodyRoll, bodyPitch } = gameStore.getState();
+    // Height comes from the track point directly under the car — never from
+    // the terrain, which drops away steeply outside the circuit.
+    object.position.set(car.x, surfaceY, car.z);
+    // Model noses face -Z; heading 0 faces +X. Roll and pitch sell the weight.
+    object.rotation.set(bodyPitch, -car.heading + Math.PI / 2, bodyRoll, 'YXZ');
   });
 
   return (
@@ -118,8 +119,8 @@ function ChaseCamera() {
   const snapped = useRef(false);
 
   useFrame((_, delta) => {
-    const { car, fraction } = gameStore.getState();
-    const surface = projectedTrack.at(fraction).point;
+    const { car, surfaceY } = gameStore.getState();
+    const surface = { y: surfaceY };
     const speedFraction = Math.min(1, car.speed / 85);
     const back = 9 + speedFraction * 5;
     const up = 3.2 + speedFraction * 1.2;

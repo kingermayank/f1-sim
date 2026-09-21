@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CAR, createCarState, gearFor, stepCar, type CarInput } from '../../src/game/car-physics';
-import { createProjectedTrack } from '../../src/game/track-projection';
+import { constrainToWalls, createProjectedTrack } from '../../src/game/track-projection';
 import { SHANGHAI_TRACK } from '../../src/track/shanghai-track';
 
 const ON_TRACK = { onTrack: true, drsAvailable: false };
@@ -106,5 +106,67 @@ describe('track projection', () => {
     expect(track.inPassingZone(0.74)).toBe(true);
     expect(track.inPassingZone(0.98)).toBe(true);
     expect(track.inPassingZone(0.4)).toBe(false);
+  });
+});
+
+describe('barriers', () => {
+  const track = createProjectedTrack(SHANGHAI_TRACK);
+
+  it('holds a car that has crossed the wall back on the wall line', () => {
+    const { point, tangent } = track.at(0.3);
+    // 20 m left of the centreline is well past the barrier.
+    const far = { x: point.x - tangent.z * 20, z: point.z + tangent.x * 20, heading: 0, speed: 60 };
+    const projection = track.project(far.x, far.z, 0.3);
+    const held = constrainToWalls(far, projection, track.wallHalfWidth);
+    expect(held.hitWall).toBe(true);
+    const after = track.project(held.x, held.z, 0.3);
+    expect(Math.abs(after.lateral)).toBeLessThanOrEqual(track.wallHalfWidth + 0.05);
+    expect(held.speed).toBeLessThan(far.speed);
+  });
+
+  it('leaves a car inside the walls untouched', () => {
+    const { point } = track.at(0.5);
+    const inside = { x: point.x, z: point.z, heading: 1, speed: 50 };
+    const held = constrainToWalls(inside, track.project(point.x, point.z, 0.5), track.wallHalfWidth);
+    expect(held.hitWall).toBe(false);
+    expect(held).toMatchObject(inside);
+  });
+
+  it('costs more speed for a head-on hit than a glancing one', () => {
+    const { point, tangent } = track.at(0.2);
+    const trackHeading = Math.atan2(tangent.z, tangent.x);
+    const at = { x: point.x - tangent.z * 12, z: point.z + tangent.x * 12 };
+    const projection = track.project(at.x, at.z, 0.2);
+    const glancing = constrainToWalls({ ...at, heading: trackHeading + 0.1, speed: 60 }, projection, track.wallHalfWidth);
+    const headOn = constrainToWalls({ ...at, heading: trackHeading + 1.4, speed: 60 }, projection, track.wallHalfWidth);
+    expect(headOn.speed).toBeLessThan(glancing.speed);
+  });
+});
+
+describe('handling', () => {
+  it('turns sharply at low speed', () => {
+    // From 20 m/s, full lock for one second should swing the heading well over 45°.
+    let state = createCarState(0, 0, 0);
+    state = { ...state, speed: 20 };
+    for (let t = 0; t < 1; t += 1 / 120) state = stepCar(state, { ...idle, throttle: 0.3, steer: 1 }, ON_TRACK, 1 / 120);
+    expect(state.heading).toBeGreaterThan(Math.PI / 4);
+  });
+
+  it('still turns meaningfully at high speed', () => {
+    let state = createCarState(0, 0, 0);
+    state = { ...state, speed: 75 };
+    for (let t = 0; t < 1; t += 1 / 120) state = stepCar(state, { ...idle, throttle: 1, steer: 1 }, ON_TRACK, 1 / 120);
+    expect(state.heading).toBeGreaterThan(0.35);
+  });
+
+  it('scrubs speed through a hard corner so braking matters', () => {
+    const straight = run({ ...idle, throttle: 1 }, 6);
+    let cornering = { ...straight };
+    let noCorner = { ...straight };
+    for (let t = 0; t < 2; t += 1 / 120) {
+      cornering = stepCar(cornering, { ...idle, throttle: 1, steer: 1 }, ON_TRACK, 1 / 120);
+      noCorner = stepCar(noCorner, { ...idle, throttle: 1 }, ON_TRACK, 1 / 120);
+    }
+    expect(cornering.speed).toBeLessThan(noCorner.speed);
   });
 });

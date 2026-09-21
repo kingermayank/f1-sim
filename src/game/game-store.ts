@@ -7,7 +7,7 @@ import { createRaceEngine, type RaceEngine } from '../simulation/race-engine';
 import type { CarState as AiCarState } from '../simulation/events';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { CAR, createCarState, gearFor, stepCar, type CarInput, type CarState } from './car-physics';
-import { createProjectedTrack } from './track-projection';
+import { constrainToWalls, createProjectedTrack } from './track-projection';
 
 export type GamePhase = 'setup' | 'countdown' | 'racing' | 'finished';
 export type Difficulty = 'easy' | 'medium' | 'hard';
@@ -50,6 +50,13 @@ export interface GameState {
   gapAheadSeconds: number | null;
   drsAvailable: boolean;
   drsActive: boolean;
+  /** True on the frame the car touched a barrier, for audio and HUD. */
+  hitWall: boolean;
+  /** Track surface height directly under the car. The renderer uses this, never terrain. */
+  surfaceY: number;
+  /** Body roll (lean into corners) and pitch (dive/squat), radians, for the renderer. */
+  bodyRoll: number;
+  bodyPitch: number;
   gear: number;
   rpm: number;
   ai: readonly AiCarState[];
@@ -115,6 +122,10 @@ export function createGameStore() {
     gapAheadSeconds: null,
     drsAvailable: false,
     drsActive: false,
+    hitWall: false,
+    surfaceY: 0,
+    bodyRoll: 0,
+    bodyPitch: 0,
     gear: 1,
     rpm: 0,
     ai: [],
@@ -130,7 +141,8 @@ export function createGameStore() {
         fraction: previousFraction, lateral: 0, onTrack: true,
         lap: -1, lapTimes: [], bestLap: null, currentLapStart: 0,
         position: DRIVERS_2026.length, fieldSize: DRIVERS_2026.length,
-        gapAheadSeconds: null, drsAvailable: false, drsActive: false,
+        gapAheadSeconds: null, drsAvailable: false, drsActive: false, hitWall: false,
+        surfaceY: projectedTrack.project(car.x, car.z).point.y, bodyRoll: 0, bodyPitch: 0,
         gear: 1, rpm: 0, ai: engine.snapshot().cars, finishPosition: null,
       });
     },
@@ -174,13 +186,21 @@ export function createGameStore() {
       const drsAvailable = projectedTrack.inPassingZone(projection.fraction)
         && gapAheadSeconds !== null && gapAheadSeconds <= DRS_GAP_SECONDS;
 
-      const car = stepCar(state.car, input, { onTrack, drsAvailable }, dt);
+      const stepped = stepCar(state.car, input, { onTrack, drsAvailable }, dt);
+      // Re-project after moving and hold the car inside the barriers, so it can
+      // never wander out over terrain the circuit model never meant to be driven.
+      const after = projectedTrack.project(stepped.x, stepped.z, projection.fraction);
+      const walled = constrainToWalls(stepped, after, projectedTrack.wallHalfWidth);
+      const car = { ...stepped, x: walled.x, z: walled.z, heading: walled.heading, speed: walled.speed };
+      const hitWall = walled.hitWall;
       const drsActive = drsAvailable && input.drs && car.speed > 30;
 
       // ---- laps -----------------------------------------------------------
       const elapsed = state.elapsed + dt;
       let { lap, lapTimes, bestLap, currentLapStart } = state;
-      const crossedForward = previousFraction > 0.85 && projection.fraction < 0.15;
+      const settled = projectedTrack.project(car.x, car.z, after.fraction);
+      const crossedForward = previousFraction > 0.85 && settled.fraction < 0.15
+        && Math.abs(settled.lateral) <= projectedTrack.wallHalfWidth;
       if (crossedForward) {
         // Lap -1 is the grid; the first crossing starts lap 1 and records nothing.
         if (lap >= 0) {
@@ -191,7 +211,7 @@ export function createGameStore() {
         lap += 1;
         currentLapStart = elapsed;
       }
-      previousFraction = projection.fraction;
+      previousFraction = settled.fraction;
 
       // ---- position -------------------------------------------------------
       const finishedAi = ai.filter((rival) => rival.status === 'finished').length;
@@ -200,11 +220,25 @@ export function createGameStore() {
 
       const { gear, rpm } = gearFor(car.speed);
 
+      // Weight transfer, damped: lean into corners, dive under braking, squat on
+      // throttle. Small angles do more for the feel of mass than any geometry.
+      let dHeading = car.heading - state.car.heading;
+      while (dHeading > Math.PI) dHeading -= Math.PI * 2;
+      while (dHeading < -Math.PI) dHeading += Math.PI * 2;
+      const yawRate = dHeading / dt;
+      const accel = (car.speed - state.car.speed) / dt;
+      const targetRoll = Math.max(-0.09, Math.min(0.09, -yawRate * car.speed * 0.0016));
+      const targetPitch = Math.max(-0.06, Math.min(0.06, -accel * 0.004));
+      const ease = 1 - Math.exp(-dt * 8);
+      const bodyRoll = state.bodyRoll + (targetRoll - state.bodyRoll) * ease;
+      const bodyPitch = state.bodyPitch + (targetPitch - state.bodyPitch) * ease;
+      const surfaceY = settled.point.y;
+
       // Race ends when the player completes the final lap.
       if (lap >= state.laps) {
         set({
           phase: 'finished', car: { ...car, speed: Math.min(car.speed, 30) },
-          fraction: projection.fraction, lateral: projection.lateral, onTrack,
+          fraction: settled.fraction, lateral: settled.lateral, onTrack, hitWall, surfaceY, bodyRoll, bodyPitch,
           lap, lapTimes, bestLap, currentLapStart, elapsed,
           position, finishPosition: position, gapAheadSeconds, drsAvailable: false, drsActive: false,
           gear, rpm, ai,
@@ -213,7 +247,7 @@ export function createGameStore() {
       }
 
       set({
-        car, fraction: projection.fraction, lateral: projection.lateral, onTrack,
+        car, fraction: settled.fraction, lateral: settled.lateral, onTrack, hitWall, surfaceY, bodyRoll, bodyPitch,
         lap, lapTimes, bestLap, currentLapStart, elapsed, position,
         gapAheadSeconds, drsAvailable, drsActive, gear, rpm, ai,
       });
@@ -224,7 +258,7 @@ export function createGameStore() {
       // facing forward, stopped. Costs time; never costs the race.
       const { fraction } = get();
       const { point, tangent } = projectedTrack.at(fraction);
-      set({ car: createCarState(point.x, point.z, Math.atan2(tangent.z, tangent.x)), onTrack: true });
+      set({ car: createCarState(point.x, point.z, Math.atan2(tangent.z, tangent.x)), onTrack: true, surfaceY: point.y, bodyRoll: 0, bodyPitch: 0 });
     },
 
     restart() {

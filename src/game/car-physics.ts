@@ -41,19 +41,21 @@ export const CAR = {
   dragCoefficient: 2.0,
   rollingResistance: 220,
   /** Radians of lock at rest. */
-  maxSteer: 0.42,
+  maxSteer: 0.6,
   /** Steering lock shrinks toward this fraction at top speed. */
-  highSpeedSteerFraction: 0.22,
-  /** Base lateral acceleration limit, m/s². */
-  baseGrip: 22,
-  /** Extra grip per (m/s)², standing in for downforce. */
-  downforceGrip: 0.0022,
+  highSpeedSteerFraction: 0.38,
+  /** Base lateral acceleration limit, m/s² (~3 g). */
+  baseGrip: 30,
+  /** Extra grip per (m/s)², standing in for downforce: ~5.5 g at top speed. */
+  downforceGrip: 0.004,
+  /** Speed scrubbed by hard cornering, so braking for corners still matters. */
+  corneringDrag: 0.9,
   topSpeed: 85, // m/s ≈ 306 km/h
   drsDragFactor: 0.8,
   drsTopSpeed: 92,
   offTrackGripFactor: 0.42,
   offTrackDragFactor: 3.2,
-  steerResponse: 9,
+  steerResponse: 12,
 } as const;
 
 export function createCarState(x: number, z: number, heading: number): CarState {
@@ -90,6 +92,9 @@ export function stepCar(state: CarState, input: CarInput, env: CarEnvironment, d
   const maxYaw = Math.abs(speed) > 0.5 ? grip / Math.abs(speed) : Number.POSITIVE_INFINITY;
   const yaw = Math.max(-maxYaw, Math.min(maxYaw, demandedYaw));
   const slip = Math.abs(demandedYaw) > 1e-6 ? Math.min(1, Math.max(0, 1 - Math.abs(yaw) / Math.abs(demandedYaw))) : 0;
+
+  const lateralLoad = Math.abs(yaw) * Math.abs(speed);
+  speed = Math.max(0, speed - CAR.corneringDrag * (lateralLoad / Math.max(1, grip)) * Math.abs(speed) * dt * 0.5);
 
   const heading = state.heading + yaw * dt;
   const x = state.x + Math.cos(heading) * speed * dt;
