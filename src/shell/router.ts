@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
  * with no server rewrite rules, which matters because this product is
  * frontend-only with no backend.
  */
-export const ROUTES = ['home', 'circuits', 'circuit', 'garage', 'drivers', 'learn', 'race'] as const;
+export const ROUTES = ['home', 'circuits', 'circuit', 'garage', 'drivers', 'learn', 'race', 'play', 'play-race'] as const;
 export type RouteName = (typeof ROUTES)[number];
 
 export interface Route {
@@ -34,6 +34,8 @@ export function parseHash(hash: string): Route {
       return { name: 'learn' };
     case 'race':
       return { name: 'race' };
+    case 'play':
+      return tail === 'race' ? { name: 'play-race' } : { name: 'play' };
     default:
       // Unknown routes fall back to home rather than rendering nothing.
       return HOME;
@@ -43,6 +45,7 @@ export function parseHash(hash: string): Route {
 export function routeHref(name: RouteName, param?: string): string {
   if (name === 'home') return '#/';
   if (name === 'circuit') return `#/circuits/${param ?? ''}`;
+  if (name === 'play-race') return '#/play/race';
   return `#/${name}`;
 }
 

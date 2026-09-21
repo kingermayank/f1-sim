@@ -289,3 +289,80 @@
   .grid-list__row { grid-template-columns: 2.2rem 1fr; }
   .grid-list__team, .grid-list__flag { grid-column: 2; }
 }
+
+/* ------------------------------------------------------------------ game -- */
+.game-shell { position: relative; width: 100%; height: 100vh; overflow: hidden; background: var(--ink); }
+.game-shell .race-canvas { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; }
+.game-topbar { position: absolute; z-index: 5; top: .75rem; left: .75rem; display: flex; gap: .4rem; }
+
+.game-hud { position: absolute; inset: 0; z-index: 4; pointer-events: none; font-family: var(--font-body); }
+.game-hud__countdown {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--font-wide); font-size: clamp(5rem, 18vw, 12rem); color: var(--signal);
+  text-shadow: 0 0 40px rgb(219 255 74 / 45%); letter-spacing: .04em;
+}
+.game-hud__top { position: absolute; top: .75rem; right: .75rem; display: flex; gap: .6rem; align-items: stretch; }
+.game-hud__pos, .game-hud__lap, .game-hud__times {
+  border: 1px solid var(--line); border-radius: .5rem; padding: .55rem .8rem;
+  background: rgb(5 9 14 / 82%); backdrop-filter: blur(10px); display: flex; flex-direction: column; justify-content: center;
+}
+.game-hud__big { font-family: var(--font-wide); font-size: 1.7rem; line-height: 1; }
+.game-hud__small { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.game-hud__times { gap: .15rem; min-width: 11rem; }
+.game-hud__times div { display: flex; justify-content: space-between; gap: 1rem; }
+.game-hud__label { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.game-hud__mono { font-family: var(--font-mono); font-size: .86rem; font-variant-numeric: tabular-nums; }
+
+.game-hud__bottom { position: absolute; right: .75rem; bottom: .75rem; display: flex; align-items: flex-end; gap: .6rem; }
+.game-hud__drs {
+  font-family: var(--font-wide); font-size: 1rem; letter-spacing: .08em; padding: .6rem .8rem; border-radius: .5rem;
+  border: 1px solid rgb(255 255 255 / 18%); color: var(--muted); background: rgb(5 9 14 / 82%); backdrop-filter: blur(10px);
+}
+.game-hud__drs.is-available { color: var(--text); border-color: rgb(255 255 255 / 45%); }
+.game-hud__drs.is-active { color: #07100d; background: var(--signal); border-color: var(--signal); box-shadow: 0 0 24px rgb(219 255 74 / 45%); }
+.game-hud__speedo { border: 1px solid var(--line); border-radius: .6rem; padding: .6rem .9rem; background: rgb(5 9 14 / 84%); backdrop-filter: blur(10px); min-width: 14rem; }
+.game-hud__rpm { height: .45rem; border-radius: 999px; background: rgb(255 255 255 / 10%); overflow: hidden; margin-bottom: .45rem; }
+.game-hud__rpm-fill { height: 100%; background: linear-gradient(90deg, var(--signal), #ff604d); transition: width .05s linear; }
+.game-hud__speed { display: flex; align-items: baseline; gap: .4rem; }
+.game-hud__kph { font-family: var(--font-mono); font-size: 2.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.game-hud__unit { font-family: var(--font-mono); font-size: .7rem; color: var(--muted); letter-spacing: .1em; }
+.game-hud__gear { margin-left: auto; font-family: var(--font-wide); font-size: 2.2rem; line-height: 1; color: var(--signal); }
+.game-hud__warn {
+  position: absolute; right: 0; bottom: 6.6rem; font-family: var(--font-body); font-weight: 800; font-size: .82rem;
+  padding: .45rem .7rem; border-radius: .4rem; background: rgb(255 96 77 / 18%); border: 1px solid rgb(255 96 77 / 55%); color: #ffb3aa; white-space: nowrap;
+}
+.game-hud__keys { position: absolute; left: .75rem; bottom: .75rem; display: flex; gap: .8rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: .66rem; letter-spacing: .06em; color: var(--muted); }
+.game-hud__keys b { color: var(--text); border: 1px solid rgb(255 255 255 / 25%); border-radius: 4px; padding: 0 .3rem; font-weight: 400; }
+
+.game-result { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; background: rgb(3 6 10 / 62%); backdrop-filter: blur(6px); }
+.game-result__card { width: min(28rem, 92vw); border: 1px solid rgb(219 255 74 / 40%); border-radius: .8rem; padding: 1.4rem; background: rgb(6 10 16 / 96%); }
+.game-result__card h2 { font-family: var(--font-wide); font-size: 3rem; margin: .2rem 0; line-height: 1; }
+.game-result__driver { color: var(--muted); margin: 0 0 .9rem; }
+.game-result__laps { display: grid; gap: .3rem; margin: 0 0 .8rem; }
+.game-result__laps div { display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); padding: .3rem 0; font-size: .9rem; }
+.game-result__laps div.is-best dd { color: var(--signal); }
+.game-result__laps dd { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.game-result__best { color: var(--muted); font-size: .9rem; }
+.game-result__best strong { font-family: var(--font-mono); color: var(--text); }
+
+.choose-grid { display: grid; gap: 1rem; grid-template-columns: 1fr 1.4fr; }
+.choose-grid > section:last-child { grid-column: 1 / -1; }
+.choose-circuit { display: grid; grid-template-columns: 140px 1fr; gap: .9rem; align-items: center; }
+.choose-circuit__map { height: 120px; }
+.choose-circuit h3 { margin: 0 0 .2rem; }
+.choose-meta { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); margin: 0 0 .5rem; }
+.choose-cars { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .45rem; }
+.choose-car {
+  text-align: left; display: grid; gap: .1rem; padding: .55rem .65rem; border-radius: .45rem; cursor: pointer; color: var(--text);
+  border: 1px solid rgb(255 255 255 / 16%); border-left: 4px solid var(--team); background: rgb(255 255 255 / 3%); font-family: var(--font-body);
+}
+.choose-car:hover { border-color: rgb(255 255 255 / 40%); border-left-color: var(--team); }
+.choose-car.is-selected { border-color: var(--signal); background: rgb(219 255 74 / 12%); }
+.choose-car__num { font-family: var(--font-mono); font-size: .72rem; color: var(--muted); }
+.choose-car__name { font-weight: 800; font-size: .9rem; }
+.choose-car__team { font-family: var(--font-mono); font-size: .66rem; color: var(--muted); }
+.choose-hook { margin: .8rem 0 0; color: var(--muted); font-size: .9rem; }
+.choose-settings { display: flex; gap: 1rem; flex-wrap: wrap; }
+.choose-settings label { display: grid; gap: .3rem; font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.choose-settings select { min-width: 12rem; font-family: var(--font-body); font-size: .9rem; padding: .45rem .6rem; border-radius: .4rem; border: 1px solid rgb(255 255 255 / 22%); background: #0a1019; color: var(--text); }
+@media (max-width: 860px) { .choose-grid { grid-template-columns: 1fr; } .choose-circuit { grid-template-columns: 1fr; } }

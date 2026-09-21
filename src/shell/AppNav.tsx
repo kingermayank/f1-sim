@@ -10,7 +10,7 @@ const LINKS: { name: RouteName; label: string }[] = [
 
 export function AppNav({ active }: { active: RouteName }) {
   // The circuit detail page lives under Circuits, so keep that tab lit.
-  const current = active === 'circuit' ? 'circuits' : active;
+  const current = active === 'circuit' ? 'circuits' : active === 'play-race' ? 'play' : active;
 
   return (
     <header className="shell-nav">
@@ -30,7 +30,7 @@ export function AppNav({ active }: { active: RouteName }) {
           </a>
         ))}
       </nav>
-      <a className="shell-nav__cta" href={routeHref('race')}>Run a race</a>
+      <a className="shell-nav__cta" href={routeHref('play')}>Choose race</a>
     </header>
   );
 }

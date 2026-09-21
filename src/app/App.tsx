@@ -9,6 +9,7 @@ import { AppNav } from '../shell/AppNav';
 import { LearnView } from '../shell/LearnView';
 import { CircuitView, CircuitsView, DriversView, GarageView, HomeView } from '../shell/views';
 import { routeHref, useRoute } from '../shell/router';
+import { ChooseRaceView, PlayRaceView } from '../game/PlayViews';
 
 /** The race view, unchanged, with Explain Mode layered beside it. */
 function RaceRoute() {
@@ -26,6 +27,15 @@ function RaceRoute() {
 
 export function App() {
   const route = useRoute();
+
+  if (route.name === 'play-race') {
+    return (
+      <main className="app-shell">
+        <h1 className="visually-hidden">APEX race</h1>
+        <PlayRaceView />
+      </main>
+    );
+  }
 
   if (route.name === 'race') {
     return (
@@ -45,6 +55,7 @@ export function App() {
       {route.name === 'garage' && <GarageView />}
       {route.name === 'drivers' && <DriversView />}
       {route.name === 'learn' && <LearnView />}
+      {route.name === 'play' && <ChooseRaceView />}
     </main>
   );
 }

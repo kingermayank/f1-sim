@@ -31,15 +31,15 @@ export function HomeView() {
   return (
     <div className="shell-view">
       <section className="hero-panel">
-        <p className="shell-eyebrow">Playable now</p>
+        <p className="shell-eyebrow">Race it yourself</p>
         <h1 className="hero-panel__title">{featured.name}</h1>
         <p className="hero-panel__lede">
-          Watch the {featured.laps}-lap Chinese Grand Prix simulated on the real circuit — then ask it
-          why every decision happened.
+          Choose a car and drive five laps of the real circuit against the field. Keyboard controls,
+          DRS, lap times — or sit back and watch the simulation with every decision explained.
         </p>
         <div className="shell-actions">
-          <a className="shell-btn shell-btn--primary" href={routeHref('race')}>Watch the race</a>
-          <a className="shell-btn" href={routeHref('circuit', featured.id)}>Explore the circuit</a>
+          <a className="shell-btn shell-btn--primary" href={routeHref('play')}>Choose race</a>
+          <a className="shell-btn" href={routeHref('race')}>Watch the simulation</a>
         </div>
         <div className="hero-panel__map" aria-hidden="true">
           <CircuitMap circuit={featured} />
