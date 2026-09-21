@@ -39,9 +39,13 @@ function GameLoop({ muted }: { muted: boolean }) {
   const audio = useMemo(() => createEngineAudio(), []);
 
   useEffect(() => {
+    // The click that started the race is a user gesture, so the context can
+    // usually run straight away; if the browser still holds it, any key or
+    // pointer resumes it.
     const begin = () => audio.start();
-    window.addEventListener('keydown', begin, { once: true });
-    window.addEventListener('pointerdown', begin, { once: true });
+    begin();
+    window.addEventListener('keydown', begin);
+    window.addEventListener('pointerdown', begin);
     return () => {
       window.removeEventListener('keydown', begin);
       window.removeEventListener('pointerdown', begin);

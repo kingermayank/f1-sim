@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DRIVERS_2026 } from '../../src/domain/grid-2026';
-import { INTRO_SECONDS, JUMP_START_PENALTY_SECONDS, createGameStore, projectedTrack } from '../../src/game/game-store';
+import { INTRO_SECONDS, createGameStore, projectedTrack } from '../../src/game/game-store';
 
 const FULL_THROTTLE = { throttle: 1, brake: 0, steer: 0, drs: false };
 const COAST = { throttle: 0, brake: 0, steer: 0, drs: false };
@@ -55,7 +55,6 @@ describe('game store', () => {
     store.getState().step(1.7, COAST);
     expect(store.getState().phase).toBe('racing');
     expect(store.getState().elapsed).toBe(0);
-    expect(store.getState().jumpStart).toBe(false);
     store.getState().step(0.5, FULL_THROTTLE);
     expect(store.getState().car.speed).toBeGreaterThan(0);
   });
@@ -69,23 +68,52 @@ describe('game store', () => {
     expect(store.getState().phase).toBe('lights');
   });
 
-  it('punishes moving before the lights go out with a five-second penalty', () => {
+  it('holds the car through the lights however hard the throttle is pressed, then times the reaction', () => {
     const store = createGameStore();
-    store.getState().configure({ driverId: 'norris', laps: 1, seed: 'jump', difficulty: 'easy' });
+    store.getState().configure({ driverId: 'norris', laps: 3, seed: 'launch' });
     store.getState().start();
     store.getState().skipIntro();
     for (let t = 0; t < 3; t += 1 / 60) store.getState().step(1 / 60, FULL_THROTTLE);
-    expect(store.getState().jumpStart).toBe(true);
-    expect(store.getState().events.some((event) => event.kind === 'jump')).toBe(true);
-    // The car crept but was held to a crawl: nowhere near Turn 1.
-    expect(store.getState().car.speed).toBeLessThanOrEqual(6);
+    expect(store.getState().phase).toBe('lights');
+    expect(store.getState().car.speed).toBe(0);
+    // Revving shows on the gauge even though nothing moves.
+    expect(store.getState().rpm).toBeGreaterThan(0.5);
     launch(store);
-    autopilot(store, 300);
-    const state = store.getState();
-    expect(state.phase).toBe('finished');
-    const me = state.classification.find((row) => row.isPlayer)!;
-    expect(me.penaltySeconds).toBe(JUMP_START_PENALTY_SECONDS);
-    expect(state.raceTime).toBeCloseTo(state.elapsed + JUMP_START_PENALTY_SECONDS, 6);
+    // Lift for a quarter second after lights out, then go.
+    for (let t = 0; t < 0.25; t += 1 / 60) store.getState().step(1 / 60, COAST);
+    store.getState().step(1 / 60, FULL_THROTTLE);
+    const { reactionSeconds, events } = store.getState();
+    expect(reactionSeconds).not.toBeNull();
+    expect(reactionSeconds!).toBeGreaterThan(0.2);
+    expect(reactionSeconds!).toBeLessThan(0.35);
+    expect(events.some((event) => event.kind === 'launch')).toBe(true);
+  });
+
+  it('enables DRS only from the second lap', () => {
+    const store = createGameStore();
+    store.getState().configure({ driverId: 'norris', laps: 4, difficulty: 'hard', seed: 'drs' });
+    launch(store);
+    // Put the player 15 m behind a rival running through the back-straight
+    // zone on the same lap, on lap 1 and then on lap 2.
+    const placeBehind = (lap: number) => {
+      const inZone = (car: { status: string; lap: number; distance: number }) => car.status === 'running' && car.lap === lap && car.distance > 0.68 && car.distance < 0.8;
+      let rival = store.getState().ai.find(inZone);
+      for (let t = 0; t < 200 && !rival; t += 1 / 60) {
+        store.getState().step(1 / 60, COAST);
+        rival = store.getState().ai.find(inZone);
+      }
+      expect(rival).toBeDefined();
+      store.setState({ fraction: rival!.distance - 15 / projectedTrack.lengthMeters, lap });
+      store.getState().resetToTrack();
+      store.getState().step(1 / 60, FULL_THROTTLE);
+      return store.getState();
+    };
+    const first = placeBehind(0);
+    expect(first.gapAheadSeconds).toBeLessThanOrEqual(1);
+    expect(first.drsAvailable).toBe(false);
+    const second = placeBehind(1);
+    expect(second.gapAheadSeconds).toBeLessThanOrEqual(1);
+    expect(second.drsAvailable).toBe(true);
   });
 
   it('runs the AI field without the player driver in it', () => {

@@ -143,7 +143,12 @@ export function createEngineAudio(): EngineAudio {
   let ambienceLevel = 0;
 
   function start() {
-    if (context || typeof window === 'undefined' || !('AudioContext' in window)) return;
+    if (typeof window === 'undefined' || !('AudioContext' in window)) return;
+    // Called on mount and again on every gesture until the browser lets it run.
+    if (context) {
+      if (context.state === 'suspended') void context.resume();
+      return;
+    }
     context = new AudioContext();
     noise = noiseBuffer(context, 2);
 

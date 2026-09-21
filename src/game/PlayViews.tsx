@@ -6,7 +6,7 @@ import { CircuitMap } from '../shell/CircuitMap';
 import { routeHref } from '../shell/router';
 import { GameHud } from './GameHud';
 import { GameScene } from './GameScene';
-import { JUMP_START_PENALTY_SECONDS, driverName, formatGap, formatLapTime, gameStore, teamOfDriver, useGameStore, type Difficulty } from './game-store';
+import { driverName, formatGap, formatLapTime, gameStore, teamOfDriver, useGameStore, type Difficulty } from './game-store';
 
 const CAR_NAMES: Record<string, string> = {
   'red-bull': 'RB21', ferrari: 'SF-25', mclaren: 'MCL39', 'aston-martin': 'AMR25',
@@ -155,7 +155,7 @@ function RaceResultOverlay() {
   const laps = useGameStore((state) => state.laps);
   const lapTimes = useGameStore((state) => state.lapTimes);
   const bestLap = useGameStore((state) => state.bestLap);
-  const jumpStart = useGameStore((state) => state.jumpStart);
+  const reactionSeconds = useGameStore((state) => state.reactionSeconds);
   const driverId = useGameStore((state) => state.driverId);
   const [revealed, setRevealed] = useState(false);
   const circuit = findCircuit('shanghai')!;
@@ -186,6 +186,7 @@ function RaceResultOverlay() {
           <dl className="game-result__stats">
             <div><dt>Race time</dt><dd>{formatLapTime(classification.find((row) => row.isPlayer)?.raceTime ?? null)}</dd></div>
             <div><dt>Best lap</dt><dd>{formatLapTime(bestLap)}</dd></div>
+            <div><dt>Reaction</dt><dd>{reactionSeconds === null ? '—' : `${reactionSeconds.toFixed(2)}s`}</dd></div>
             <div><dt>Winner</dt><dd>{winner ? driverName(winner.driverId) : '—'}</dd></div>
           </dl>
         </header>
@@ -222,7 +223,6 @@ function RaceResultOverlay() {
               </li>
             ))}
           </ol>
-          {jumpStart && <p className="game-result__note">Jump start: {JUMP_START_PENALTY_SECONDS} seconds added to your race time.</p>}
           <div className="shell-actions">
             <button type="button" className="shell-btn shell-btn--primary" onClick={() => gameStore.getState().restart()}>Race again</button>
             <a className="shell-btn" href="#/play">Change car</a>

@@ -82,7 +82,6 @@ function LightsGantry() {
   const lights = useGameStore((state) => state.lights);
   const phase = useGameStore((state) => state.phase);
   const elapsed = useGameStore((state) => state.elapsed);
-  const jumpStart = useGameStore((state) => state.jumpStart);
   // Keep the gantry up briefly after lights out so the "go" reads.
   const visible = phase === 'lights' || (phase === 'racing' && elapsed < 1.6);
   if (!visible) return null;
@@ -96,7 +95,7 @@ function LightsGantry() {
           </div>
         ))}
       </div>
-      <p className="game-lights__label">{out ? (jumpStart ? 'Jump start' : "It's lights out") : 'Hold on the grid'}</p>
+      <p className="game-lights__label">{out ? "It's lights out" : 'Hold on the grid'}</p>
     </div>
   );
 }
@@ -128,8 +127,8 @@ function Timing() {
       <dl className="game-timing__times">
         <div><dt>Current</dt><dd>{formatLapTime(lap >= 0 && phase === 'racing' ? elapsed - currentLapStart : null)}</dd></div>
         <div><dt>Best</dt><dd>{formatLapTime(bestLap)}</dd></div>
-        <div><dt>Ahead</dt><dd>{gapAhead === null ? 'Leader' : `+${gapAhead.toFixed(1)}s`}</dd></div>
-        <div><dt>Behind</dt><dd>{gapBehind === null ? '—' : `-${gapBehind.toFixed(1)}s`}</dd></div>
+        <div><dt>Ahead</dt><dd>{gapAhead === null ? 'Leader' : gapAhead > 99 ? '+99s' : `+${gapAhead.toFixed(1)}s`}</dd></div>
+        <div><dt>Behind</dt><dd>{gapBehind === null ? '—' : gapBehind > 99 ? '-99s' : `-${gapBehind.toFixed(1)}s`}</dd></div>
       </dl>
     </div>
   );

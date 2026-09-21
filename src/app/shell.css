@@ -348,8 +348,8 @@
 .game-toasts { position: absolute; top: 9.2rem; left: 50%; transform: translateX(-50%); margin: 0; padding: 0; list-style: none; display: grid; gap: .35rem; justify-items: center; }
 .game-toast { padding: .4rem .8rem; border-radius: 999px; background: var(--hud-bg); border: 1px solid var(--hud-line); backdrop-filter: blur(10px); font-family: var(--font-mono); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; animation: toast-in .35s cubic-bezier(.2,.8,.2,1) both; white-space: nowrap; }
 .game-toast--pass, .game-toast--best, .game-toast--drs, .game-toast--flag { color: var(--signal); border-color: rgb(219 255 74 / 45%); }
-.game-toast--passed, .game-toast--limits, .game-toast--contact, .game-toast--jump { color: #ff9a8f; border-color: rgb(255 96 77 / 50%); }
-.game-toast--final { color: #fff; border-color: rgb(255 255 255 / 60%); }
+.game-toast--passed, .game-toast--limits, .game-toast--contact { color: #ff9a8f; border-color: rgb(255 96 77 / 50%); }
+.game-toast--final, .game-toast--launch { color: #fff; border-color: rgb(255 255 255 / 60%); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(-8px) scale(.96); } to { opacity: 1; transform: none; } }
 .game-banner { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); padding: .7rem 1.6rem; border-radius: .4rem; background: rgb(5 9 14 / 84%); border: 1px solid rgb(255 255 255 / 30%); font-family: var(--font-wide); font-size: clamp(1.6rem, 4vw, 2.6rem); text-transform: uppercase; letter-spacing: .04em; animation: banner-in .5s cubic-bezier(.2,.8,.2,1) both; display: flex; align-items: center; gap: .8rem; }
 .game-banner--flag { border-color: var(--signal); }

@@ -16,8 +16,9 @@ import { constrainToWalls, createProjectedTrack } from './track-projection';
  *
  * - `setup`: configured, nothing moving.
  * - `intro`: cinematic over the grid; Enter skips it.
- * - `lights`: cars held on the grid while the gantry lights up. Moving early
- *   is a jump start and costs five seconds.
+ * - `lights`: cars held on the grid while the gantry lights up. Throttle
+ *   revs the engine; the car launches at lights out, and the reaction time
+ *   from lights out to the first throttle is measured.
  * - `racing`: the race. Ends when the player completes the final lap.
  * - `finished`: cool-down; the classification is fixed at the moment of the
  *   player's finish.
@@ -45,10 +46,10 @@ export const INTRO_SECONDS = 11;
 const LIGHT_INTERVAL_SECONDS = 1;
 const LIGHTS_HOLD_MIN_SECONDS = 0.4;
 const LIGHTS_HOLD_MAX_SECONDS = 1.6;
-const JUMP_START_METRES = 1.0;
-/** A car creeping off the line before the lights: enough to be punished, not enough to reach Turn 1. */
-const JUMP_START_MAX_SPEED = 6;
-export const JUMP_START_PENALTY_SECONDS = 5;
+/** DRS is enabled from the second lap, as in the real thing. */
+const DRS_FROM_LAP = 1;
+/** A reaction this quick gets called out. */
+const SHARP_REACTION_SECONDS = 0.3;
 /** How many toasts the HUD keeps; older ones fall off. */
 const EVENT_LIMIT = 6;
 /** Rough average AI speed for projecting the gap of a car still running at the flag. */
@@ -59,7 +60,7 @@ export interface LapRecord {
   seconds: number;
 }
 
-export type GameEventKind = 'pass' | 'passed' | 'lap' | 'best' | 'drs' | 'limits' | 'contact' | 'jump' | 'final' | 'flag';
+export type GameEventKind = 'pass' | 'passed' | 'lap' | 'best' | 'drs' | 'limits' | 'contact' | 'launch' | 'final' | 'flag';
 
 export interface GameEvent {
   id: number;
@@ -100,7 +101,8 @@ export interface GameState {
   lightsSeconds: number;
   /** True once the lights go out; the HUD flashes it briefly. */
   lightsOut: boolean;
-  jumpStart: boolean;
+  /** Seconds from lights out to the first throttle; null until measured. */
+  reactionSeconds: number | null;
   /** Race clock: 0 at lights out. */
   elapsed: number;
   car: CarState;
@@ -212,8 +214,6 @@ export function createGameStore() {
   const aiSide = new Map<string, number>();
   // Race clock at which each AI car took the flag.
   const aiFinishTimes = new Map<string, number>();
-  // Where the player was when the lights came on, for the jump-start check.
-  let gridPosition = { x: 0, z: 0 };
   let lightsHold = 1;
   let nextEventId = 1;
   // So the track-limits warning fires once per excursion.
@@ -296,7 +296,7 @@ export function createGameStore() {
     lights: 0,
     lightsSeconds: 0,
     lightsOut: false,
-    jumpStart: false,
+    reactionSeconds: null,
     elapsed: 0,
     car: gridStart([]),
     fraction: 0,
@@ -335,11 +335,10 @@ export function createGameStore() {
       wasDrsActive = false;
       lightsHold = LIGHTS_HOLD_MIN_SECONDS + seedFraction(seed) * (LIGHTS_HOLD_MAX_SECONDS - LIGHTS_HOLD_MIN_SECONDS);
       const car = gridStart(engine.snapshot().cars);
-      gridPosition = { x: car.x, z: car.z };
       previousFraction = projectedTrack.project(car.x, car.z).fraction;
       set({
         phase: 'setup', laps, difficulty, driverId, seed,
-        introSeconds: 0, lights: 0, lightsSeconds: 0, lightsOut: false, jumpStart: false,
+        introSeconds: 0, lights: 0, lightsSeconds: 0, lightsOut: false, reactionSeconds: null,
         elapsed: 0, car,
         fraction: previousFraction, lateral: 0, onTrack: true,
         lap: -1, lapTimes: [], bestLap: null, currentLapStart: 0,
@@ -372,34 +371,20 @@ export function createGameStore() {
       }
 
       if (state.phase === 'lights') {
-        // The car is live on the grid: revving is fine, moving is a jump start.
-        const projection = projectedTrack.project(state.car.x, state.car.z, state.fraction);
-        const stepped = stepCar(state.car, { ...input, drs: false }, { onTrack: true, drsAvailable: false }, dt);
-        const car = { ...stepped, speed: Math.min(stepped.speed, JUMP_START_MAX_SPEED) };
-        const moved = Math.hypot(car.x - gridPosition.x, car.z - gridPosition.z);
-        let { jumpStart, events } = state;
-        if (!jumpStart && moved > JUMP_START_METRES) {
-          jumpStart = true;
-          events = pushEvent(events, 0, 'jump', `Jump start · +${JUMP_START_PENALTY_SECONDS}s penalty`);
-        }
-        const { gear, rpm } = gearFor(car.speed);
-        const revving = input.throttle > 0 ? Math.max(rpm, 0.55 + input.throttle * 0.35) : rpm;
-
+        // Held on the grid: the throttle only revs the engine.
+        const revving = input.throttle > 0 ? 0.55 + input.throttle * 0.4 : 0.12;
         let { lights, lightsSeconds } = state;
         lightsSeconds += dt;
         if (lights < 5 && lightsSeconds >= LIGHT_INTERVAL_SECONDS) {
           lights += 1;
           lightsSeconds = 0;
         } else if (lights === 5 && lightsSeconds >= lightsHold) {
-          // Lights out. The race clock starts here.
-          set({
-            phase: 'racing', lights: 0, lightsSeconds: 0, lightsOut: true, jumpStart, events,
-            car, fraction: projection.fraction, lateral: projection.lateral, gear, rpm: revving, elapsed: 0, currentLapStart: 0,
-          });
-          previousFraction = projection.fraction;
+          // Lights out. The race clock starts here; a throttle already held launches now.
+          set({ phase: 'racing', lights: 0, lightsSeconds: 0, lightsOut: true, rpm: revving, elapsed: 0, currentLapStart: 0 });
+          previousFraction = state.fraction;
           return;
         }
-        set({ lights, lightsSeconds, jumpStart, events, car, fraction: projection.fraction, lateral: projection.lateral, gear, rpm: revving });
+        set({ lights, lightsSeconds, rpm: revving });
         return;
       }
 
@@ -440,7 +425,7 @@ export function createGameStore() {
           if (gapAheadSeconds === null || seconds < gapAheadSeconds) gapAheadSeconds = seconds;
         } else if (gapBehindSeconds === null || seconds < gapBehindSeconds) gapBehindSeconds = seconds;
       }
-      const drsAvailable = projectedTrack.inPassingZone(projection.fraction)
+      const drsAvailable = state.lap >= DRS_FROM_LAP && projectedTrack.inPassingZone(projection.fraction)
         && gapAheadSeconds !== null && gapAheadSeconds <= DRS_GAP_SECONDS;
 
       const stepped = stepCar(state.car, input, { onTrack, drsAvailable }, dt);
@@ -465,6 +450,11 @@ export function createGameStore() {
 
       // ---- events -------------------------------------------------------
       let events = state.events;
+      let { reactionSeconds } = state;
+      if (reactionSeconds === null && input.throttle > 0) {
+        reactionSeconds = state.elapsed;
+        events = pushEvent(events, elapsed, 'launch', `Reaction ${reactionSeconds.toFixed(2)}s${reactionSeconds <= SHARP_REACTION_SECONDS ? ' · sharp' : ''}`);
+      }
       if (drsActive && !wasDrsActive) events = pushEvent(events, elapsed, 'drs', 'DRS open');
       wasDrsActive = drsActive;
       if (!onTrack && wasOnTrack && car.speed > 15) events = pushEvent(events, elapsed, 'limits', 'Track limits · slow on the grass');
@@ -487,6 +477,7 @@ export function createGameStore() {
         }
         lap += 1;
         currentLapStart = elapsed;
+        if (lap === DRS_FROM_LAP && state.laps > DRS_FROM_LAP + 1) events = pushEvent(events, elapsed, 'drs', 'DRS enabled');
         if (lap === state.laps - 1) events = pushEvent(events, elapsed, 'final', 'Final lap');
       }
       previousFraction = settled.fraction;
@@ -527,7 +518,7 @@ export function createGameStore() {
 
       // Race ends when the player completes the final lap.
       if (lap >= state.laps) {
-        const penalty = state.jumpStart ? JUMP_START_PENALTY_SECONDS : 0;
+        const penalty = 0;
         const finalState: GameState = { ...state, bestLap, lapTimes };
         const classification = classify(finalState, ai, elapsed, penalty);
         const finishPosition = classification.find((row) => row.isPlayer)?.position ?? position;
@@ -537,7 +528,7 @@ export function createGameStore() {
           lap, lapTimes, bestLap, currentLapStart, elapsed,
           position: finishPosition, finishPosition, raceTime: elapsed + penalty, classification,
           gapAheadSeconds, gapBehindSeconds, drsAvailable: false, drsActive: false,
-          gear, rpm, ai, finalLap: false,
+          gear, rpm, ai, finalLap: false, reactionSeconds,
           events: pushEvent(events, elapsed, 'flag', `Chequered flag · P${finishPosition}`),
         });
         return;
@@ -546,7 +537,7 @@ export function createGameStore() {
       set({
         car, fraction: settled.fraction, lateral: settled.lateral, onTrack, hitWall, hitCar, surfaceY, bodyRoll, bodyPitch,
         lap, lapTimes, bestLap, currentLapStart, elapsed, position,
-        gapAheadSeconds, gapBehindSeconds, drsAvailable, drsActive, gear, rpm, ai, events, finalLap,
+        gapAheadSeconds, gapBehindSeconds, drsAvailable, drsActive, gear, rpm, ai, events, finalLap, reactionSeconds,
       });
     },
 
