@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { findCircuit } from '../content/circuits';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
-import { formatLapTime, gameStore, teamOfDriver, useGameStore } from './game-store';
+import { formatLapTime, gameStore, teamOfDriver, useGameStore, useGameStoreSampled } from './game-store';
 import { MINIMAP_OUTLINE, MINIMAP_PASSING_ZONES, MINIMAP_START, mapPoint } from './minimap';
 
 const CAR_NAMES: Record<string, string> = {
@@ -39,7 +39,8 @@ export function GameHud() {
 function IntroCard() {
   const driverId = useGameStore((state) => state.driverId);
   const laps = useGameStore((state) => state.laps);
-  const introSeconds = useGameStore((state) => state.introSeconds);
+  const introSeconds = useGameStoreSampled((state) => state.introSeconds, 10);
+  const fieldSize = useGameStore((state) => state.fieldSize);
   const circuit = findCircuit('shanghai')!;
   const driver = DRIVERS_2026.find((candidate) => candidate.id === driverId) ?? DRIVERS_2026[0];
   const team = teamOfDriver(driverId);
@@ -63,7 +64,7 @@ function IntroCard() {
         <div className="game-intro__card game-intro__card--driver" key="driver">
           <p className="game-intro__eyebrow">{team.name} · {CAR_NAMES[team.id]}</p>
           <h2 className="game-intro__title"><span className="game-intro__num">{driver.number}</span>{driver.name}</h2>
-          <p className="game-intro__meta"><span>Starting P{DRIVERS_2026.length}</span><span>Back of the grid</span></p>
+          <p className="game-intro__meta"><span>Starting P{fieldSize}</span><span>Back of the grid</span></p>
         </div>
       )}
       <button type="button" className="game-intro__skip" onClick={() => gameStore.getState().skipIntro()}>
@@ -77,7 +78,7 @@ function IntroCard() {
 function LightsGantry() {
   const lights = useGameStore((state) => state.lights);
   const phase = useGameStore((state) => state.phase);
-  const elapsed = useGameStore((state) => state.elapsed);
+  const elapsed = useGameStoreSampled((state) => state.elapsed, 10);
   // Keep the gantry up briefly after lights out so the "go" reads.
   const visible = phase === 'lights' || (phase === 'racing' && elapsed < 1.6);
   if (!visible) return null;
@@ -91,7 +92,6 @@ function LightsGantry() {
           </div>
         ))}
       </div>
-      <p className="game-lights__label">{out ? "It's lights out" : 'Hold on the grid'}</p>
     </div>
   );
 }
@@ -102,11 +102,11 @@ function Timing() {
   const lap = useGameStore((state) => state.lap);
   const laps = useGameStore((state) => state.laps);
   const phase = useGameStore((state) => state.phase);
-  const elapsed = useGameStore((state) => state.elapsed);
+  const elapsed = useGameStoreSampled((state) => state.elapsed, 20);
   const currentLapStart = useGameStore((state) => state.currentLapStart);
   const bestLap = useGameStore((state) => state.bestLap);
-  const gapAhead = useGameStore((state) => state.gapAheadSeconds);
-  const gapBehind = useGameStore((state) => state.gapBehindSeconds);
+  const gapAhead = useGameStoreSampled((state) => state.gapAheadSeconds, 10);
+  const gapBehind = useGameStoreSampled((state) => state.gapBehindSeconds, 10);
   const driverId = useGameStore((state) => state.driverId);
   const team = teamOfDriver(driverId);
   const finalLap = useGameStore((state) => state.finalLap);
@@ -134,7 +134,7 @@ function Timing() {
 function Banners() {
   const finalLap = useGameStore((state) => state.finalLap);
   const phase = useGameStore((state) => state.phase);
-  const elapsed = useGameStore((state) => state.elapsed);
+  const elapsed = useGameStoreSampled((state) => state.elapsed, 10);
   const currentLapStart = useGameStore((state) => state.currentLapStart);
   const finishPosition = useGameStore((state) => state.finishPosition);
   const showFinal = finalLap && elapsed - currentLapStart < 3;
@@ -204,12 +204,12 @@ function MiniMap() {
 
 /** Gear inside a 270° RPM arc, speed beneath, DRS chip alongside. */
 function Wheel() {
-  const speed = useGameStore((state) => state.car.speed);
+  const speed = useGameStoreSampled((state) => Math.round(Math.abs(state.car.speed) * 3.6), 20);
   const gear = useGameStore((state) => state.gear);
-  const rpm = useGameStore((state) => state.rpm);
+  const rpm = useGameStoreSampled((state) => Math.round(state.rpm * 100) / 100, 30);
   const drsAvailable = useGameStore((state) => state.drsAvailable);
   const drsActive = useGameStore((state) => state.drsActive);
-  const kph = Math.round(Math.abs(speed) * 3.6);
+  const kph = speed;
   // Arc from 135° to 405° (270° sweep), radius 44 in a 100-unit box.
   const radius = 44;
   const circumference = 2 * Math.PI * radius;
@@ -242,7 +242,7 @@ function OffTrack() {
 
 function Keys() {
   const [hidden, setHidden] = useState(false);
-  const elapsed = useGameStore((state) => state.elapsed);
+  const elapsed = useGameStoreSampled((state) => state.elapsed, 2);
   // The legend is for the first minute; after that it is furniture.
   useEffect(() => { if (elapsed > 45) setHidden(true); }, [elapsed]);
   if (hidden) return null;

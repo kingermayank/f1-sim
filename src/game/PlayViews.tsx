@@ -6,7 +6,7 @@ import { CircuitMap } from '../shell/CircuitMap';
 import { routeHref } from '../shell/router';
 import { GameHud } from './GameHud';
 import { GameScene } from './GameScene';
-import { driverName, formatGap, formatLapTime, gameStore, teamOfDriver, useGameStore, type Difficulty } from './game-store';
+import { driverName, formatGap, formatLapTime, gameStore, teamOfDriver, useGameStore, type Difficulty, type FieldSize } from './game-store';
 
 const CAR_NAMES: Record<string, string> = {
   'red-bull': 'RB21', ferrari: 'SF-25', mclaren: 'MCL39', 'aston-martin': 'AMR25',
@@ -25,11 +25,12 @@ export function ChooseRaceView() {
   const [driverId, setDriverId] = useState(DRIVERS_2026[0].id);
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
   const [laps, setLaps] = useState(5);
+  const [fieldSize, setFieldSize] = useState<FieldSize>(14);
   const driver = DRIVERS_2026.find((candidate) => candidate.id === driverId) ?? DRIVERS_2026[0];
   const team = teamOf(driver.teamId);
 
   const go = () => {
-    gameStore.getState().configure({ driverId, laps, difficulty });
+    gameStore.getState().configure({ driverId, laps, difficulty, fieldSize });
     gameStore.getState().start();
     window.location.hash = '#/play/race';
   };
@@ -100,6 +101,14 @@ export function ChooseRaceView() {
               </select>
             </label>
             <label>
+              <span>Cars on track</span>
+              <select value={fieldSize} onChange={(event) => setFieldSize(Number(event.target.value) as FieldSize)}>
+                <option value={14}>14 — full grid</option>
+                <option value={10}>10</option>
+                <option value={6}>6 — lighter on the GPU</option>
+              </select>
+            </label>
+            <label>
               <span>AI pace</span>
               <select value={difficulty} onChange={(event) => setDifficulty(event.target.value as Difficulty)}>
                 <option value="easy">Easy</option>
@@ -116,7 +125,7 @@ export function ChooseRaceView() {
         <div className="choose-start__summary">
           <span className="choose-start__num">{driver.number}</span>
           <span><strong>{driver.name}</strong> · {team.name}</span>
-          <span className="choose-start__meta">{laps} laps · {difficulty === 'hard' ? 'Hard' : difficulty === 'medium' ? 'Medium' : 'Easy'} · Shanghai</span>
+          <span className="choose-start__meta">{laps} laps · {fieldSize} cars · {difficulty === 'hard' ? 'Hard' : difficulty === 'medium' ? 'Medium' : 'Easy'} · Shanghai</span>
         </div>
         <button type="button" className="shell-btn shell-btn--primary choose-start__go" onClick={go}>
           Start race →

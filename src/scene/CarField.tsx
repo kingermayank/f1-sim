@@ -18,6 +18,7 @@ import { raceStore, useRaceStore } from '../store/race-store';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { createSplineTrack } from '../track/spline-track';
 import type { SceneQualityTier } from './RaceScene';
+import { faceNoseForward } from './car-orientation';
 import { cloneSceneWithOwnedMaterials } from './scene-resources';
 
 const TRACK = createSplineTrack(SHANGHAI_TRACK);
@@ -333,6 +334,7 @@ function LoadedTeamCar({ car, selected, selectDriver, showLabel }: CarProps) {
     if (!Number.isFinite(length) || length <= 0) return scene;
     const scale = CAR_LENGTH_METRES / length;
     scene.scale.setScalar(scale);
+    faceNoseForward(scene);
     // Re-measure after scaling so the car is centred laterally and its wheels
     // sit on the road surface.
     const scaled = new Box3().setFromObject(scene);

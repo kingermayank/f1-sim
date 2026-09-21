@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { createStore } from 'zustand/vanilla';
 import { useStore } from 'zustand';
 import { DEFAULT_RACE_CONFIG } from '../domain/race-config';
@@ -25,6 +26,8 @@ import { constrainToWalls, createProjectedTrack } from './track-projection';
  */
 export type GamePhase = 'setup' | 'intro' | 'lights' | 'racing' | 'finished';
 export type Difficulty = 'easy' | 'medium' | 'hard';
+/** How many cars line up including the player: the full field, or fewer for slower machines. */
+export type FieldSize = 14 | 10 | 6;
 
 /**
  * AI pace as a multiple of real Formula 1 pace. The engine fits `laps` into a
@@ -142,7 +145,7 @@ export interface GameState {
 }
 
 export interface GameActions {
-  configure(options: { driverId: string; laps?: number; difficulty?: Difficulty; seed?: string }): void;
+  configure(options: { driverId: string; laps?: number; difficulty?: Difficulty; fieldSize?: FieldSize; seed?: string }): void;
   /** Begin the journey: the intro, then the lights. */
   start(): void;
   skipIntro(): void;
@@ -163,8 +166,9 @@ export function driverName(id: string): string {
   return driverById(id).name;
 }
 
-function createEngine(seed: string, laps: number, difficulty: Difficulty, playerId: string): RaceEngine {
-  const field = DRIVERS_2026.filter((driver) => driver.id !== playerId);
+function createEngine(seed: string, laps: number, difficulty: Difficulty, playerId: string, fieldSize: FieldSize): RaceEngine {
+  // Trim from the back of the grid order so the front-runners are always there.
+  const field = DRIVERS_2026.filter((driver) => driver.id !== playerId).slice(0, fieldSize - 1);
   const presentationMinutes = (laps * REFERENCE_LAP_SECONDS) / 60 / AI_PACE[difficulty];
   return createRaceEngine(
     { ...DEFAULT_RACE_CONFIG, seed, laps, presentationMinutes, safetyCars: false, incidents: false },
@@ -335,8 +339,8 @@ export function createGameStore() {
     raceTime: null,
     classification: [],
 
-    configure({ driverId, laps = 5, difficulty = 'easy', seed = `apex-${Date.now().toString(36)}` }) {
-      engine = createEngine(seed, laps, difficulty, driverId);
+    configure({ driverId, laps = 5, difficulty = 'easy', fieldSize = 14, seed = `apex-${Date.now().toString(36)}` }) {
+      engine = createEngine(seed, laps, difficulty, driverId, fieldSize);
       aiLateral.clear();
       aiSide.clear();
       aiFinishTimes.clear();
@@ -351,7 +355,7 @@ export function createGameStore() {
         elapsed: 0, car,
         fraction: previousFraction, lateral: 0, onTrack: true,
         lap: -1, lapTimes: [], bestLap: null, currentLapStart: 0,
-        position: DRIVERS_2026.length, fieldSize: DRIVERS_2026.length,
+        position: fieldSize, fieldSize,
         gapAheadSeconds: null, gapBehindSeconds: null, drsAvailable: false, drsActive: false, hitWall: false, hitCar: 0,
         surfaceY: projectedTrack.project(car.x, car.z).point.y, bodyRoll: 0, bodyPitch: 0,
         gear: 1, rpm: 0, ai: spaceField(engine.snapshot().cars, projectedTrack.lengthMeters),
@@ -559,8 +563,8 @@ export function createGameStore() {
     },
 
     restart() {
-      const { driverId, laps, difficulty, seed } = get();
-      get().configure({ driverId, laps, difficulty, seed });
+      const { driverId, laps, difficulty, seed, fieldSize } = get();
+      get().configure({ driverId, laps, difficulty, seed, fieldSize: fieldSize as FieldSize });
       get().start();
     },
   }));
@@ -579,6 +583,25 @@ export function formatGap(seconds: number): string {
 
 export const gameStore = createGameStore();
 export const useGameStore = <T,>(selector: (state: GameStore) => T): T => useStore(gameStore, selector);
+
+/**
+ * A store selector sampled at a fixed rate instead of on every physics step.
+ * The store updates up to 120 times a second; a React re-render of the HUD
+ * on each one is measurable CPU time for numbers nobody can read that fast.
+ */
+export function useGameStoreSampled<T>(selector: (state: GameStore) => T, hz = 30): T {
+  const [value, setValue] = useState(() => selector(gameStore.getState()));
+  const latest = useRef(selector);
+  latest.current = selector;
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const next = latest.current(gameStore.getState());
+      setValue((previous) => (Object.is(previous, next) ? previous : next));
+    }, 1000 / hz);
+    return () => window.clearInterval(interval);
+  }, [hz]);
+  return value;
+}
 
 export function teamOfDriver(driverId: string) {
   const driver = driverById(driverId);

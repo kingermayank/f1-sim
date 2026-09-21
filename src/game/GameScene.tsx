@@ -1,6 +1,6 @@
-import { useProgress } from '@react-three/drei';
+import { PerformanceMonitor, useProgress } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Suspense, useEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { CanvasTexture, Group, Mesh, PerspectiveCamera, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { Environment } from '../scene/Environment';
@@ -356,6 +356,18 @@ function ChequeredFlag() {
   );
 }
 
+/** Development only: exposes the scene and camera for inspection from the console. */
+function DevExpose() {
+  const scene = useThree((state) => state.scene);
+  const camera = useThree((state) => state.camera);
+  const gl = useThree((state) => state.gl);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    Object.assign(window as unknown as Record<string, unknown>, { __apex: { scene, camera, gl } });
+  }, [scene, camera, gl]);
+  return null;
+}
+
 /** Where the shadow frustum should sit: on the player's car. */
 function playerFocus() {
   const { car, surfaceY } = gameStore.getState();
@@ -363,21 +375,31 @@ function playerFocus() {
 }
 
 export function GameScene({ muted }: { muted: boolean }) {
+  // Render resolution follows the frame rate: full on a machine that keeps
+  // up, stepped down on one that does not. Smooth motion beats sharp pixels.
+  const [dpr, setDpr] = useState(1.5);
   return (
     <Canvas
       className="race-canvas"
       shadows
-      dpr={[1, 1.5]}
+      dpr={dpr}
       // A logarithmic depth buffer: the chase camera looks along the road at a
       // grazing angle, and with a 9 km far plane the painted lines and kerbs
       // would otherwise fight the tarmac for depth and flicker.
       camera={{ position: [-120, 8, 380], fov: 62, near: 1, far: 9000 }}
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', logarithmicDepthBuffer: true }}
     >
+      <PerformanceMonitor
+        onDecline={() => setDpr((current) => Math.max(0.75, current - 0.25))}
+        onIncline={() => setDpr((current) => Math.min(1.5, current + 0.25))}
+        flipflops={3}
+        onFallback={() => setDpr(1)}
+      />
       <Environment quality="high" shadowFocus={playerFocus} />
       <AiField />
       <PlayerCar />
       <ChequeredFlag />
+      <DevExpose />
       <ChaseCamera />
       <GameLoop muted={muted} />
     </Canvas>

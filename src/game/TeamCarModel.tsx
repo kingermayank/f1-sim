@@ -2,6 +2,7 @@ import { useGLTF } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
 import { Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 import { ASSETS } from '../assets/asset-registry';
+import { faceNoseForward } from '../scene/car-orientation';
 import { cloneSceneWithOwnedMaterials } from '../scene/scene-resources';
 
 const CAR_LENGTH_METRES = 5.6;
@@ -28,6 +29,10 @@ export function TeamCarModel({ teamId }: { teamId: string }) {
     const size = new Box3().setFromObject(object).getSize(new Vector3());
     const length = Math.max(size.x, size.z) || 1;
     object.scale.setScalar(CAR_LENGTH_METRES / length);
+    // Turn the model so its nose faces +Z before centring, since the centre
+    // is measured after the turn. Added to the root's own rotation, which
+    // some models rely on to stand upright.
+    faceNoseForward(object);
     const scaled = new Box3().setFromObject(object);
     const centre = scaled.getCenter(new Vector3());
     object.position.set(-centre.x, -scaled.min.y, -centre.z);

@@ -327,9 +327,6 @@
 .game-lights__column span { display: block; width: 2.2rem; height: 2.2rem; border-radius: 50%; background: #2a0d0d; border: 2px solid #1a0707; transition: background .08s, box-shadow .08s; }
 .game-lights__column.is-lit span { background: #ff2a1f; box-shadow: 0 0 18px #ff2a1f, 0 0 42px rgb(255 42 31 / 55%); }
 .game-lights.is-out .game-lights__column span { background: #17191c; box-shadow: none; }
-.game-lights__label { margin: 0; font-family: var(--font-wide); font-size: 1.15rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text); text-shadow: 0 2px 12px rgb(0 0 0 / 70%); }
-.game-lights.is-out .game-lights__label { color: var(--signal); animation: lights-go .9s ease-out both; }
-@keyframes lights-go { 0% { transform: scale(.7); opacity: 0; } 30% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
 
 /* -- timing block ---------------------------------------------------------- */
 .game-timing { position: absolute; top: 3.4rem; left: .75rem; display: flex; align-items: stretch; gap: .5rem; }

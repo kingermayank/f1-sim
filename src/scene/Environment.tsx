@@ -1,13 +1,16 @@
 import { useGLTF } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   BufferGeometry,
+  CanvasTexture,
   CatmullRomCurve3,
   DirectionalLight,
   Float32BufferAttribute,
   Mesh,
   MeshStandardMaterial,
+  RepeatWrapping,
+  SRGBColorSpace,
   TubeGeometry,
   Vector3,
 } from 'three';
@@ -78,11 +81,57 @@ function createRibbon(points: readonly TrackPoint[], width: number, closed = tru
 }
 
 /**
- * Helper geometry the source game never drew: a solid black ribbon along the
- * AI racing line, lying exactly on the tarmac. Left visible it wins the depth
- * test in patches and the road appears to flicker black.
+ * Geometry the circuit should not show: the source game's AI-line helper (a
+ * solid black ribbon lying exactly on the tarmac, which flickers against it)
+ * and the sponsor cubes it scattered along the grid and barriers.
  */
-const HIDDEN_TRACK_MATERIALS = new Set(['raceline']);
+const HIDDEN_TRACK_MATERIALS = new Set(['raceline', 'wall8']);
+
+/**
+ * The model's road is three layers that the source game composited with its
+ * own shaders: a 64-pixel streaky asphalt tile (`tarmac`), a white-line strip
+ * on black laid over the whole road (`Line_asf`), and run-off asphalt whose
+ * texture coordinates span thousands of repeats (`Out`). Drawn plainly, the
+ * black of the line strip and the smeared run-off read as blotches. Each is
+ * rebuilt here: the lines become an alpha-masked decal, the tarmac gets a
+ * generated fine grain at a two-metre tile, and the run-off a plain surface.
+ */
+const ROAD_TARMAC_MATERIAL = 'tarmac';
+const ROAD_LINE_MATERIAL = 'Line_asf';
+const ROAD_RUNOFF_MATERIAL = 'Out';
+/** The tarmac mesh's UVs repeat about every 1.1 m along the road and 0.5 m across it. */
+const TARMAC_UV_METRES = { along: 1.1, across: 0.5 };
+const TARMAC_TILE_METRES = 2;
+
+/** Fine asphalt grain: a base grey, coarse 32 px cells, per-pixel noise, and sparse light chips. Tiles seamlessly. */
+function createAsphaltTexture(size = 512): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d')!;
+  const image = context.createImageData(size, size);
+  const cells = size / 32;
+  const cell = Array.from({ length: cells * cells }, () => (Math.random() - 0.5) * 8);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const coarse = cell[Math.floor(y / 32) * cells + Math.floor(x / 32)];
+      const fine = (Math.random() - 0.5) * 18;
+      const chip = Math.random() < 0.002 ? 28 : 0;
+      const value = Math.max(0, Math.min(255, 56 + coarse + fine + chip));
+      const offset = (y * size + x) * 4;
+      image.data[offset] = value;
+      image.data[offset + 1] = value;
+      image.data[offset + 2] = value + 2;
+      image.data[offset + 3] = 255;
+    }
+  }
+  context.putImageData(image, 0, 0);
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
 
 /**
  * Paint and rubber that sit on the road surface at the same height as the
@@ -99,14 +148,47 @@ const ROAD_DECAL_MATERIALS = new Set(['Line_asf', 'skid', 'Kerb_giallo', 'sha_gr
  */
 function LoadedTrack() {
   const gltf = useGLTF(ASSETS.track);
+  const maxAnisotropy = useThree((state) => state.gl.capabilities.getMaxAnisotropy());
+  const asphalt = useMemo(() => {
+    const texture = createAsphaltTexture();
+    texture.repeat.set(TARMAC_UV_METRES.along / TARMAC_TILE_METRES, TARMAC_UV_METRES.across / TARMAC_TILE_METRES);
+    texture.anisotropy = maxAnisotropy;
+    return texture;
+  }, [maxAnisotropy]);
+  useEffect(() => () => asphalt.dispose(), [asphalt]);
+
   const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
-    if (material instanceof MeshStandardMaterial) material.roughness = Math.max(0.55, material.roughness);
+    if (!(material instanceof MeshStandardMaterial)) return;
+    material.roughness = Math.max(0.55, material.roughness);
     if (ROAD_DECAL_MATERIALS.has(material.name)) {
       material.polygonOffset = true;
       material.polygonOffsetFactor = -1;
       material.polygonOffsetUnits = -2;
     }
-  }), [gltf.scene]);
+    if (material.name === ROAD_TARMAC_MATERIAL) {
+      material.map = asphalt;
+      material.color.set('#ffffff');
+      material.roughness = 0.93;
+      material.metalness = 0;
+      material.needsUpdate = true;
+    } else if (material.name === ROAD_LINE_MATERIAL && material.map) {
+      // White where the strip is white, nothing where it is black.
+      material.map.anisotropy = maxAnisotropy;
+      material.alphaMap = material.map;
+      material.map = null;
+      material.color.set('#f2f2ee');
+      material.alphaTest = 0.5;
+      material.roughness = 0.7;
+      material.needsUpdate = true;
+    } else if (material.name === ROAD_RUNOFF_MATERIAL) {
+      material.map = null;
+      material.color.set('#3f4042');
+      material.roughness = 0.95;
+      material.needsUpdate = true;
+    } else if (material.map) {
+      material.map.anisotropy = Math.min(4, maxAnisotropy);
+    }
+  }), [gltf.scene, asphalt, maxAnisotropy]);
   useEffect(() => () => resources.dispose(), [resources]);
   useEffect(() => {
     resources.scene.traverse((object) => {
@@ -203,7 +285,7 @@ const FOLLOW_SHADOW_EXTENT = 70;
  * shadow frustum is 140 m wide and rides along with the player instead of
  * covering the whole 2 km circuit. One shadow map over the whole circuit gives
  * a metre per texel, which at chase-camera range reads as flickering dark
- * mottling across the tarmac; here a texel is under 7 cm.
+ * mottling across the tarmac; here a texel is 14 cm.
  */
 function FollowingSun({ focus }: { focus: () => ShadowFocus }) {
   const light = useRef<DirectionalLight>(null);
@@ -225,7 +307,7 @@ function FollowingSun({ focus }: { focus: () => ShadowFocus }) {
       castShadow
       color="#ffe6c4"
       intensity={2.35}
-      shadow-mapSize={[2048, 2048]}
+      shadow-mapSize={[1024, 1024]}
       shadow-camera-left={-FOLLOW_SHADOW_EXTENT}
       shadow-camera-right={FOLLOW_SHADOW_EXTENT}
       shadow-camera-top={FOLLOW_SHADOW_EXTENT}
