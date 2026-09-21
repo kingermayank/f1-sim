@@ -9,6 +9,7 @@ import { createSplineTrack } from '../track/spline-track';
 import { createEngineAudio } from './engine-audio';
 import { INTRO_SECONDS, gameStore, projectedTrack, useGameStore } from './game-store';
 import { createKeyboardInput } from './input';
+import { GuideLine } from './GuideLine';
 import { TeamCarModel } from './TeamCarModel';
 
 const SPLINE = createSplineTrack(SHANGHAI_TRACK);
@@ -395,7 +396,8 @@ export function GameScene({ muted }: { muted: boolean }) {
         flipflops={3}
         onFallback={() => setDpr(1)}
       />
-      <Environment quality="high" shadowFocus={playerFocus} />
+      <Environment quality="high" shadowFocus={playerFocus} racingLine={false} />
+      <GuideLine />
       <AiField />
       <PlayerCar />
       <ChequeredFlag />

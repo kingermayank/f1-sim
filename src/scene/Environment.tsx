@@ -360,7 +360,7 @@ function FollowingSun({ focus }: { focus: () => ShadowFocus }) {
   );
 }
 
-export function Environment({ quality, shadowFocus }: { quality: SceneQualityTier; shadowFocus?: () => ShadowFocus }) {
+export function Environment({ quality, shadowFocus, racingLine = true }: { quality: SceneQualityTier; shadowFocus?: () => ShadowFocus; racingLine?: boolean }) {
   return (
     <>
       <color attach="background" args={['#8fb2c4']} />
@@ -387,7 +387,7 @@ export function Environment({ quality, shadowFocus }: { quality: SceneQualityTie
         <planeGeometry args={[CIRCUIT_EXTENT * 4, CIRCUIT_EXTENT * 4, 1, 1]} />
         <meshStandardMaterial color="#5d6a54" roughness={1} />
       </mesh>
-      <RacingLineOverlay quality={quality} />
+      {racingLine && <RacingLineOverlay quality={quality} />}
       <TrackAssetBoundary fallback={<CircuitFallback />}>
         <Suspense fallback={null}><LoadedTrack /></Suspense>
       </TrackAssetBoundary>
