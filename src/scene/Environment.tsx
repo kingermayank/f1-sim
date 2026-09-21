@@ -103,6 +103,45 @@ const ROAD_RUNOFF_MATERIAL = 'Out';
 const TARMAC_UV_METRES = { along: 1.1, across: 0.5 };
 const TARMAC_TILE_METRES = 2;
 
+/**
+ * Meshes whose triangle winding must agree with their vertex normals. About
+ * 8% of the tarmac's triangles in the supplied model are wound the other way;
+ * on a double-sided material three.js flips the normal for a back-facing
+ * triangle, so those patches are lit from below and render black.
+ */
+const WINDING_FIX_MATERIALS = new Set(['tarmac', 'Line_asf', 'Out', 'Prato', '9!0', '22', '13', '28', 'Kerb_giallo', 'skid', 'sha_gridlines_a']);
+
+/** Re-winds any triangle whose geometric normal opposes its vertex normal. */
+function alignWindingToNormals(mesh: Mesh): number {
+  const geometry = mesh.geometry;
+  const position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal');
+  const index = geometry.getIndex();
+  if (!position || !normal || !index) return 0;
+  const a = new Vector3();
+  const b = new Vector3();
+  const c = new Vector3();
+  const n = new Vector3();
+  let fixed = 0;
+  for (let face = 0; face < index.count; face += 3) {
+    const ia = index.getX(face);
+    const ib = index.getX(face + 1);
+    const ic = index.getX(face + 2);
+    a.fromBufferAttribute(position, ia);
+    b.fromBufferAttribute(position, ib).sub(a);
+    c.fromBufferAttribute(position, ic).sub(a);
+    b.cross(c);
+    n.fromBufferAttribute(normal, ia);
+    if (b.dot(n) < 0) {
+      index.setX(face + 1, ic);
+      index.setX(face + 2, ib);
+      fixed += 1;
+    }
+  }
+  if (fixed > 0) index.needsUpdate = true;
+  return fixed;
+}
+
 /** Fine asphalt grain: a base grey, coarse 32 px cells, per-pixel noise, and sparse light chips. Tiles seamlessly. */
 function createAsphaltTexture(size = 512): CanvasTexture {
   const canvas = document.createElement('canvas');
@@ -199,6 +238,7 @@ function LoadedTrack() {
       object.castShadow = false;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       if (materials.some((material) => HIDDEN_TRACK_MATERIALS.has(material.name))) object.visible = false;
+      if (materials.some((material) => WINDING_FIX_MATERIALS.has(material.name))) alignWindingToNormals(object);
       if (materials.some((material) => ROAD_DECAL_MATERIALS.has(material.name))) object.renderOrder = 1;
     });
   }, [resources]);
