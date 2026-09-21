@@ -1,8 +1,10 @@
 import { useGLTF } from '@react-three/drei';
-import { Component, Suspense, useEffect, useMemo, type ReactNode } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   BufferGeometry,
   CatmullRomCurve3,
+  DirectionalLight,
   Float32BufferAttribute,
   Mesh,
   MeshStandardMaterial,
@@ -76,6 +78,21 @@ function createRibbon(points: readonly TrackPoint[], width: number, closed = tru
 }
 
 /**
+ * Helper geometry the source game never drew: a solid black ribbon along the
+ * AI racing line, lying exactly on the tarmac. Left visible it wins the depth
+ * test in patches and the road appears to flicker black.
+ */
+const HIDDEN_TRACK_MATERIALS = new Set(['raceline']);
+
+/**
+ * Paint and rubber that sit on the road surface at the same height as the
+ * tarmac beneath them: the lined asphalt layer, skid marks, kerb paint, grid
+ * boxes and pit lines. Drawn with a small depth offset so they always land on
+ * top instead of fighting the tarmac pixel by pixel.
+ */
+const ROAD_DECAL_MATERIALS = new Set(['Line_asf', 'skid', 'Kerb_giallo', 'sha_gridlines_a', 'LInea_PITNew', 'Pit_lane']);
+
+/**
  * The supplied Shanghai circuit, and the visible road surface. The centerline
  * that drives the simulation was fitted to this same mesh, so the racing line
  * and the rendered tarmac cannot drift apart.
@@ -84,6 +101,11 @@ function LoadedTrack() {
   const gltf = useGLTF(ASSETS.track);
   const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
     if (material instanceof MeshStandardMaterial) material.roughness = Math.max(0.55, material.roughness);
+    if (ROAD_DECAL_MATERIALS.has(material.name)) {
+      material.polygonOffset = true;
+      material.polygonOffsetFactor = -1;
+      material.polygonOffsetUnits = -2;
+    }
   }), [gltf.scene]);
   useEffect(() => () => resources.dispose(), [resources]);
   useEffect(() => {
@@ -93,6 +115,9 @@ function LoadedTrack() {
       // The circuit receives car shadows; making 820k triangles cast them costs
       // far more than it adds.
       object.castShadow = false;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      if (materials.some((material) => HIDDEN_TRACK_MATERIALS.has(material.name))) object.visible = false;
+      if (materials.some((material) => ROAD_DECAL_MATERIALS.has(material.name))) object.renderOrder = 1;
     });
   }, [resources]);
 
@@ -163,25 +188,77 @@ function RacingLineOverlay({ quality }: { quality: SceneQualityTier }) {
   );
 }
 
-export function Environment({ quality }: { quality: SceneQualityTier }) {
+export interface ShadowFocus {
+  x: number;
+  y: number;
+  z: number;
+}
+
+const SUN_DIRECTION = new Vector3(620, 780, 420).normalize();
+/** Half-size of the shadow frustum that follows the player, metres. */
+const FOLLOW_SHADOW_EXTENT = 70;
+
+/**
+ * Sun for the driving game: the same light as the broadcast scene, but its
+ * shadow frustum is 140 m wide and rides along with the player instead of
+ * covering the whole 2 km circuit. One shadow map over the whole circuit gives
+ * a metre per texel, which at chase-camera range reads as flickering dark
+ * mottling across the tarmac; here a texel is under 7 cm.
+ */
+function FollowingSun({ focus }: { focus: () => ShadowFocus }) {
+  const light = useRef<DirectionalLight>(null);
+  const anchor = useMemo(() => new Vector3(), []);
+
+  useFrame(() => {
+    const sun = light.current;
+    if (!sun) return;
+    const { x, y, z } = focus();
+    anchor.set(x, y, z);
+    sun.target.position.copy(anchor);
+    sun.position.copy(anchor).addScaledVector(SUN_DIRECTION, 400);
+    sun.target.updateMatrixWorld();
+  });
+
+  return (
+    <directionalLight
+      ref={light}
+      castShadow
+      color="#ffe6c4"
+      intensity={2.35}
+      shadow-mapSize={[2048, 2048]}
+      shadow-camera-left={-FOLLOW_SHADOW_EXTENT}
+      shadow-camera-right={FOLLOW_SHADOW_EXTENT}
+      shadow-camera-top={FOLLOW_SHADOW_EXTENT}
+      shadow-camera-bottom={-FOLLOW_SHADOW_EXTENT}
+      shadow-camera-near={100}
+      shadow-camera-far={700}
+      shadow-bias={-0.0002}
+      shadow-normalBias={0.04}
+    />
+  );
+}
+
+export function Environment({ quality, shadowFocus }: { quality: SceneQualityTier; shadowFocus?: () => ShadowFocus }) {
   return (
     <>
       <color attach="background" args={['#8fb2c4']} />
       <fog attach="fog" args={['#9db9c8', 900, 3400]} />
       <hemisphereLight args={['#dceaf3', '#2b3338', quality === 'high' ? 1.05 : 1.35]} />
-      <directionalLight
-        castShadow={quality === 'high'}
-        color="#ffe6c4"
-        intensity={2.35}
-        position={[620, 780, 420]}
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-CIRCUIT_EXTENT / 2}
-        shadow-camera-right={CIRCUIT_EXTENT / 2}
-        shadow-camera-top={CIRCUIT_EXTENT / 2}
-        shadow-camera-bottom={-CIRCUIT_EXTENT / 2}
-        shadow-camera-far={2600}
-        shadow-bias={-0.0006}
-      />
+      {shadowFocus ? <FollowingSun focus={shadowFocus} /> : (
+        <directionalLight
+          castShadow={quality === 'high'}
+          color="#ffe6c4"
+          intensity={2.35}
+          position={[620, 780, 420]}
+          shadow-mapSize={[2048, 2048]}
+          shadow-camera-left={-CIRCUIT_EXTENT / 2}
+          shadow-camera-right={CIRCUIT_EXTENT / 2}
+          shadow-camera-top={CIRCUIT_EXTENT / 2}
+          shadow-camera-bottom={-CIRCUIT_EXTENT / 2}
+          shadow-camera-far={2600}
+          shadow-bias={-0.0006}
+        />
+      )}
       {/* Sits below the circuit datum so the supplied terrain reads as the
           surface and this only fills the far horizon. */}
       <mesh position={[0, -8, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>

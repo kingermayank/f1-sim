@@ -87,6 +87,63 @@ describe('game store', () => {
     expect(state.lapTimes).toHaveLength(2);
   });
 
+  it('never lets two rivals in the same lane share tarmac', () => {
+    const store = createGameStore();
+    store.getState().configure({ driverId: 'norris', laps: 3, seed: 'spacing', difficulty: 'hard' });
+    store.getState().start();
+    let closest = Number.POSITIVE_INFINITY;
+    for (let t = 0; t < 90; t += 1 / 60) {
+      store.getState().step(1 / 60, COAST);
+      const running = store.getState().ai.filter((car) => car.status === 'running' && car.pitState === 'track');
+      for (const a of running) {
+        for (const b of running) {
+          if (a === b || Math.abs(a.lateralOffset - b.lateralOffset) >= 2.4) continue;
+          const gap = Math.abs(((a.lap + a.distance) - (b.lap + b.distance)) * projectedTrack.lengthMeters);
+          closest = Math.min(closest, gap);
+        }
+      }
+    }
+    expect(closest).toBeGreaterThanOrEqual(9 - 1e-6);
+  });
+
+  it('starts one clear row behind the last AI car, never inside it', () => {
+    const store = createGameStore();
+    store.getState().configure({ driverId: 'norris', laps: 3, seed: 'grid-row' });
+    const { car, ai } = store.getState();
+    let closest = Number.POSITIVE_INFINITY;
+    for (const rival of ai) {
+      const { point } = projectedTrack.at(rival.distance, rival.lateralOffset);
+      closest = Math.min(closest, Math.hypot(point.x - car.x, point.z - car.z));
+    }
+    expect(closest).toBeGreaterThan(6);
+    // The first racing step must not shove the car sideways out of its slot.
+    store.getState().start();
+    for (let t = 0; t < 3.1; t += 1 / 60) store.getState().step(1 / 60, COAST);
+    expect(Math.abs(store.getState().lateral)).toBeLessThan(3.4);
+    expect(store.getState().hitCar).toBe(0);
+  });
+
+  it('moves rivals near the player to the other side of the track', () => {
+    const store = createGameStore();
+    store.getState().configure({ driverId: 'norris', laps: 3, seed: 'avoid', difficulty: 'easy' });
+    store.getState().start();
+    for (let t = 0; t < 3.1; t += 1 / 60) store.getState().step(1 / 60, COAST);
+    let checked = 0;
+    for (let t = 0; t < 6; t += 1 / 60) {
+      store.getState().step(1 / 60, FULL_THROTTLE);
+      const state = store.getState();
+      if (t < 2) continue; // let the move settle
+      for (const rival of state.ai) {
+        const along = Math.abs((rival.lap + rival.distance) - (state.lap + state.fraction)) * projectedTrack.lengthMeters;
+        if (rival.status !== 'running' || along > 12) continue;
+        checked += 1;
+        expect(Math.sign(rival.lateralOffset)).toBe(-Math.sign(state.lateral));
+        expect(Math.abs(rival.lateralOffset - state.lateral)).toBeGreaterThan(2.4);
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
   it('resets the car onto the racing line after going off', () => {
     const store = createGameStore();
     store.getState().configure({ driverId: 'norris', laps: 3, seed: 'reset' });

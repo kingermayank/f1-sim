@@ -1,124 +1,316 @@
 /**
- * Procedural engine and tyre audio for the player's car.
+ * Procedural race audio for the player's car. Everything is synthesised, so
+ * there is nothing new to license.
  *
- * Two oscillators pitched by RPM give the engine its note, with a brief dip on
- * gear changes; band-passed noise rises with lateral slip for tyre scrub. All
- * synthesised, so there is nothing new to license.
+ * The note is built the way a turbo V6 makes it: a firing frequency of three
+ * pulses per revolution (about 200 Hz at idle to just under 600 Hz at the
+ * limiter), a sub-octave for body, a slightly detuned copy for growl, a soft
+ * clip for exhaust rasp, and a resonant low-pass that opens with the throttle.
+ * Over that sit a turbo whine, wind, tyre scrub, and the nearest rival's engine
+ * panned to the side it is on, with Doppler from the closing rate.
  */
+export interface EngineAudioFrame {
+  rpm: number;
+  gear: number;
+  throttle: number;
+  brake: number;
+  slip: number;
+  speed: number;
+  onTrack: boolean;
+  /** Nearest rival: metres away and -1 (left) .. 1 (right). Null when none is close. */
+  rival: { distance: number; pan: number } | null;
+}
+
 export interface EngineAudio {
   start(): void;
-  update(rpm: number, gear: number, throttle: number, slip: number, speed: number): void;
-  /** Short impact burst for a barrier contact. */
+  update(frame: EngineAudioFrame): void;
+  /** Short impact burst for a barrier or car contact. */
   thud(intensity: number): void;
   setMuted(muted: boolean): void;
   dispose(): void;
 }
 
+/** Firing frequency at rpm 0 and the range up to the limiter. */
+const FIRING_BASE_HZ = 190;
+const FIRING_RANGE_HZ = 400;
+const MASTER_LEVEL = 0.6;
+
+function noiseBuffer(context: AudioContext, seconds: number): AudioBuffer {
+  const buffer = context.createBuffer(1, Math.floor(context.sampleRate * seconds), context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+  return buffer;
+}
+
+function loopingNoise(context: AudioContext, buffer: AudioBuffer): AudioBufferSourceNode {
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  source.start();
+  return source;
+}
+
+function softClipCurve(drive: number): Float32Array<ArrayBuffer> {
+  const samples = 512;
+  const curve = new Float32Array(new ArrayBuffer(samples * 4));
+  for (let index = 0; index < samples; index += 1) {
+    const x = (index / (samples - 1)) * 2 - 1;
+    curve[index] = Math.tanh(x * drive) / Math.tanh(drive);
+  }
+  return curve;
+}
+
+interface EngineVoice {
+  oscillators: OscillatorNode[];
+  /** Multiplier of the firing frequency for each oscillator. */
+  ratios: number[];
+  filter: BiquadFilterNode;
+  gain: GainNode;
+}
+
+function createVoice(context: AudioContext, destination: AudioNode, shaped: boolean): EngineVoice {
+  const mix = context.createGain();
+  const specs: { type: OscillatorType; ratio: number; level: number }[] = [
+    { type: 'sawtooth', ratio: 1, level: 0.5 },
+    { type: 'sawtooth', ratio: 1.006, level: 0.35 },
+    { type: 'sawtooth', ratio: 0.5, level: 0.4 },
+    { type: 'square', ratio: 2, level: 0.14 },
+  ];
+  const oscillators = specs.map((spec) => {
+    const oscillator = context.createOscillator();
+    oscillator.type = spec.type;
+    const level = context.createGain();
+    level.gain.value = spec.level;
+    oscillator.connect(level).connect(mix);
+    oscillator.start();
+    return oscillator;
+  });
+
+  const filter = context.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 1200;
+  filter.Q.value = 1.4;
+  const gain = context.createGain();
+  gain.gain.value = 0;
+
+  if (shaped) {
+    const shaper = context.createWaveShaper();
+    shaper.curve = softClipCurve(2.2);
+    shaper.oversample = '2x';
+    mix.connect(shaper).connect(filter).connect(gain).connect(destination);
+  } else {
+    mix.connect(filter).connect(gain).connect(destination);
+  }
+  return { oscillators, ratios: specs.map((spec) => spec.ratio), filter, gain };
+}
+
 export function createEngineAudio(): EngineAudio {
   let context: AudioContext | null = null;
   let master: GainNode | null = null;
-  let low: OscillatorNode | null = null;
-  let high: OscillatorNode | null = null;
-  let engineGain: GainNode | null = null;
+  let engine: EngineVoice | null = null;
+  let rival: EngineVoice | null = null;
+  let rivalPan: StereoPannerNode | null = null;
+  let whine: OscillatorNode | null = null;
+  let whineGain: GainNode | null = null;
+  let intakeGain: GainNode | null = null;
+  let windFilter: BiquadFilterNode | null = null;
+  let windGain: GainNode | null = null;
   let tyreGain: GainNode | null = null;
+  let surfaceGain: GainNode | null = null;
+  let noise: AudioBuffer | null = null;
   let lastGear = 1;
-  let shiftDipUntil = 0;
+  let shiftUntil = 0;
+  let lastRivalDistance: number | null = null;
+  let lastRivalAt = 0;
+  let rivalRpm = 0.6;
   let muted = false;
 
   function start() {
     if (context || typeof window === 'undefined' || !('AudioContext' in window)) return;
     context = new AudioContext();
+    noise = noiseBuffer(context, 2);
+
+    // Everything meets at a compressor so the layers never add up to clipping.
+    const compressor = context.createDynamicsCompressor();
+    compressor.threshold.value = -16;
+    compressor.knee.value = 12;
+    compressor.ratio.value = 4;
+    compressor.attack.value = 0.004;
+    compressor.release.value = 0.12;
     master = context.createGain();
-    master.gain.value = muted ? 0 : 0.5;
-    master.connect(context.destination);
+    master.gain.value = muted ? 0 : MASTER_LEVEL;
+    compressor.connect(master).connect(context.destination);
 
-    engineGain = context.createGain();
-    engineGain.gain.value = 0.25;
-    engineGain.connect(master);
+    engine = createVoice(context, compressor, true);
 
-    low = context.createOscillator();
-    low.type = 'sawtooth';
-    const lowFilter = context.createBiquadFilter();
-    lowFilter.type = 'lowpass';
-    lowFilter.frequency.value = 900;
-    low.connect(lowFilter).connect(engineGain);
-    low.start();
+    // Turbo whine: a thin, high sine that climbs with revs.
+    whine = context.createOscillator();
+    whine.type = 'sine';
+    whineGain = context.createGain();
+    whineGain.gain.value = 0;
+    whine.connect(whineGain).connect(compressor);
+    whine.start();
 
-    high = context.createOscillator();
-    high.type = 'square';
-    const highGain = context.createGain();
-    highGain.gain.value = 0.35;
-    const highFilter = context.createBiquadFilter();
-    highFilter.type = 'bandpass';
-    highFilter.frequency.value = 2400;
-    highFilter.Q.value = 1.2;
-    high.connect(highFilter).connect(highGain).connect(engineGain);
-    high.start();
+    // Intake hiss under throttle.
+    const intake = loopingNoise(context, noise);
+    const intakeFilter = context.createBiquadFilter();
+    intakeFilter.type = 'bandpass';
+    intakeFilter.frequency.value = 3200;
+    intakeFilter.Q.value = 0.7;
+    intakeGain = context.createGain();
+    intakeGain.gain.value = 0;
+    intake.connect(intakeFilter).connect(intakeGain).connect(compressor);
 
-    // Tyre scrub: looping noise through a band-pass, silent until there is slip.
-    const seconds = 2;
-    const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
-    const noise = context.createBufferSource();
-    noise.buffer = buffer;
-    noise.loop = true;
-    const noiseFilter = context.createBiquadFilter();
-    noiseFilter.type = 'bandpass';
-    noiseFilter.frequency.value = 1800;
-    noiseFilter.Q.value = 0.8;
+    // Wind: low-passed noise that opens up with speed.
+    const wind = loopingNoise(context, noise);
+    windFilter = context.createBiquadFilter();
+    windFilter.type = 'lowpass';
+    windFilter.frequency.value = 300;
+    windGain = context.createGain();
+    windGain.gain.value = 0;
+    wind.connect(windFilter).connect(windGain).connect(compressor);
+
+    // Tyre scrub: band-passed noise, silent until there is slip.
+    const tyre = loopingNoise(context, noise);
+    const tyreFilter = context.createBiquadFilter();
+    tyreFilter.type = 'bandpass';
+    tyreFilter.frequency.value = 1500;
+    tyreFilter.Q.value = 0.9;
     tyreGain = context.createGain();
     tyreGain.gain.value = 0;
-    noise.connect(noiseFilter).connect(tyreGain).connect(master);
-    noise.start();
+    tyre.connect(tyreFilter).connect(tyreGain).connect(compressor);
+
+    // Grass and gravel: a low rumble when off the tarmac.
+    const surface = loopingNoise(context, noise);
+    const surfaceFilter = context.createBiquadFilter();
+    surfaceFilter.type = 'lowpass';
+    surfaceFilter.frequency.value = 220;
+    surfaceGain = context.createGain();
+    surfaceGain.gain.value = 0;
+    surface.connect(surfaceFilter).connect(surfaceGain).connect(compressor);
+
+    // The nearest rival, heard from the side it is on.
+    rivalPan = context.createStereoPanner();
+    rivalPan.connect(compressor);
+    rival = createVoice(context, rivalPan, false);
+    rival.filter.frequency.value = 900;
 
     if (context.state === 'suspended') void context.resume();
   }
 
+  function setVoice(voice: EngineVoice, firingHz: number, cutoff: number, level: number, now: number, glide = 0.03) {
+    voice.oscillators.forEach((oscillator, index) => {
+      oscillator.frequency.setTargetAtTime(firingHz * voice.ratios[index], now, glide);
+    });
+    voice.filter.frequency.setTargetAtTime(cutoff, now, 0.04);
+    voice.gain.gain.setTargetAtTime(level, now, 0.05);
+  }
+
+  /** Exhaust crack on an upshift: a short band-passed burst. */
+  function crack(now: number) {
+    if (!context || !master || !noise) return;
+    const source = context.createBufferSource();
+    source.buffer = noise;
+    const filter = context.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 700;
+    filter.Q.value = 2.5;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+    source.connect(filter).connect(gain).connect(master);
+    source.start(now);
+    source.stop(now + 0.06);
+  }
+
   return {
     start,
-    update(rpm, gear, throttle, slip, speed) {
-      if (!context || !low || !high || !engineGain || !tyreGain) return;
+
+    update({ rpm, gear, throttle, brake, slip, speed, onTrack, rival: nearest }) {
+      if (!context || !engine || !whine || !whineGain || !intakeGain || !windFilter || !windGain || !tyreGain || !surfaceGain) return;
       const now = context.currentTime;
+      const v = Math.abs(speed);
+
+      // Shifts are seamless on a modern gearbox: a brief pitch settle and a crack, no dip in power.
       if (gear !== lastGear) {
+        if (gear > lastGear) crack(now);
         lastGear = gear;
-        shiftDipUntil = now + 0.09;
+        shiftUntil = now + 0.06;
       }
-      const dip = now < shiftDipUntil ? 0.55 : 1;
-      const base = (55 + rpm * 165) * dip;
-      low.frequency.setTargetAtTime(base, now, 0.03);
-      high.frequency.setTargetAtTime(base * 3, now, 0.03);
-      engineGain.gain.setTargetAtTime(0.12 + throttle * 0.16 + rpm * 0.08, now, 0.05);
-      tyreGain.gain.setTargetAtTime(Math.min(0.5, slip * 0.7) * Math.min(1, speed / 30), now, 0.06);
+      const settle = now < shiftUntil ? 0.96 : 1;
+      const firing = (FIRING_BASE_HZ + rpm * FIRING_RANGE_HZ) * settle;
+
+      // Off throttle the note closes down and drops; on throttle it opens and rasps.
+      const load = throttle > 0 ? throttle : brake > 0 ? 0 : 0.08;
+      const cutoff = 500 + load * 2600 + rpm * 2600;
+      const level = 0.09 + load * 0.2 + rpm * 0.1;
+      setVoice(engine, firing, cutoff, level, now);
+
+      whine.frequency.setTargetAtTime(1800 + rpm * 4200, now, 0.05);
+      whineGain.gain.setTargetAtTime(0.006 + throttle * 0.018 * rpm, now, 0.08);
+      intakeGain.gain.setTargetAtTime(throttle * 0.028 * (0.4 + rpm * 0.6), now, 0.08);
+
+      const speedFraction = Math.min(1, v / 85);
+      windFilter.frequency.setTargetAtTime(250 + speedFraction * 900, now, 0.1);
+      windGain.gain.setTargetAtTime(speedFraction * speedFraction * 0.14, now, 0.1);
+
+      tyreGain.gain.setTargetAtTime(Math.min(0.4, slip * 0.5 + brake * Math.min(0.12, v / 400)) * Math.min(1, v / 25), now, 0.06);
+      surfaceGain.gain.setTargetAtTime(onTrack ? 0 : 0.18 * Math.min(1, v / 15), now, 0.08);
+
+      // Rival engine: level by distance, pan by side, pitch by closing rate.
+      if (rival && rivalPan) {
+        if (nearest) {
+          let doppler = 1;
+          if (lastRivalDistance !== null && now > lastRivalAt) {
+            const closing = (lastRivalDistance - nearest.distance) / (now - lastRivalAt);
+            doppler = 1 + Math.max(-0.25, Math.min(0.25, closing / 340));
+          }
+          lastRivalDistance = nearest.distance;
+          lastRivalAt = now;
+          // Rivals hold a steady, fairly high note; theirs is not a keyboard car.
+          rivalRpm += (0.72 - rivalRpm) * 0.02;
+          const rivalLevel = 0.22 / (1 + (nearest.distance / 10) ** 2);
+          setVoice(rival, (FIRING_BASE_HZ + rivalRpm * FIRING_RANGE_HZ) * doppler, 1400, rivalLevel, now, 0.06);
+          rivalPan.pan.setTargetAtTime(nearest.pan * 0.8, now, 0.08);
+        } else {
+          lastRivalDistance = null;
+          rival.gain.gain.setTargetAtTime(0, now, 0.1);
+        }
+      }
     },
+
     thud(intensity) {
-      if (!context || !master) return;
+      if (!context || !master || !noise) return;
       const now = context.currentTime;
-      const length = 0.18;
-      const buffer = context.createBuffer(1, Math.floor(context.sampleRate * length), context.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let index = 0; index < data.length; index += 1) {
-        data[index] = (Math.random() * 2 - 1) * (1 - index / data.length) ** 2;
-      }
+      const length = 0.2;
       const source = context.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = noise;
       const filter = context.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.value = 420;
+      filter.frequency.value = 380;
       const gain = context.createGain();
-      gain.gain.value = Math.min(0.9, 0.35 + intensity * 0.6);
+      gain.gain.setValueAtTime(Math.min(0.9, 0.3 + intensity * 0.6), now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + length);
       source.connect(filter).connect(gain).connect(master);
       source.start(now);
       source.stop(now + length);
     },
+
     setMuted(value) {
       muted = value;
-      if (master && context) master.gain.setTargetAtTime(value ? 0 : 0.5, context.currentTime, 0.05);
+      if (master && context) master.gain.setTargetAtTime(value ? 0 : MASTER_LEVEL, context.currentTime, 0.05);
     },
+
     dispose() {
-      try { low?.stop(); high?.stop(); } catch { /* already stopped */ }
+      try {
+        engine?.oscillators.forEach((oscillator) => oscillator.stop());
+        rival?.oscillators.forEach((oscillator) => oscillator.stop());
+        whine?.stop();
+      } catch { /* already stopped */ }
       void context?.close();
       context = null;
+      engine = null;
+      rival = null;
     },
   };
 }

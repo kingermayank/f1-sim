@@ -44,10 +44,37 @@ function GameLoop({ muted }: { muted: boolean }) {
       remaining -= dt;
     }
     const after = gameStore.getState();
-    audio.update(after.rpm, after.gear, controls.throttle, after.car.slip, after.car.speed);
+    audio.update({
+      rpm: after.rpm, gear: after.gear, throttle: controls.throttle, brake: controls.brake,
+      slip: after.car.slip, speed: after.car.speed, onTrack: after.onTrack,
+      rival: nearestRival(after),
+    });
     if (after.hitWall && after.car.speed > 8) audio.thud(Math.min(1, after.car.speed / 60));
+    if (after.hitCar > 0.05) audio.thud(Math.min(1, 0.3 + after.hitCar * 0.7));
   });
   return null;
+}
+
+/** The nearest running rival: distance in metres and which side it is on, for the audio field. */
+function nearestRival(state: ReturnType<typeof gameStore.getState>): { distance: number; pan: number } | null {
+  let best: { distance: number; pan: number } | null = null;
+  const forwardX = Math.cos(state.car.heading);
+  const forwardZ = Math.sin(state.car.heading);
+  for (const rival of state.ai) {
+    if (rival.status !== 'running' || rival.pitState !== 'track') continue;
+    const progress = rival.lap + rival.distance;
+    const along = (progress - (state.lap + state.fraction)) * projectedTrack.lengthMeters;
+    if (Math.abs(along) > 60) continue;
+    const { point } = projectedTrack.at(rival.distance, rival.lateralOffset);
+    const dx = point.x - state.car.x;
+    const dz = point.z - state.car.z;
+    const distance = Math.hypot(dx, dz);
+    if (best && distance >= best.distance) continue;
+    // Right of the player is +1: the right vector is (sin h, -cos h).
+    const right = (dx * forwardZ - dz * forwardX) / Math.max(1, distance);
+    best = { distance, pan: Math.max(-1, Math.min(1, right)) };
+  }
+  return best;
 }
 
 /** The player's car, driven from the store's free-moving state. */
@@ -82,12 +109,17 @@ function AiCar({ driverId, teamId }: { driverId: string; teamId: string }) {
     if (!object) return;
     const car = gameStore.getState().ai.find((candidate) => candidate.driverId === driverId);
     if (!car) return;
-    const line = car.targetLine === 'pit' || car.pitState !== 'track'
-      ? 'pit'
-      : car.targetLine === 'racing' ? 'center' : car.targetLine;
-    const transform = SPLINE.sample(line === 'pit' ? car.pitProgress : car.distance, line === 'pit' ? 0 : car.lateralOffset, line);
-    object.position.copy(transform.position);
-    object.quaternion.copy(transform.rotation);
+    if (car.targetLine === 'pit' || car.pitState !== 'track') {
+      const transform = SPLINE.sample(car.pitProgress, 0, 'pit');
+      object.position.copy(transform.position);
+      object.quaternion.copy(transform.rotation);
+    } else {
+      // On track, rivals are drawn exactly where the contact model puts them:
+      // on the centre curve plus their lateral offset.
+      const { point, tangent } = projectedTrack.at(car.distance, car.lateralOffset);
+      object.position.copy(point);
+      object.rotation.set(0, -Math.atan2(tangent.z, tangent.x) + Math.PI / 2, 0);
+    }
     object.visible = car.status !== 'retired';
   });
   return (
@@ -110,32 +142,38 @@ function AiField() {
   );
 }
 
-/** Chase camera: behind and above the player, damped, looking a little ahead. */
+/**
+ * Chase camera: behind and above the player, looking a little ahead.
+ *
+ * The damping is on the camera's OFFSET from the car, not on its world
+ * position. The car is always the origin, so a dropped frame moves camera and
+ * car together and the car can never run out of shot; what is damped is the
+ * swing around the car as it turns, which is the part that should feel heavy.
+ */
 function ChaseCamera() {
   const camera = useThree((state) => state.camera);
-  const desired = useMemo(() => new Vector3(), []);
-  const look = useMemo(() => new Vector3(), []);
+  const offset = useMemo(() => new Vector3(), []);
+  const desiredOffset = useMemo(() => new Vector3(), []);
+  const lookOffset = useMemo(() => new Vector3(), []);
+  const desiredLook = useMemo(() => new Vector3(), []);
   const target = useMemo(() => new Vector3(), []);
   const snapped = useRef(false);
 
   useFrame((_, delta) => {
     const { car, surfaceY } = gameStore.getState();
-    const surface = { y: surfaceY };
     const speedFraction = Math.min(1, car.speed / 85);
     const back = 9 + speedFraction * 5;
     const up = 3.2 + speedFraction * 1.2;
-    desired.set(
-      car.x - Math.cos(car.heading) * back,
-      surface.y + up,
-      car.z - Math.sin(car.heading) * back,
-    );
-    look.set(car.x + Math.cos(car.heading) * 12, surface.y + 1.2, car.z + Math.sin(car.heading) * 12);
+    desiredOffset.set(-Math.cos(car.heading) * back, up, -Math.sin(car.heading) * back);
+    desiredLook.set(Math.cos(car.heading) * 12, 1.2, Math.sin(car.heading) * 12);
     // Snap on the first frame so the race never opens on a camera gliding in
     // from its far initial position; damp from then on.
     const k = snapped.current ? 1 - Math.exp(-Math.min(delta, 0.1) * 6) : 1;
     snapped.current = true;
-    camera.position.lerp(desired, k);
-    target.lerp(look, k);
+    offset.lerp(desiredOffset, k);
+    lookOffset.lerp(desiredLook, k);
+    camera.position.set(car.x + offset.x, surfaceY + offset.y, car.z + offset.z);
+    target.set(car.x + lookOffset.x, surfaceY + lookOffset.y, car.z + lookOffset.z);
     camera.lookAt(target);
     if (camera instanceof PerspectiveCamera) {
       const fov = 62 + speedFraction * 10;
@@ -145,16 +183,25 @@ function ChaseCamera() {
   return null;
 }
 
+/** Where the shadow frustum should sit: on the player's car. */
+function playerFocus() {
+  const { car, surfaceY } = gameStore.getState();
+  return { x: car.x, y: surfaceY, z: car.z };
+}
+
 export function GameScene({ muted }: { muted: boolean }) {
   return (
     <Canvas
       className="race-canvas"
       shadows
       dpr={[1, 1.5]}
-      camera={{ position: [-120, 8, 380], fov: 62, near: 0.5, far: 9000 }}
-      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+      // A logarithmic depth buffer: the chase camera looks along the road at a
+      // grazing angle, and with a 9 km far plane the painted lines and kerbs
+      // would otherwise fight the tarmac for depth and flicker.
+      camera={{ position: [-120, 8, 380], fov: 62, near: 1, far: 9000 }}
+      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', logarithmicDepthBuffer: true }}
     >
-      <Environment quality="high" />
+      <Environment quality="high" shadowFocus={playerFocus} />
       <AiField />
       <PlayerCar />
       <ChaseCamera />
