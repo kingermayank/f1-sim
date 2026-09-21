@@ -15,7 +15,10 @@ export function AppNav({ active }: { active: RouteName }) {
   return (
     <header className="shell-nav">
       <a className="shell-nav__brand" href={routeHref('home')}>
-        <span className="shell-nav__mark" aria-hidden="true">A</span>
+        {/* Pass 18g.3 — Mayank: remove square A from home; keep wordmark only on Entry */}
+        {active !== 'home' && (
+          <span className="shell-nav__mark" aria-hidden="true">A</span>
+        )}
         <span className="shell-nav__wordmark">APEX</span>
       </a>
       <nav aria-label="Primary">
