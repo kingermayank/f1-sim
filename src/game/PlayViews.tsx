@@ -35,10 +35,10 @@ export function ChooseRaceView() {
   };
 
   return (
-    <div className="shell-view">
+    <div className="shell-view choose-view">
       <header className="shell-head">
         <h1>Choose race</h1>
-        <p>Pick a car and drive it yourself against the field. Keyboard: W/S throttle and brake, A/D steer, Shift for DRS, R to reset, Enter to skip the intro.</p>
+        <p>Pick a car, set the laps, then hit <strong>Start race</strong>. Keyboard: W/S throttle and brake, A/D steer, Shift for DRS, R to reset, Enter to skip the intro.</p>
       </header>
 
       <div className="choose-grid">
@@ -108,12 +108,19 @@ export function ChooseRaceView() {
               </select>
             </label>
           </div>
-          <div className="shell-actions">
-            <button type="button" className="shell-btn shell-btn--primary" onClick={go}>
-              Race as {driver.name} · {team.name}
-            </button>
-          </div>
         </section>
+      </div>
+
+      {/* Pinned to the bottom of the screen so the way in is never below the fold. */}
+      <div className="choose-start" style={{ '--team': team.color } as React.CSSProperties}>
+        <div className="choose-start__summary">
+          <span className="choose-start__num">{driver.number}</span>
+          <span><strong>{driver.name}</strong> · {team.name}</span>
+          <span className="choose-start__meta">{laps} laps · {difficulty === 'hard' ? 'Hard' : difficulty === 'medium' ? 'Medium' : 'Easy'} · Shanghai</span>
+        </div>
+        <button type="button" className="shell-btn shell-btn--primary choose-start__go" onClick={go}>
+          Start race →
+        </button>
       </div>
     </div>
   );

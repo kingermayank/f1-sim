@@ -462,4 +462,11 @@
 .choose-settings { display: flex; gap: 1rem; flex-wrap: wrap; }
 .choose-settings label { display: grid; gap: .3rem; font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .choose-settings select { min-width: 12rem; font-family: var(--font-body); font-size: .9rem; padding: .45rem .6rem; border-radius: .4rem; border: 1px solid rgb(255 255 255 / 22%); background: #0a1019; color: var(--text); }
-@media (max-width: 860px) { .choose-grid { grid-template-columns: 1fr; } .choose-circuit { grid-template-columns: 1fr; } }
+.choose-view { padding-bottom: 7rem; }
+/* Fixed, not sticky: the browse shell has overflow set, which would pin a sticky bar to a box that never scrolls. */
+.choose-start { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; padding: .8rem clamp(1rem, 4vw, 2.5rem); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; background: rgb(5 9 14 / 92%); backdrop-filter: blur(12px); border-top: 1px solid rgb(255 255 255 / 14%); box-shadow: 0 -12px 30px rgb(0 0 0 / 45%); }
+.choose-start__summary { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; font-size: .92rem; border-left: 4px solid var(--team); padding-left: .7rem; }
+.choose-start__num { font-family: var(--font-mono); color: var(--team); }
+.choose-start__meta { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.choose-start__go { font-size: 1.05rem; padding: .7rem 1.4rem; box-shadow: 0 0 28px rgb(219 255 74 / 35%); }
+@media (max-width: 860px) { .choose-grid { grid-template-columns: 1fr; } .choose-circuit { grid-template-columns: 1fr; } .choose-start__go { width: 100%; } }
