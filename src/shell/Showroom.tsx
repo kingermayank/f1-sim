@@ -6,8 +6,8 @@ import { findProfile } from '../content/driver-profiles';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { gameStore, type Difficulty, type FieldSize } from '../game/game-store';
 import { useCoarsePointer } from '../game/TouchControls';
+import { AppNav } from './AppNav';
 import { CircuitMap } from './CircuitMap';
-import { routeHref } from './router';
 import { ShowroomScene, preloadShowroom } from './ShowroomScene';
 
 const CAR_NAMES: Record<string, string> = {
@@ -92,19 +92,7 @@ export function Showroom() {
 
   return (
     <div className="showroom" style={{ '--team': team.color, '--accent': team.accent } as React.CSSProperties}>
-      <header className="showroom__bar">
-        <a className="shell-nav__brand" href={routeHref('home')}>
-          <span className="shell-nav__mark" aria-hidden="true">A</span>
-          <span className="shell-nav__wordmark">APEX</span>
-        </a>
-        <nav className="showroom__links" aria-label="Explore">
-          <a href={routeHref('circuits')}>Circuits</a>
-          <a href={routeHref('garage')}>Garage</a>
-          <a href={routeHref('drivers')}>Drivers</a>
-          <a href={routeHref('learn')}>Learn</a>
-          <a href={routeHref('race')} className="showroom__links-watch">Watch the simulation</a>
-        </nav>
-      </header>
+      <AppNav active="home" />
 
       <div className="showroom__stage" aria-hidden="true">
         <ShowroomScene teamId={team.id} direction={direction} serial={serial} lite={touch} />

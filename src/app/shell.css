@@ -38,6 +38,8 @@
 }
 .shell-nav nav a:hover { color: var(--text); background: rgb(255 255 255 / 6%); }
 .shell-nav nav a.is-active { color: var(--text); background: rgb(219 255 74 / 12%); box-shadow: inset 0 -2px 0 var(--signal); }
+.shell-nav__watch { border: 1px solid rgb(255 255 255 / 18%); color: var(--text) !important; margin-left: .35rem; }
+.shell-nav__watch:hover { border-color: rgb(255 255 255 / 40%); }
 .shell-nav__cta {
   margin-left: auto; font-family: var(--font-body); font-weight: 800; font-size: .82rem;
   padding: .5rem 1rem; border-radius: 6px; background: var(--signal); color: #07100d; text-decoration: none;
@@ -434,11 +436,8 @@
     linear-gradient(180deg, #05080d 0%, #070b11 55%, #03050a 100%);
   transition: background .5s ease;
 }
-.showroom__bar { position: relative; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem clamp(1rem, 3vw, 2rem); }
-.showroom__links { display: flex; gap: .1rem; flex-wrap: wrap; }
-.showroom__links a { font-family: var(--font-body); font-weight: 700; font-size: .8rem; color: var(--muted); text-decoration: none; padding: .4rem .65rem; border-radius: 6px; }
-.showroom__links a:hover { color: var(--text); background: rgb(255 255 255 / 6%); }
-.showroom__links-watch { border: 1px solid rgb(255 255 255 / 18%); color: var(--text) !important; }
+/* On the homepage the bar floats over the stage. */
+.showroom > .shell-nav { position: relative; z-index: 4; background: none; backdrop-filter: none; }
 
 .showroom__stage { position: absolute; inset: 0; z-index: 0; }
 .showroom__stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgb(3 5 10 / 70%) 0%, transparent 32%, transparent 68%, rgb(3 5 10 / 70%) 100%); }
@@ -538,7 +537,7 @@
   .showroom__race { grid-row: 4; padding-top: 1rem; }
   .showroom__foot { grid-row: 5; grid-template-columns: 1fr; }
   .showroom__start { width: 100%; }
-  .showroom__links-watch { display: none; }
+  .showroom > .shell-nav .shell-nav__watch { display: none; }
 }
 
 /* -- touch controls (coarse pointers only) ---------------------------------- */
