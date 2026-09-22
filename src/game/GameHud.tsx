@@ -74,7 +74,11 @@ function IntroCard() {
   );
 }
 
-/** Five columns of two red lights, lit one column a second; all out means go. */
+/**
+ * Five columns of two red lights, lit one column a second. Real lights just
+ * go out; on a screen that is too quiet a cue, so here they flash green at
+ * the same moment, as most racing games do.
+ */
 function LightsGantry() {
   const lights = useGameStore((state) => state.lights);
   const phase = useGameStore((state) => state.phase);
@@ -84,7 +88,7 @@ function LightsGantry() {
   if (!visible) return null;
   const out = phase === 'racing';
   return (
-    <div className={`game-lights${out ? ' is-out' : ''}`} role="status" aria-live="assertive" aria-label={out ? 'Lights out' : `${lights} of 5 lights`}>
+    <div className={`game-lights${out ? ' is-out' : ''}`} role="status" aria-live="assertive" aria-label={out ? 'Lights out, go' : `${lights} of 5 lights`}>
       <div className="game-lights__gantry" aria-hidden="true">
         {[0, 1, 2, 3, 4].map((column) => (
           <div key={column} className={`game-lights__column${!out && column < lights ? ' is-lit' : ''}`}>
