@@ -11,9 +11,10 @@ const LINKS: { name: RouteName; label: string }[] = [
 
 /**
  * The one top bar, on every page: the brand, the browse links with the
- * current one lit, the broadcast simulation, and Race. On the homepage —
- * which is the race menu — Race scrolls to the Start button instead of
- * navigating away from it.
+ * current one lit, the broadcast simulation, the sound toggle, and Race.
+ * The homepage is the race menu with Start race on it, so there the Race
+ * button would be a second door to the room you are standing in; it is
+ * left off.
  */
 export function AppNav({ active }: { active: RouteName }) {
   // Detail pages light their section's tab.
@@ -24,14 +25,6 @@ export function AppNav({ active }: { active: RouteName }) {
     const next = !sound;
     setSound(next);
     setUiSoundEnabled(next);
-  };
-
-  const race = (event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!onHome) return;
-    event.preventDefault();
-    const start = document.querySelector<HTMLElement>('.showroom__start');
-    start?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    start?.focus({ preventScroll: true });
   };
 
   return (
@@ -63,7 +56,7 @@ export function AppNav({ active }: { active: RouteName }) {
       >
         ♪
       </button>
-      <a className="shell-nav__cta" href={routeHref('home')} onClick={race}>Race →</a>
+      {!onHome && <a className="shell-nav__cta" href={routeHref('home')}>Race →</a>}
     </header>
   );
 }
