@@ -8,7 +8,7 @@ import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { createSplineTrack } from '../track/spline-track';
 import { createEngineAudio } from './engine-audio';
 import { INTRO_SECONDS, gameStore, projectedTrack, useGameStore } from './game-store';
-import { createKeyboardInput } from './input';
+import { getPlayerInput } from './input';
 import { GuideLine } from './GuideLine';
 import { TeamCarModel } from './TeamCarModel';
 
@@ -36,7 +36,7 @@ const MAX_STEP = 1 / 30;
 
 /** Fixed-step game loop: reads input, steps the store, never touches React per frame. */
 function GameLoop({ muted }: { muted: boolean }) {
-  const input = useMemo(() => createKeyboardInput(), []);
+  const input = useMemo(() => getPlayerInput(), []);
   const audio = useMemo(() => createEngineAudio(), []);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ function GameLoop({ muted }: { muted: boolean }) {
     return () => {
       window.removeEventListener('keydown', begin);
       window.removeEventListener('pointerdown', begin);
-      input.dispose();
+      input.setTouch(null);
       audio.dispose();
     };
   }, [input, audio]);
@@ -387,14 +387,15 @@ function playerFocus() {
   return { x: car.x, y: surfaceY, z: car.z };
 }
 
-export function GameScene({ muted }: { muted: boolean }) {
+export function GameScene({ muted, lite = false }: { muted: boolean; lite?: boolean }) {
   // Render resolution follows the frame rate: full on a machine that keeps
   // up, stepped down on one that does not. Smooth motion beats sharp pixels.
-  const [dpr, setDpr] = useState(1.5);
+  // Phones start at 1 with no shadows: they have the pixels but not the GPU.
+  const [dpr, setDpr] = useState(lite ? 1 : 1.5);
   return (
     <Canvas
       className="race-canvas"
-      shadows
+      shadows={!lite}
       dpr={dpr}
       // A logarithmic depth buffer: the chase camera looks along the road at a
       // grazing angle, and with a 9 km far plane the painted lines and kerbs
@@ -404,11 +405,11 @@ export function GameScene({ muted }: { muted: boolean }) {
     >
       <PerformanceMonitor
         onDecline={() => setDpr((current) => Math.max(0.75, current - 0.25))}
-        onIncline={() => setDpr((current) => Math.min(1.5, current + 0.25))}
+        onIncline={() => setDpr((current) => Math.min(lite ? 1.25 : 1.5, current + 0.25))}
         flipflops={3}
         onFallback={() => setDpr(1)}
       />
-      <Environment quality="high" shadowFocus={playerFocus} racingLine={false} />
+      <Environment quality={lite ? 'mobile' : 'high'} shadowFocus={playerFocus} racingLine={false} />
       <GuideLine />
       <AiField />
       <PlayerCar />

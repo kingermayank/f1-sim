@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useProgress } from '@react-three/drei';
+import { useEffect, useRef, useState } from 'react';
 import { CALENDAR_2026 } from '../content/calendar-2026';
 import { findCircuit } from '../content/circuits';
 import { findProfile } from '../content/driver-profiles';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { gameStore, type Difficulty, type FieldSize } from '../game/game-store';
+import { useCoarsePointer } from '../game/TouchControls';
 import { CircuitMap } from './CircuitMap';
 import { routeHref } from './router';
 import { ShowroomScene, preloadShowroom } from './ShowroomScene';
@@ -29,10 +31,14 @@ function teamOf(teamId: string) {
  */
 export function Showroom() {
   const [index, setIndex] = useState(0);
+  // Which way the last flip went (for the sweep) and how many flips there have been (to retrigger it).
+  const [direction, setDirection] = useState(1);
+  const [serial, setSerial] = useState(0);
   const [circuitId, setCircuitId] = useState('shanghai');
   const [pickingCircuit, setPickingCircuit] = useState(false);
   const [laps, setLaps] = useState(5);
-  const [fieldSize, setFieldSize] = useState<FieldSize>(14);
+  // Phones default to a lighter field; they can dial it up.
+  const [fieldSize, setFieldSize] = useState<FieldSize>(() => (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches ? 6 : 14));
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
 
   const driver = DRIVERS_2026[index];
@@ -40,9 +46,24 @@ export function Showroom() {
   const profile = findProfile(driver.id);
   const circuit = findCircuit(circuitId) ?? findCircuit('shanghai')!;
 
+  const touch = useCoarsePointer();
+  const loading = useProgress((state) => state.active);
+  const chips = useRef<HTMLDivElement>(null);
+
   useEffect(() => { preloadShowroom(); }, []);
 
-  const move = (delta: number) => setIndex((current) => (current + delta + DRIVERS_2026.length) % DRIVERS_2026.length);
+  // Keep the chosen chip in view as you flip through the field.
+  useEffect(() => {
+    const chip = chips.current?.querySelector<HTMLElement>('.showroom__chip.is-selected');
+    chip?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }, [index]);
+
+  const choose = (next: number, towards: number) => {
+    setDirection(towards);
+    setSerial((current) => current + 1);
+    setIndex(next);
+  };
+  const move = (delta: number) => choose((index + delta + DRIVERS_2026.length) % DRIVERS_2026.length, Math.sign(delta) || 1);
 
   const start = () => {
     gameStore.getState().configure({ driverId: driver.id, laps, difficulty, fieldSize });
@@ -86,19 +107,27 @@ export function Showroom() {
       </header>
 
       <div className="showroom__stage" aria-hidden="true">
-        <ShowroomScene teamId={team.id} />
+        <ShowroomScene teamId={team.id} direction={direction} serial={serial} lite={touch} />
+        {loading && (
+          <div className="showroom__loading">
+            <span className="showroom__loading-bar" />
+            <span>Loading {CAR_NAMES[team.id]}</span>
+          </div>
+        )}
       </div>
 
       <section className="showroom__driver" aria-label="Your car">
-        <p className="showroom__eyebrow">{team.name} · {CAR_NAMES[team.id]}</p>
-        <div className="showroom__number" aria-hidden="true">{driver.number}</div>
-        <h1 className="showroom__name">{driver.name}</h1>
-        <p className="showroom__hook">{profile?.hook}</p>
+        <div key={driver.id} className={`showroom__card${direction > 0 ? ' is-from-right' : ' is-from-left'}`}>
+          <p className="showroom__eyebrow">{team.name} · {CAR_NAMES[team.id]}</p>
+          <div className="showroom__number" aria-hidden="true">{driver.number}</div>
+          <h1 className="showroom__name">{driver.name}</h1>
+          <p className="showroom__hook">{profile?.hook}</p>
+        </div>
         <dl className="showroom__ratings">
           {ratings.map(([label, value]) => (
             <div key={label}>
               <dt>{label}</dt>
-              <dd><span style={{ width: `${Math.round(value * 100)}%` }} /><em>{Math.round(value * 100)}</em></dd>
+              <dd><span className="showroom__meter"><i style={{ width: `${Math.round(value * 100)}%` }} /></span><em>{Math.round(value * 100)}</em></dd>
             </div>
           ))}
         </dl>
@@ -108,7 +137,7 @@ export function Showroom() {
         <button type="button" className="showroom__circuit" onClick={() => setPickingCircuit(true)} aria-haspopup="dialog">
           <span className="showroom__circuit-map"><CircuitMap circuit={circuit} /></span>
           <span className="showroom__circuit-text">
-            <span className="showroom__eyebrow">Round {circuit.round} · {circuit.grandPrix}</span>
+            <span className="showroom__eyebrow showroom__eyebrow--clip">R{circuit.round} · {circuit.grandPrix}</span>
             <strong>{circuit.name}</strong>
             <span className="showroom__circuit-meta">{circuit.lengthKm.toFixed(3)} km · {circuit.turns} turns · {circuit.drsZones ?? 0} DRS</span>
             <span className="showroom__change">Change circuit ↗</span>
@@ -125,7 +154,7 @@ export function Showroom() {
       <footer className="showroom__foot">
         <div className="showroom__field" role="radiogroup" aria-label="Choose your driver">
           <button type="button" className="showroom__arrow" onClick={() => move(-1)} aria-label="Previous driver">‹</button>
-          <div className="showroom__chips">
+          <div className="showroom__chips" ref={chips}>
             {DRIVERS_2026.map((candidate, candidateIndex) => {
               const candidateTeam = teamOf(candidate.teamId);
               const selected = candidateIndex === index;
@@ -137,7 +166,7 @@ export function Showroom() {
                   aria-checked={selected}
                   className={selected ? 'showroom__chip is-selected' : 'showroom__chip'}
                   style={{ '--chip': candidateTeam.color } as React.CSSProperties}
-                  onClick={() => setIndex(candidateIndex)}
+                  onClick={() => choose(candidateIndex, candidateIndex >= index ? 1 : -1)}
                 >
                   <span className="showroom__chip-num">{candidate.number}</span>
                   <span className="showroom__chip-name">{candidate.abbreviation}</span>
@@ -149,7 +178,7 @@ export function Showroom() {
         </div>
         <button type="button" className="showroom__start" onClick={start}>
           <span>Start race</span>
-          <small>{laps} laps · {fieldSize} cars · {PACE_LABEL[difficulty]} · <kbd>Enter</kbd></small>
+          <small>{laps} laps · {fieldSize} cars · {PACE_LABEL[difficulty]}{!touch && <> · <kbd>Enter</kbd></>}</small>
         </button>
       </footer>
 

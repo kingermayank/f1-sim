@@ -4,6 +4,7 @@ import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { routeHref } from '../shell/router';
 import { GameHud } from './GameHud';
 import { GameScene } from './GameScene';
+import { TouchControls, useCoarsePointer } from './TouchControls';
 import { driverName, formatGap, formatLapTime, gameStore, teamOfDriver, useGameStore } from './game-store';
 
 const CAR_NAMES: Record<string, string> = {
@@ -19,6 +20,7 @@ function teamOf(teamId: string) {
 export function PlayRaceView() {
   const phase = useGameStore((state) => state.phase);
   const [muted, setMuted] = useState(false);
+  const touch = useCoarsePointer();
 
   // Landing here directly without configuring: send to the picker.
   useEffect(() => {
@@ -26,9 +28,10 @@ export function PlayRaceView() {
   }, []);
 
   return (
-    <div className="game-shell">
-      <GameScene muted={muted} />
+    <div className={touch ? 'game-shell game-shell--touch' : 'game-shell'}>
+      <GameScene muted={muted} lite={touch} />
       <GameHud />
+      {touch && <TouchControls />}
       <div className="game-topbar">
         <a className="shell-btn" href="#/play">← Choose race</a>
         <button type="button" className="shell-btn" aria-pressed={muted} onClick={() => setMuted((value) => !value)}>

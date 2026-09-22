@@ -50,6 +50,7 @@ export function LearnView() {
   return (
     <div className="shell-view">
       <header className="shell-head">
+        <p className="shell-eyebrow">Quiz · glossary · how a race works</p>
         <h1>Learn</h1>
         <p>
           The two things that most often lose a new viewer are tyre strategy and DRS. Answer eight

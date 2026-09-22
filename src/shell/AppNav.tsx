@@ -30,7 +30,7 @@ export function AppNav({ active }: { active: RouteName }) {
           </a>
         ))}
       </nav>
-      <a className="shell-nav__cta" href={routeHref('home')}>Race</a>
+      <a className="shell-nav__cta" href={routeHref('home')}>Race →</a>
     </header>
   );
 }

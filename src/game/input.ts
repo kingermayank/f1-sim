@@ -14,8 +14,20 @@ import type { CarInput } from './car-physics';
  * left trigger brake, A or RB is DRS, Y resets, Start skips the intro or
  * pauses. Any pad input takes precedence over the keys for that control.
  */
+/** On-screen controls, set by the touch overlay; null when nothing is held. */
+export interface TouchInput {
+  steer: number;
+  throttle: number;
+  brake: number;
+  drs: boolean;
+}
+
 export interface InputController {
   read(): CarInput;
+  /** The touch overlay reports what is held; pass null when untouched. */
+  setTouch(touch: TouchInput | null): void;
+  requestReset(): void;
+  requestPause(): void;
   consumeReset(): boolean;
   /** Enter (or Start) was pressed since the last call: skip the intro. */
   consumeSkip(): boolean;
@@ -37,6 +49,7 @@ export function createKeyboardInput(target: Window = window): InputController {
   let skipRequested = false;
   let pauseRequested = false;
   let steer = 0;
+  let touch: TouchInput | null = null;
   let lastRead = typeof performance === 'undefined' ? 0 : performance.now();
   // Edge detection for pad buttons.
   const padWasDown = new Map<number, boolean>();
@@ -80,7 +93,8 @@ export function createKeyboardInput(target: Window = window): InputController {
 
       const left = down.has('KeyA') || down.has('ArrowLeft') ? 1 : 0;
       const right = down.has('KeyD') || down.has('ArrowRight') ? 1 : 0;
-      const target = right - left;
+      // Touch steer buttons ramp exactly like keys; the stick below is analogue.
+      const target = touch && touch.steer !== 0 ? touch.steer : right - left;
       // Ramp toward the key, faster back toward centre.
       const returning = target === 0 || (steer !== 0 && Math.sign(target) !== Math.sign(steer));
       const rate = returning ? 1 / STEER_OUT_SECONDS : 1 / STEER_IN_SECONDS;
@@ -91,6 +105,11 @@ export function createKeyboardInput(target: Window = window): InputController {
       let brake = down.has('KeyS') || down.has('ArrowDown') || down.has('Space') ? 1 : 0;
       let drs = down.has('ShiftLeft') || down.has('ShiftRight');
       let steerOut = steer;
+      if (touch) {
+        throttle = Math.max(throttle, touch.throttle);
+        brake = Math.max(brake, touch.brake);
+        drs = drs || touch.drs;
+      }
 
       const gamepad = pad();
       if (gamepad) {
@@ -110,6 +129,15 @@ export function createKeyboardInput(target: Window = window): InputController {
       }
 
       return { throttle, brake, steer: Math.max(-1, Math.min(1, steerOut)), drs };
+    },
+    setTouch(next) {
+      touch = next;
+    },
+    requestReset() {
+      resetRequested = true;
+    },
+    requestPause() {
+      pauseRequested = true;
     },
     consumeReset() {
       const value = resetRequested;
@@ -135,4 +163,12 @@ export function createKeyboardInput(target: Window = window): InputController {
       target.removeEventListener('blur', onBlur);
     },
   };
+}
+
+let shared: InputController | null = null;
+
+/** The one controller the race and its touch overlay share. Created on first use. */
+export function getPlayerInput(): InputController {
+  if (!shared) shared = createKeyboardInput();
+  return shared;
 }

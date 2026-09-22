@@ -1,5 +1,5 @@
 import { ContactShadows, OrbitControls, useGLTF } from '@react-three/drei';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { Color, Group } from 'three';
 import { ASSETS } from '../assets/asset-registry';
@@ -8,29 +8,41 @@ import { TeamCarModel } from '../game/TeamCarModel';
 
 /**
  * The showroom: one car on a turntable under a key light, with a rim light in
- * the team's colour. Drag to spin it; it drifts on its own otherwise. A car
- * change scales the new one up from slightly small so the swap reads as a
- * reveal rather than a pop.
+ * the team's colour. Drag to spin it; it drifts on its own otherwise. When
+ * the car changes, the new one sweeps in from the side you flipped towards,
+ * scales up from slightly small, and settles with a last quarter-turn, so
+ * the swap reads as a reveal rather than a pop.
  */
-function Turntable({ teamId }: { teamId: string }) {
+function Turntable({ teamId, direction, serial }: { teamId: string; direction: number; serial: number }) {
   const group = useRef<Group>(null);
-  const reveal = useRef(0);
-  useEffect(() => { reveal.current = 0; }, [teamId]);
+  const reveal = useRef(1);
+  useEffect(() => { reveal.current = 0; }, [serial]);
   useFrame((_, delta) => {
     const object = group.current;
     if (!object) return;
-    reveal.current = Math.min(1, reveal.current + delta * 2.2);
+    reveal.current = Math.min(1, reveal.current + delta * 2.4);
     const eased = 1 - (1 - reveal.current) ** 3;
-    const scale = 0.88 + 0.12 * eased;
-    object.scale.setScalar(scale);
-    // A last quarter-turn settles into the resting pose as it lands.
-    object.rotation.y = (1 - eased) * 0.6;
+    object.scale.setScalar(0.9 + 0.1 * eased);
+    object.position.x = (1 - eased) * 4.5 * direction;
+    object.rotation.y = (1 - eased) * 0.5 * direction;
   });
   return (
     <group ref={group}>
       <Suspense fallback={null}><TeamCarModel teamId={teamId} /></Suspense>
     </group>
   );
+}
+
+/** A portrait phone sees a narrower slice of the room, so the camera backs off to keep the whole car in frame. */
+function FrameForAspect() {
+  const camera = useThree((state) => state.camera);
+  const aspect = useThree((state) => state.size.width / state.size.height);
+  useEffect(() => {
+    const distance = Math.max(1, Math.min(2.1, 1.35 / aspect));
+    camera.position.set(7.4 * distance, 2.3 * distance, 7.2 * distance);
+    camera.updateProjectionMatrix();
+  }, [camera, aspect]);
+  return null;
 }
 
 function Lights({ accent }: { accent: string }) {
@@ -46,18 +58,19 @@ function Lights({ accent }: { accent: string }) {
   );
 }
 
-export function ShowroomScene({ teamId }: { teamId: string }) {
+export function ShowroomScene({ teamId, direction = 1, serial = 0, lite = false }: { teamId: string; direction?: number; serial?: number; lite?: boolean }) {
   const team = TEAMS_2026.find((candidate) => candidate.id === teamId) ?? TEAMS_2026[0];
   return (
     <Canvas
       className="showroom__canvas"
-      shadows
-      dpr={[1, 1.5]}
-      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+      shadows={!lite}
+      dpr={lite ? 1 : [1, 1.5]}
+      gl={{ antialias: !lite, alpha: true, powerPreference: 'high-performance' }}
       camera={{ position: [7.4, 2.3, 7.2], fov: 30, near: 0.1, far: 100 }}
     >
+      <FrameForAspect />
       <Lights accent={team.color} />
-      <Turntable teamId={teamId} />
+      <Turntable teamId={teamId} direction={direction} serial={serial} />
       <ContactShadows position={[0, 0.005, 0]} opacity={0.75} scale={14} blur={2.2} far={3} color="#000000" />
       <mesh position={[0, -0.002, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[7, 64]} />

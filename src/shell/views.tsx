@@ -53,6 +53,7 @@ export function CircuitsView() {
   return (
     <div className="shell-view">
       <header className="shell-head">
+        <p className="shell-eyebrow">2026 calendar · {CIRCUITS.length} rounds</p>
         <h1>Circuits</h1>
         <p>
           The real {CIRCUITS.length}-round 2026 calendar. {PLAYABLE_CIRCUITS.length} circuits have
@@ -85,6 +86,7 @@ export function CircuitView({ id }: { id?: string }) {
   return (
     <div className="shell-view">
       <header className="shell-head">
+        <p className="shell-eyebrow">{circuit.round ? `Round ${circuit.round} · ` : ''}{circuit.grandPrix ?? circuit.country}</p>
         <h1>{circuit.name}</h1>
         <p>
           {circuit.round ? `Round ${circuit.round} · ` : ''}{circuit.grandPrix ?? circuit.country}
@@ -157,6 +159,7 @@ export function GarageView() {
   return (
     <div className="shell-view">
       <header className="shell-head">
+        <p className="shell-eyebrow">{TEAMS_2026.length} cars · 2026</p>
         <h1>Garage</h1>
         <p>The {TEAMS_2026.length} teams we hold real car models for. Each is loaded once and shared by both of its drivers.</p>
       </header>
@@ -185,6 +188,7 @@ export function DriversView() {
   return (
     <div className="shell-view">
       <header className="shell-head">
+        <p className="shell-eyebrow">The grid · {DRIVERS_2026.length} in the game</p>
         <h1>Drivers</h1>
         <p>
           Most people pick a driver before they pick a team, and they pick on personality. Here is a

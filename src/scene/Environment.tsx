@@ -327,7 +327,7 @@ const FOLLOW_SHADOW_EXTENT = 70;
  * a metre per texel, which at chase-camera range reads as flickering dark
  * mottling across the tarmac; here a texel is 14 cm.
  */
-function FollowingSun({ focus }: { focus: () => ShadowFocus }) {
+function FollowingSun({ focus, shadows }: { focus: () => ShadowFocus; shadows: boolean }) {
   const light = useRef<DirectionalLight>(null);
   const anchor = useMemo(() => new Vector3(), []);
 
@@ -344,7 +344,7 @@ function FollowingSun({ focus }: { focus: () => ShadowFocus }) {
   return (
     <directionalLight
       ref={light}
-      castShadow
+      castShadow={shadows}
       color="#ffe6c4"
       intensity={2.35}
       shadow-mapSize={[1024, 1024]}
@@ -366,7 +366,7 @@ export function Environment({ quality, shadowFocus, racingLine = true }: { quali
       <color attach="background" args={['#8fb2c4']} />
       <fog attach="fog" args={['#9db9c8', 900, 3400]} />
       <hemisphereLight args={['#dceaf3', '#2b3338', quality === 'high' ? 1.05 : 1.35]} />
-      {shadowFocus ? <FollowingSun focus={shadowFocus} /> : (
+      {shadowFocus ? <FollowingSun focus={shadowFocus} shadows={quality === 'high'} /> : (
         <directionalLight
           castShadow={quality === 'high'}
           color="#ffe6c4"
