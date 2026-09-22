@@ -9,6 +9,7 @@ import { useCoarsePointer } from '../game/TouchControls';
 import { AppNav } from './AppNav';
 import { CircuitMap } from './CircuitMap';
 import { ShowroomScene, preloadShowroom } from './ShowroomScene';
+import { uiSound } from './ui-sound';
 
 const CAR_NAMES: Record<string, string> = {
   'red-bull': 'RB21', ferrari: 'SF-25', mclaren: 'MCL39', 'aston-martin': 'AMR25',
@@ -59,6 +60,8 @@ export function Showroom() {
   }, [index]);
 
   const choose = (next: number, towards: number) => {
+    if (next === index) return;
+    uiSound.flip(towards);
     setDirection(towards);
     setSerial((current) => current + 1);
     setIndex(next);
@@ -66,6 +69,7 @@ export function Showroom() {
   const move = (delta: number) => choose((index + delta + DRIVERS_2026.length) % DRIVERS_2026.length, Math.sign(delta) || 1);
 
   const start = () => {
+    uiSound.confirm();
     gameStore.getState().configure({ driverId: driver.id, laps, difficulty, fieldSize });
     gameStore.getState().start();
     window.location.hash = '#/play/race';
@@ -122,7 +126,7 @@ export function Showroom() {
       </section>
 
       <section className="showroom__race" aria-label="Race">
-        <button type="button" className="showroom__circuit" onClick={() => setPickingCircuit(true)} aria-haspopup="dialog">
+        <button type="button" className="showroom__circuit" onClick={() => { uiSound.open(); setPickingCircuit(true); }} aria-haspopup="dialog">
           <span className="showroom__circuit-map"><CircuitMap circuit={circuit} /></span>
           <span className="showroom__circuit-text">
             <span className="showroom__eyebrow showroom__eyebrow--clip">R{circuit.round} · {circuit.grandPrix}</span>
@@ -173,7 +177,7 @@ export function Showroom() {
             <header>
               <p className="showroom__eyebrow">2026 calendar</p>
               <h2>Choose a circuit</h2>
-              <button type="button" className="shell-btn" onClick={() => setPickingCircuit(false)}>Close</button>
+              <button type="button" className="shell-btn" onClick={() => { uiSound.click(0.2); setPickingCircuit(false); }}>Close</button>
             </header>
             <ol className="showroom__rounds">
               {CALENDAR_2026.map((round) => {
@@ -185,7 +189,7 @@ export function Showroom() {
                       type="button"
                       className={`showroom__round${drivable ? '' : ' is-locked'}${round.id === circuitId ? ' is-selected' : ''}`}
                       disabled={!drivable}
-                      onClick={() => { setCircuitId(round.id); setPickingCircuit(false); }}
+                      onClick={() => { uiSound.click(0.8); setCircuitId(round.id); setPickingCircuit(false); }}
                     >
                       <span className="showroom__round-map">{entry?.outline ? <CircuitMap circuit={entry} /> : <span className="showroom__round-blank" />}</span>
                       <span className="showroom__round-text">
@@ -217,14 +221,14 @@ function Segmented<T extends string | number>({ label, value, options, onChange,
     <div className="showroom__segment" role="radiogroup" aria-label={label}>
       <span className="showroom__segment-label">{label}</span>
       <div className="showroom__segment-options">
-        {options.map((option) => (
+        {options.map((option, position) => (
           <button
             key={String(option)}
             type="button"
             role="radio"
             aria-checked={option === value}
             className={option === value ? 'is-selected' : undefined}
-            onClick={() => onChange(option)}
+            onClick={() => { if (option !== value) uiSound.click(options.length > 1 ? position / (options.length - 1) : 0.5); onChange(option); }}
           >
             {format ? format(option) : String(option)}
           </button>

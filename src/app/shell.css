@@ -40,15 +40,18 @@
 .shell-nav nav a.is-active { color: var(--text); background: rgb(219 255 74 / 12%); box-shadow: inset 0 -2px 0 var(--signal); }
 .shell-nav__watch { border: 1px solid rgb(255 255 255 / 18%); color: var(--text) !important; margin-left: .35rem; }
 .shell-nav__watch:hover { border-color: rgb(255 255 255 / 40%); }
+.shell-nav__sound { margin-left: auto; width: 2.2rem; height: 2.2rem; border-radius: 6px; border: 1px solid rgb(255 255 255 / 18%); background: transparent; color: var(--text); font: inherit; font-size: 1rem; cursor: pointer; }
+.shell-nav__sound[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }
+.shell-nav__sound:hover { border-color: rgb(255 255 255 / 40%); }
 .shell-nav__cta {
-  margin-left: auto; font-family: var(--font-body); font-weight: 800; font-size: .82rem;
+  margin-left: 0; font-family: var(--font-body); font-weight: 800; font-size: .82rem;
   padding: .5rem 1rem; border-radius: 6px; background: var(--signal); color: #07100d; text-decoration: none;
   box-shadow: 0 0 24px rgb(219 255 74 / 25%);
 }
 .shell-nav__cta:hover { background: #e8ff7a; color: #07100d; box-shadow: 0 0 36px rgb(219 255 74 / 40%); }
 @media (max-width: 640px) {
   .shell-nav { gap: .6rem .8rem; }
-  .shell-nav__cta { order: 2; }
+  .shell-nav__sound { order: 1; } .shell-nav__cta { order: 2; }
   .shell-nav nav { order: 3; flex: 1 0 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -1rem; padding: 0 1rem; }
   .shell-nav nav::-webkit-scrollbar { display: none; }
   .shell-nav nav a { white-space: nowrap; }

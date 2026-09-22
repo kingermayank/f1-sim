@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { routeHref, type RouteName } from './router';
+import { isUiSoundEnabled, setUiSoundEnabled } from './ui-sound';
 
 const LINKS: { name: RouteName; label: string }[] = [
   { name: 'circuits', label: 'Circuits' },
@@ -17,6 +19,12 @@ export function AppNav({ active }: { active: RouteName }) {
   // Detail pages light their section's tab.
   const current: RouteName = active === 'circuit' ? 'circuits' : active === 'play-race' ? 'play' : active;
   const onHome = current === 'home' || current === 'play';
+  const [sound, setSound] = useState(() => (typeof window === 'undefined' ? true : isUiSoundEnabled()));
+  const toggleSound = () => {
+    const next = !sound;
+    setSound(next);
+    setUiSoundEnabled(next);
+  };
 
   const race = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!onHome) return;
@@ -45,6 +53,16 @@ export function AppNav({ active }: { active: RouteName }) {
         ))}
         <a href={routeHref('race')} className="shell-nav__watch">Watch the simulation</a>
       </nav>
+      <button
+        type="button"
+        className="shell-nav__sound"
+        onClick={toggleSound}
+        aria-pressed={sound}
+        aria-label={sound ? 'Menu sounds on' : 'Menu sounds off'}
+        title={sound ? 'Menu sounds on' : 'Menu sounds off'}
+      >
+        ♪
+      </button>
       <a className="shell-nav__cta" href={routeHref('home')} onClick={race}>Race →</a>
     </header>
   );

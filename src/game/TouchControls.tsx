@@ -41,7 +41,8 @@ export function TouchControls() {
 
   const press = (control: Control) => (event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
+    // Capture so a thumb sliding off the button still releases it; some browsers throw for a pointer that has already gone.
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* fine without capture */ }
     held.current.set(event.pointerId, control);
     publish();
   };
