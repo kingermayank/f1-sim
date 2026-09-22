@@ -450,17 +450,24 @@
 
 .showroom__eyebrow { margin: 0 0 .5rem; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; color: var(--signal); }
 
-.showroom__driver { position: relative; z-index: 2; align-self: start; justify-self: start; width: min(26rem, 42vw); padding: clamp(.5rem, 2vh, 2rem) clamp(1rem, 3vw, 2rem) 0; pointer-events: none; }
+.showroom__driver { position: relative; z-index: 2; align-self: start; justify-self: start; width: min(27rem, 40vw); padding: clamp(.5rem, 2vh, 2rem) clamp(1rem, 3vw, 2rem) 0; pointer-events: none; }
 .showroom__driver > * { pointer-events: auto; }
-/* A flip slides the card in from the side you flipped towards. */
-.showroom__card { animation: showroom-card-in .5s cubic-bezier(.2,.8,.2,1) both; }
+/* The driver card: the same glass as the circuit card, team colour on its edge. A flip slides it in from the side you flipped towards. */
+.showroom__card {
+  position: relative; padding: 1rem 1.2rem 1.1rem 1.3rem; border-radius: .6rem;
+  background: rgb(5 9 14 / 74%); border: 1px solid rgb(255 255 255 / 16%); border-left: 4px solid var(--team); backdrop-filter: blur(12px);
+  animation: showroom-card-in .5s cubic-bezier(.2,.8,.2,1) both;
+}
+.showroom__card::before, .showroom__card::after { content: ''; position: absolute; width: 12px; height: 12px; border-color: rgb(255 255 255 / 40%); border-style: solid; pointer-events: none; }
+.showroom__card::before { top: 7px; right: 7px; border-width: 1px 1px 0 0; }
+.showroom__card::after { bottom: 7px; right: 7px; border-width: 0 1px 1px 0; }
 .showroom__card.is-from-left { --from: -28px; }
 .showroom__card.is-from-right { --from: 28px; }
 @keyframes showroom-card-in { from { opacity: 0; transform: translateX(var(--from, 24px)); } to { opacity: 1; transform: none; } }
-.showroom__number { font-family: var(--font-wide); font-size: clamp(3.2rem, 13vh, 8.5rem); line-height: .85; color: var(--team); letter-spacing: -.02em; text-shadow: 0 0 60px color-mix(in srgb, var(--team) 50%, transparent); }
-.showroom__name { margin: .2rem 0 .6rem; font-family: var(--font-wide); font-size: clamp(1.5rem, 3.2vw, 2.4rem); line-height: 1; text-transform: uppercase; }
+.showroom__number { font-family: var(--font-wide); font-size: clamp(3rem, 11vh, 7rem); line-height: .85; color: var(--team); letter-spacing: -.02em; text-shadow: 0 0 60px color-mix(in srgb, var(--team) 50%, transparent); }
+.showroom__name { margin: .2rem 0 .6rem; font-family: var(--font-wide); font-size: clamp(1.1rem, 1.9vw, 1.7rem); line-height: 1.02; text-transform: uppercase; }
 .showroom__hook { margin: 0 0 1rem; color: rgb(255 255 255 / 78%); font-size: .95rem; max-width: 34ch; }
-.showroom__ratings { margin: 0; display: grid; gap: .4rem; max-width: 20rem; }
+.showroom__ratings { margin: 0; display: grid; gap: .4rem; }
 .showroom__ratings div { display: grid; grid-template-columns: 6.2rem 1fr; align-items: center; gap: .6rem; }
 .showroom__ratings dt { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .showroom__ratings dd { margin: 0; display: grid; grid-template-columns: 1fr 1.6rem; align-items: center; gap: .5rem; }

@@ -110,15 +110,15 @@ export function Showroom() {
           <div className="showroom__number" aria-hidden="true">{driver.number}</div>
           <h1 className="showroom__name">{driver.name}</h1>
           <p className="showroom__hook">{profile?.hook}</p>
+          <dl className="showroom__ratings">
+            {ratings.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd><span className="showroom__meter"><i style={{ width: `${Math.round(value * 100)}%` }} /></span><em>{Math.round(value * 100)}</em></dd>
+              </div>
+            ))}
+          </dl>
         </div>
-        <dl className="showroom__ratings">
-          {ratings.map(([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd><span className="showroom__meter"><i style={{ width: `${Math.round(value * 100)}%` }} /></span><em>{Math.round(value * 100)}</em></dd>
-            </div>
-          ))}
-        </dl>
       </section>
 
       <section className="showroom__race" aria-label="Race">
