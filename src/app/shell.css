@@ -344,6 +344,8 @@
 /* -- banners ----------------------------------------------------------------- */
 .game-banner { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); padding: .7rem 1.6rem; border-radius: .4rem; background: rgb(5 9 14 / 84%); border: 1px solid rgb(255 255 255 / 30%); font-family: var(--font-wide); font-size: clamp(1.6rem, 4vw, 2.6rem); text-transform: uppercase; letter-spacing: .04em; animation: banner-in .5s cubic-bezier(.2,.8,.2,1) both; display: flex; align-items: center; gap: .8rem; }
 .game-banner--flag { border-color: var(--signal); }
+.game-banner--pause { flex-direction: column; gap: .2rem; }
+.game-banner--pause small { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .14em; color: var(--muted); }
 .game-banner__flag { width: 2.2rem; height: 1.6rem; background: repeating-conic-gradient(#111 0 25%, #f4f4f4 0 50%) 0 0 / .55rem .55rem; border: 1px solid rgb(255 255 255 / 40%); }
 @keyframes banner-in { from { opacity: 0; transform: translateX(-50%) scale(.9); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
 

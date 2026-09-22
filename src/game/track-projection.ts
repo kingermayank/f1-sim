@@ -23,8 +23,10 @@ export interface TrackProjection {
 
 export interface ProjectedTrack {
   readonly lengthMeters: number;
-  /** Half the drivable tarmac width; beyond this is kerb and grass. */
+  /** Half the tarmac width; beyond this is kerb. */
   readonly halfWidth: number;
+  /** Half-width to the outside of the kerb; beyond this is grass. */
+  readonly kerbHalfWidth: number;
   /** Half-width at the barrier. The car is physically held inside this. */
   readonly wallHalfWidth: number;
   project(x: number, z: number, hint?: number): TrackProjection;
@@ -36,7 +38,7 @@ export interface ProjectedTrack {
 
 const SAMPLES = 2048;
 
-export function createProjectedTrack(track: TrackDefinition, halfWidth = 6.8, wallHalfWidth = 8.4): ProjectedTrack {
+export function createProjectedTrack(track: TrackDefinition, halfWidth = 6.8, wallHalfWidth = 9.0, kerbHalfWidth = 7.9): ProjectedTrack {
   const curve = new CatmullRomCurve3(
     track.centerLine.map((p) => new Vector3(p.x, p.y, p.z)),
     true,
@@ -79,6 +81,7 @@ export function createProjectedTrack(track: TrackDefinition, halfWidth = 6.8, wa
   return {
     lengthMeters: track.lengthMeters,
     halfWidth,
+    kerbHalfWidth,
     wallHalfWidth,
 
     project(x, z, hint) {
@@ -123,19 +126,25 @@ export interface WallContact {
   hitWall: boolean;
 }
 
+/** How far inside the wall line the car is placed after contact, so it does not re-collide every frame. */
+const WALL_REST_METRES = 0.06;
+
 /**
  * Holds the car inside the barriers.
  *
- * If the car has crossed the wall line it is put back on it, its heading is
- * pulled toward the track direction so it slides along the wall rather than
- * pinning into it, and it loses speed for the contact. This is what stops a
- * car from wandering out over terrain the circuit model never intended to be
- * driven on — the source of the "floating above the ground" bug.
+ * If the car has crossed the wall line it is put back just inside it. On the
+ * frame of first contact the heading is turned along the wall and speed is
+ * lost in proportion to how squarely it hit: a glancing touch costs little,
+ * a head-on hit most of it. While the car keeps leaning on the wall it slides
+ * with light friction rather than being scrubbed to a halt every frame,
+ * which is what made a wall a trap. This is also what stops a car wandering
+ * out over terrain the circuit model never intended to be driven on.
  */
 export function constrainToWalls(
   car: { x: number; z: number; heading: number; speed: number },
   projection: TrackProjection,
   wallHalfWidth: number,
+  wasTouching = false,
 ): WallContact {
   const over = Math.abs(projection.lateral) - wallHalfWidth;
   if (over <= 0) return { ...car, hitWall: false };
@@ -143,21 +152,22 @@ export function constrainToWalls(
   const side = Math.sign(projection.lateral);
   const leftX = -projection.tangent.z;
   const leftZ = projection.tangent.x;
-  // Move back to the wall line along the track normal.
-  const x = car.x - leftX * over * side;
-  const z = car.z - leftZ * over * side;
+  // Move back to just inside the wall line along the track normal.
+  const x = car.x - leftX * (over + WALL_REST_METRES) * side;
+  const z = car.z - leftZ * (over + WALL_REST_METRES) * side;
 
-  // Steer the heading toward the track direction, scaled by how hard the car
-  // went in, so a glancing touch barely deflects and a head-on hit turns it.
   const trackHeading = Math.atan2(projection.tangent.z, projection.tangent.x);
   let error = trackHeading - car.heading;
   while (error > Math.PI) error -= Math.PI * 2;
   while (error < -Math.PI) error += Math.PI * 2;
-  const heading = car.heading + error * 0.35;
-
-  // Scrub speed for the contact; harder angles cost more.
   const impact = Math.min(1, Math.abs(Math.sin(error)));
-  const speed = car.speed * (0.92 - impact * 0.4);
 
+  if (wasTouching) {
+    // Sliding along the wall: keep the nose from digging back in, light friction.
+    return { x, z, heading: car.heading + error * 0.15, speed: car.speed * 0.995, hitWall: true };
+  }
+  // First contact: turn along the wall and pay for the angle.
+  const heading = car.heading + error * (0.45 + impact * 0.4);
+  const speed = car.speed * (1 - 0.15 - impact * 0.55);
   return { x, z, heading, speed, hitWall: true };
 }

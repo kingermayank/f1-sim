@@ -81,6 +81,8 @@ export interface Pose {
   x: number;
   z: number;
   heading: number;
+  /** The rival's speed along its heading, m/s, for a rear-end bump. */
+  speed?: number;
 }
 
 export interface ContactResult {
@@ -95,8 +97,10 @@ export interface ContactResult {
 /**
  * Car-to-car contact, resolved for the player only. Each car is two circles
  * (front and rear axle) so a nose-to-tail touch and a side-by-side touch feel
- * different; the player is pushed out of the overlap along the shortest axis
- * and loses speed in proportion to how squarely they hit.
+ * different. The player is pushed out of the overlap along the shortest axis.
+ * A square hit on a slower car is a bump: the player drops to just under the
+ * other car's speed, not to a standstill. A side touch costs a little speed
+ * and nudges the nose away.
  */
 export function resolveCarContact(
   player: Pose & { speed: number },
@@ -140,7 +144,13 @@ export function resolveCarContact(
       const along = Math.abs(nx * Math.cos(heading) + nz * Math.sin(heading));
       const impact = Math.min(1, deepest / radius) * (0.4 + 0.6 * along);
       contact = Math.max(contact, impact);
-      speed *= 1 - 0.35 * impact;
+      if (along > 0.6) {
+        // Nose-to-tail: match the car in front rather than stop behind it.
+        const theirs = rival.speed ?? speed * 0.85;
+        speed = Math.min(speed, Math.max(theirs - 1.5, speed * 0.6));
+      } else {
+        speed *= 1 - 0.06 * impact;
+      }
       // A glancing touch nudges the nose away from the other car.
       const side = Math.sign(-nx * Math.sin(heading) + nz * Math.cos(heading)) || 1;
       heading += side * (1 - along) * 0.05 * Math.min(1, deepest / radius);

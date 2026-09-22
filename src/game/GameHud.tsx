@@ -123,21 +123,23 @@ function Timing() {
       <dl className="game-timing__times">
         <div><dt>Current</dt><dd>{formatLapTime(lap >= 0 && phase === 'racing' ? elapsed - currentLapStart : null)}</dd></div>
         <div><dt>Best</dt><dd>{formatLapTime(bestLap)}</dd></div>
-        <div><dt>Ahead</dt><dd>{gapAhead === null ? 'Leader' : gapAhead > 99 ? '+99s' : `+${gapAhead.toFixed(1)}s`}</dd></div>
-        <div><dt>Behind</dt><dd>{gapBehind === null ? '—' : gapBehind > 99 ? '-99s' : `-${gapBehind.toFixed(1)}s`}</dd></div>
+        <div><dt>Ahead</dt><dd>{gapAhead === null ? 'Leader' : gapAhead > 60 ? '—' : `+${gapAhead.toFixed(1)}s`}</dd></div>
+        <div><dt>Behind</dt><dd>{gapBehind === null || gapBehind > 60 ? '—' : `+${gapBehind.toFixed(1)}s`}</dd></div>
       </dl>
     </div>
   );
 }
 
-/** Full-width moments: lights out, final lap, the flag. */
+/** Full-width moments: lights out, final lap, the flag, pause. */
 function Banners() {
   const finalLap = useGameStore((state) => state.finalLap);
   const phase = useGameStore((state) => state.phase);
+  const paused = useGameStore((state) => state.paused);
   const elapsed = useGameStoreSampled((state) => state.elapsed, 10);
   const currentLapStart = useGameStore((state) => state.currentLapStart);
   const finishPosition = useGameStore((state) => state.finishPosition);
   const showFinal = finalLap && elapsed - currentLapStart < 3;
+  if (paused) return <div className="game-banner game-banner--pause" role="status">Paused<small>P or Esc to resume</small></div>;
   if (phase === 'finished') {
     return <div className="game-banner game-banner--flag" role="status"><span className="game-banner__flag" aria-hidden="true" />Chequered flag · P{finishPosition}</div>;
   }
@@ -237,7 +239,7 @@ function OffTrack() {
   const onTrack = useGameStore((state) => state.onTrack);
   const phase = useGameStore((state) => state.phase);
   if (onTrack || phase !== 'racing') return null;
-  return <div className="game-hud__warn" role="status">Off track · press R to reset</div>;
+  return <div className="game-hud__warn" role="status">On the grass · R to reset</div>;
 }
 
 function Keys() {
@@ -248,7 +250,7 @@ function Keys() {
   if (hidden) return null;
   return (
     <div className="game-hud__keys" aria-hidden="true">
-      <span><b>W</b> throttle</span><span><b>S</b> brake</span><span><b>A</b>/<b>D</b> steer</span><span><b>Shift</b> DRS</span><span><b>R</b> reset</span>
+      <span><b>W</b> throttle</span><span><b>S</b> brake</span><span><b>A</b>/<b>D</b> steer</span><span><b>Shift</b> DRS</span><span><b>R</b> reset</span><span><b>P</b> pause</span>
     </div>
   );
 }

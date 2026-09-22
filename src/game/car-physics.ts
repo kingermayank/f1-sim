@@ -26,8 +26,13 @@ export interface CarInput {
   drs: boolean;
 }
 
+/** What the tyres are on. Kerbs are drivable and slightly loose; grass is not. */
+export type Surface = 'tarmac' | 'kerb' | 'grass';
+
 export interface CarEnvironment {
+  /** Kept for callers that only know on/off; `surface` wins when given. */
   onTrack: boolean;
+  surface?: Surface;
   /** Whether DRS may be used here (in a zone and close enough to the car ahead). */
   drsAvailable: boolean;
 }
@@ -55,6 +60,9 @@ export const CAR = {
   drsTopSpeed: 92,
   offTrackGripFactor: 0.42,
   offTrackDragFactor: 3.2,
+  /** Kerbs: a little less grip, a little more drag, still a racing surface. */
+  kerbGripFactor: 0.9,
+  kerbDragFactor: 1.2,
   steerResponse: 12,
 } as const;
 
@@ -67,9 +75,11 @@ export function stepCar(state: CarState, input: CarInput, env: CarEnvironment, d
   const topSpeed = drs ? CAR.drsTopSpeed : CAR.topSpeed;
 
   // ---- longitudinal ------------------------------------------------------
+  const surface: Surface = env.surface ?? (env.onTrack ? 'tarmac' : 'grass');
   const v = state.speed;
   let drag = CAR.dragCoefficient * v * v * (drs ? CAR.drsDragFactor : 1);
-  if (!env.onTrack) drag *= CAR.offTrackDragFactor;
+  if (surface === 'grass') drag *= CAR.offTrackDragFactor;
+  else if (surface === 'kerb') drag *= CAR.kerbDragFactor;
   const rolling = CAR.rollingResistance * Math.sign(v);
   const engine = CAR.engineForce * Math.max(0, Math.min(1, input.throttle));
   const brake = CAR.brakeForce * Math.max(0, Math.min(1, input.brake)) * Math.sign(v || 1);
@@ -88,7 +98,8 @@ export function stepCar(state: CarState, input: CarInput, env: CarEnvironment, d
   // Bicycle model yaw demand, limited by available grip.
   const demandedYaw = (speed / CAR.wheelbase) * Math.tan(steer);
   let grip = CAR.baseGrip + CAR.downforceGrip * speed * speed;
-  if (!env.onTrack) grip *= CAR.offTrackGripFactor;
+  if (surface === 'grass') grip *= CAR.offTrackGripFactor;
+  else if (surface === 'kerb') grip *= CAR.kerbGripFactor;
   const maxYaw = Math.abs(speed) > 0.5 ? grip / Math.abs(speed) : Number.POSITIVE_INFINITY;
   const yaw = Math.max(-maxYaw, Math.min(maxYaw, demandedYaw));
   const slip = Math.abs(demandedYaw) > 1e-6 ? Math.min(1, Math.max(0, 1 - Math.abs(yaw) / Math.abs(demandedYaw))) : 0;

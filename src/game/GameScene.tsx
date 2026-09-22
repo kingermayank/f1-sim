@@ -68,9 +68,16 @@ function GameLoop({ muted }: { muted: boolean }) {
     // The intro waits for the circuit and cars to arrive, so it never opens on
     // an empty sky. Everything after it is already loaded.
     if (loading && state.phase === 'intro') return;
-    if (input.consumeReset() && state.phase === 'racing') state.resetToTrack();
-    if (input.consumeSkip() && state.phase === 'intro') state.skipIntro();
     const controls = input.read();
+    const skip = input.consumeSkip();
+    const pause = input.consumePause();
+    if (input.consumeReset() && state.phase === 'racing' && !state.paused) state.resetToTrack();
+    // One pad button covers both: it skips the intro, and pauses once the race is on.
+    if (state.phase === 'intro') { if (skip) state.skipIntro(); } else if (pause) state.togglePause();
+    if (gameStore.getState().paused) {
+      audio.update({ rpm: 0.12, gear: 1, throttle: 0, brake: 0, slip: 0, speed: 0, onTrack: true, rival: null });
+      return;
+    }
     // Sub-step so a dropped frame never teleports the car through a corner.
     let remaining = Math.min(delta, 0.25);
     while (remaining > 0) {
@@ -212,6 +219,7 @@ function ChaseCamera() {
   const desiredLook = useMemo(() => new Vector3(), []);
   const target = useMemo(() => new Vector3(), []);
   const snapped = useRef(false);
+  const placement = useRef(gameStore.getState().placement);
   const intro = useMemo(() => createIntroShots(), []);
 
   useFrame((_, delta) => {
@@ -222,6 +230,10 @@ function ChaseCamera() {
       snapped.current = false;
       return;
     }
+    // The car was placed rather than driven (a reset): jump with it instead
+    // of swinging round from the old heading.
+    const placed = gameStore.getState().placement;
+    if (placed !== placement.current) { placement.current = placed; snapped.current = false; }
     const speedFraction = Math.min(1, car.speed / 85);
     const back = 9 + speedFraction * 5;
     const up = 3.2 + speedFraction * 1.2;

@@ -39,7 +39,7 @@ export function ChooseRaceView() {
     <div className="shell-view choose-view">
       <header className="shell-head">
         <h1>Choose race</h1>
-        <p>Pick a car, set the laps, then hit <strong>Start race</strong>. Keyboard: W/S throttle and brake, A/D steer, Shift for DRS, R to reset, Enter to skip the intro.</p>
+        <p>Pick a car, set the laps, then hit <strong>Start race</strong>. Keyboard: W/S throttle and brake, A/D steer, Shift for DRS, R to reset, P to pause, Enter to skip the intro. A gamepad works too: stick to steer, triggers for throttle and brake, A for DRS.</p>
       </header>
 
       <div className="choose-grid">

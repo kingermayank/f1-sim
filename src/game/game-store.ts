@@ -7,7 +7,7 @@ import type { Driver } from '../domain/race-types';
 import { TICK_SECONDS, createRaceEngine, type RaceEngine } from '../simulation/race-engine';
 import type { CarState as AiCarState } from '../simulation/events';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
-import { CAR, createCarState, gearFor, stepCar, type CarInput, type CarState } from './car-physics';
+import { CAR, createCarState, gearFor, stepCar, type CarInput, type CarState, type Surface } from './car-physics';
 import { avoidanceTarget, resolveCarContact, spaceField, type Pose } from './field';
 import { constrainToWalls, createProjectedTrack } from './track-projection';
 
@@ -111,7 +111,12 @@ export interface GameState {
   car: CarState;
   fraction: number;
   lateral: number;
+  /** What the tyres are on. Kerbs are fine; `onTrack` is false only on grass. */
+  surface: Surface;
   onTrack: boolean;
+  /** Incremented whenever the car is placed rather than driven, so the camera snaps. */
+  placement: number;
+  paused: boolean;
   lap: number;
   /** Best lap and each completed lap, for the result screen. */
   lapTimes: LapRecord[];
@@ -151,6 +156,8 @@ export interface GameActions {
   skipIntro(): void;
   step(dt: number, input: CarInput): void;
   resetToTrack(): void;
+  togglePause(): void;
+  /** A fresh race with the same car and settings but a new seed, so the field races differently. */
   restart(): void;
 }
 
@@ -207,6 +214,13 @@ function progressOf(car: AiCarState): number {
   return car.lap + car.distance;
 }
 
+function surfaceAt(lateral: number): Surface {
+  const distance = Math.abs(lateral);
+  if (distance <= projectedTrack.halfWidth) return 'tarmac';
+  if (distance <= projectedTrack.kerbHalfWidth) return 'kerb';
+  return 'grass';
+}
+
 export function createGameStore() {
   let engine: RaceEngine | null = null;
   // The previous lap fraction, for detecting the line crossing.
@@ -219,6 +233,9 @@ export function createGameStore() {
   // Race clock at which each AI car took the flag.
   const aiFinishTimes = new Map<string, number>();
   let lightsHold = 1;
+  // Whether the car was leaning on a barrier last step: first contact costs
+  // speed, sliding along it does not.
+  let touchingWall = false;
   let nextEventId = 1;
   // So the track-limits warning fires once per excursion.
   let wasOnTrack = true;
@@ -314,7 +331,10 @@ export function createGameStore() {
     car: gridStart([]),
     fraction: 0,
     lateral: 0,
+    surface: 'tarmac',
     onTrack: true,
+    placement: 0,
+    paused: false,
     lap: -1,
     lapTimes: [],
     bestLap: null,
@@ -345,6 +365,7 @@ export function createGameStore() {
       aiSide.clear();
       aiFinishTimes.clear();
       wasOnTrack = true;
+      touchingWall = false;
       wasDrsActive = false;
       lightsHold = LIGHTS_HOLD_MIN_SECONDS + seedFraction(seed) * (LIGHTS_HOLD_MAX_SECONDS - LIGHTS_HOLD_MIN_SECONDS);
       const car = gridStart(engine.snapshot().cars);
@@ -353,7 +374,7 @@ export function createGameStore() {
         phase: 'setup', laps, difficulty, driverId, seed,
         introSeconds: 0, lights: 0, lightsSeconds: 0, lightsOut: false, reactionSeconds: null,
         elapsed: 0, car,
-        fraction: previousFraction, lateral: 0, onTrack: true,
+        fraction: previousFraction, lateral: 0, surface: 'tarmac', onTrack: true, placement: get().placement + 1, paused: false,
         lap: -1, lapTimes: [], bestLap: null, currentLapStart: 0,
         position: fieldSize, fieldSize,
         gapAheadSeconds: null, gapBehindSeconds: null, drsAvailable: false, drsActive: false, hitWall: false, hitCar: 0,
@@ -374,7 +395,7 @@ export function createGameStore() {
 
     step(dt, input) {
       const state = get();
-      if (!engine) return;
+      if (!engine || state.paused) return;
 
       if (state.phase === 'intro') {
         const introSeconds = state.introSeconds + dt;
@@ -405,9 +426,10 @@ export function createGameStore() {
         // Cool-down: the field keeps running and the player coasts to a stop.
         const ai = stepField(dt, state.laps, state.lateral);
         const projection = projectedTrack.project(state.car.x, state.car.z, state.fraction);
-        const stepped = stepCar(state.car, { throttle: 0, brake: 0.25, steer: input.steer, drs: false }, { onTrack: state.onTrack, drsAvailable: false }, dt);
+        const stepped = stepCar(state.car, { throttle: 0, brake: 0.25, steer: input.steer, drs: false }, { onTrack: state.onTrack, surface: state.surface, drsAvailable: false }, dt);
         const after = projectedTrack.project(stepped.x, stepped.z, projection.fraction);
-        const walled = constrainToWalls(stepped, after, projectedTrack.wallHalfWidth);
+        const walled = constrainToWalls(stepped, after, projectedTrack.wallHalfWidth, touchingWall);
+        touchingWall = walled.hitWall;
         const car = { ...stepped, x: walled.x, z: walled.z, heading: walled.heading, speed: walled.speed };
         const { gear, rpm } = gearFor(car.speed);
         set({ ai, car, fraction: after.fraction, lateral: after.lateral, surfaceY: after.point.y, gear, rpm, hitWall: false, hitCar: 0, drsActive: false, drsAvailable: false });
@@ -418,7 +440,8 @@ export function createGameStore() {
 
       // ---- AI -----------------------------------------------------------
       const projection = projectedTrack.project(state.car.x, state.car.z, state.fraction);
-      const onTrack = Math.abs(projection.lateral) <= projectedTrack.halfWidth;
+      const surface = surfaceAt(projection.lateral);
+      const onTrack = surface !== 'grass';
       const playerProgress = state.lap + projection.fraction;
       const ai = stepField(dt, playerProgress, projection.lateral);
       const elapsed = state.elapsed + dt;
@@ -441,11 +464,12 @@ export function createGameStore() {
       const drsAvailable = state.lap >= DRS_FROM_LAP && projectedTrack.inPassingZone(projection.fraction)
         && gapAheadSeconds !== null && gapAheadSeconds <= DRS_GAP_SECONDS;
 
-      const stepped = stepCar(state.car, input, { onTrack, drsAvailable }, dt);
+      const stepped = stepCar(state.car, input, { onTrack, surface, drsAvailable }, dt);
       // Re-project after moving and hold the car inside the barriers, so it can
       // never wander out over terrain the circuit model never meant to be driven.
       const after = projectedTrack.project(stepped.x, stepped.z, projection.fraction);
-      const walled = constrainToWalls(stepped, after, projectedTrack.wallHalfWidth);
+      const walled = constrainToWalls(stepped, after, projectedTrack.wallHalfWidth, touchingWall);
+      touchingWall = walled.hitWall;
 
       // Contact with rivals close enough to matter. Only nearby cars are tested.
       const nearby: Pose[] = [];
@@ -453,12 +477,12 @@ export function createGameStore() {
         if (rival.status !== 'running' || rival.pitState !== 'track') continue;
         if (Math.abs(progressOf(rival) - playerProgress) * projectedTrack.lengthMeters > 30) continue;
         const { point, tangent } = projectedTrack.at(rival.distance, rival.lateralOffset);
-        nearby.push({ x: point.x, z: point.z, heading: Math.atan2(tangent.z, tangent.x) });
+        // Engine speed is laps per engine second; the race clock runs at AI pace.
+        const speedMps = rival.speed * projectedTrack.lengthMeters * AI_PACE[state.difficulty];
+        nearby.push({ x: point.x, z: point.z, heading: Math.atan2(tangent.z, tangent.x), speed: speedMps });
       }
       const touched = resolveCarContact(walled, nearby);
       const car = { ...stepped, x: touched.x, z: touched.z, heading: touched.heading, speed: touched.speed };
-      const hitWall = walled.hitWall;
-      const hitCar = touched.contact;
       const drsActive = drsAvailable && input.drs && car.speed > 30;
 
       // ---- events -------------------------------------------------------
@@ -471,6 +495,8 @@ export function createGameStore() {
       if (drsActive && !wasDrsActive) events = pushEvent(events, elapsed, 'drs', 'DRS open');
       wasDrsActive = drsActive;
       if (!onTrack && wasOnTrack && car.speed > 15) events = pushEvent(events, elapsed, 'limits', 'Track limits · slow on the grass');
+      const hitWall = walled.hitWall;
+      const hitCar = touched.contact;
       wasOnTrack = onTrack;
       if (hitCar > 0.35 && state.hitCar <= 0.35) events = pushEvent(events, elapsed, 'contact', 'Contact');
 
@@ -537,7 +563,7 @@ export function createGameStore() {
         const finishPosition = classification.find((row) => row.isPlayer)?.position ?? position;
         set({
           phase: 'finished', car,
-          fraction: settled.fraction, lateral: settled.lateral, onTrack, hitWall, hitCar, surfaceY, bodyRoll, bodyPitch,
+          fraction: settled.fraction, lateral: settled.lateral, surface, onTrack, hitWall, hitCar, surfaceY, bodyRoll, bodyPitch,
           lap, lapTimes, bestLap, currentLapStart, elapsed,
           position: finishPosition, finishPosition, raceTime: elapsed + penalty, classification,
           gapAheadSeconds, gapBehindSeconds, drsAvailable: false, drsActive: false,
@@ -548,7 +574,7 @@ export function createGameStore() {
       }
 
       set({
-        car, fraction: settled.fraction, lateral: settled.lateral, onTrack, hitWall, hitCar, surfaceY, bodyRoll, bodyPitch,
+        car, fraction: settled.fraction, lateral: settled.lateral, surface, onTrack, hitWall, hitCar, surfaceY, bodyRoll, bodyPitch,
         lap, lapTimes, bestLap, currentLapStart, elapsed, position,
         gapAheadSeconds, gapBehindSeconds, drsAvailable, drsActive, gear, rpm, ai, events, finalLap, reactionSeconds,
       });
@@ -557,14 +583,23 @@ export function createGameStore() {
     resetToTrack() {
       // Put the car back on the racing line at its current lap fraction,
       // facing forward, stopped. Costs time; never costs the race.
-      const { fraction } = get();
+      const { fraction, placement } = get();
       const { point, tangent } = projectedTrack.at(fraction);
-      set({ car: createCarState(point.x, point.z, Math.atan2(tangent.z, tangent.x)), onTrack: true, surfaceY: point.y, bodyRoll: 0, bodyPitch: 0 });
+      touchingWall = false;
+      set({
+        car: createCarState(point.x, point.z, Math.atan2(tangent.z, tangent.x)),
+        lateral: 0, surface: 'tarmac', onTrack: true, surfaceY: point.y, bodyRoll: 0, bodyPitch: 0, placement: placement + 1,
+      });
+    },
+
+    togglePause() {
+      const { phase, paused } = get();
+      if (phase === 'racing' || phase === 'lights') set({ paused: !paused });
     },
 
     restart() {
-      const { driverId, laps, difficulty, seed, fieldSize } = get();
-      get().configure({ driverId, laps, difficulty, seed, fieldSize: fieldSize as FieldSize });
+      const { driverId, laps, difficulty, fieldSize } = get();
+      get().configure({ driverId, laps, difficulty, fieldSize: fieldSize as FieldSize });
       get().start();
     },
   }));
