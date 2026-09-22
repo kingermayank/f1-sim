@@ -61,16 +61,19 @@ function GameLoop({ muted }: { muted: boolean }) {
   // Starts at 'setup' so the first frame applies the levels for whatever phase the race is in.
   const lastPhase = useRef<ReturnType<typeof gameStore.getState>['phase']>('setup');
   const lastEventId = useRef(0);
+  const wasReady = useRef(false);
   const loading = useProgress((state) => state.active);
 
   useFrame((_, delta) => {
     const state = gameStore.getState();
-    // The intro waits for the circuit and cars to arrive, so it never opens on
-    // an empty sky. Everything after it is already loaded.
-    if (loading && state.phase === 'intro') return;
+    // The intro waits for the loading screen: assets in, shaders compiled,
+    // and the player ready. Everything after it is already warm.
+    if ((loading || !state.ready) && state.phase === 'intro') { wasReady.current = false; return; }
     const controls = input.read();
-    const skip = input.consumeSkip();
-    const pause = input.consumePause();
+    let skip = input.consumeSkip();
+    let pause = input.consumePause();
+    // The key that dismissed the loading screen must not also skip the intro.
+    if (!wasReady.current) { wasReady.current = true; skip = false; pause = false; }
     if (input.consumeReset() && state.phase === 'racing' && !state.paused) state.resetToTrack();
     // One pad button covers both: it skips the intro, and pauses once the race is on.
     if (state.phase === 'intro') { if (skip) state.skipIntro(); } else if (pause) state.togglePause();
@@ -162,14 +165,39 @@ function PlayerCar() {
   );
 }
 
-/** One AI car on the spline. Position is read imperatively each frame. */
+/** Beyond this distance from the player a rival draws its low-detail model; back inside the nearer one, the full model. */
+const LOD_FAR_METRES = 48;
+const LOD_NEAR_METRES = 36;
+/** Only rivals this close cast shadows: the rest would render into the shadow map for nothing visible. */
+const SHADOW_METRES = 40;
+
+/**
+ * One AI car on the spline. Position is read imperatively each frame. Both
+ * detail levels are mounted and toggled by distance with hysteresis, so a
+ * swap never waits on a load and never flickers at the boundary.
+ */
 function AiCar({ driverId, teamId }: { driverId: string; teamId: string }) {
   const group = useRef<Group>(null);
+  const full = useRef<Group>(null);
+  const low = useRef<Group>(null);
+  const usingLow = useRef(true);
   useFrame(() => {
     const object = group.current;
     if (!object) return;
-    const car = gameStore.getState().ai.find((candidate) => candidate.driverId === driverId);
+    const state = gameStore.getState();
+    const car = state.ai.find((candidate) => candidate.driverId === driverId);
     if (!car) return;
+    const distance = Math.hypot(object.position.x - state.car.x, object.position.z - state.car.z);
+    if (usingLow.current && distance < LOD_NEAR_METRES) usingLow.current = false;
+    else if (!usingLow.current && distance > LOD_FAR_METRES) usingLow.current = true;
+    if (full.current) full.current.visible = !usingLow.current;
+    if (low.current) low.current.visible = usingLow.current;
+    const casts = distance < SHADOW_METRES;
+    const active = usingLow.current ? low.current : full.current;
+    if (active && active.userData.casts !== casts) {
+      active.userData.casts = casts;
+      active.traverse((child) => { if (child instanceof Mesh) child.castShadow = casts; });
+    }
     if (car.targetLine === 'pit' || car.pitState !== 'track') {
       const transform = SPLINE.sample(car.pitProgress, 0, 'pit');
       object.position.copy(transform.position);
@@ -185,7 +213,8 @@ function AiCar({ driverId, teamId }: { driverId: string; teamId: string }) {
   });
   return (
     <group ref={group} name={`ai-car-${driverId}`}>
-      <Suspense fallback={null}><TeamCarModel teamId={teamId} /></Suspense>
+      <group ref={full} visible={false}><Suspense fallback={null}><TeamCarModel teamId={teamId} /></Suspense></group>
+      <group ref={low}><Suspense fallback={null}><TeamCarModel teamId={teamId} detail="low" /></Suspense></group>
     </group>
   );
 }
@@ -369,6 +398,27 @@ function ChequeredFlag() {
   );
 }
 
+/**
+ * Compiles every shader the race will need before the first frame is shown.
+ * Without this the first seconds of the race — the busiest — also pay for
+ * thirty-odd program compilations, one hitch each.
+ */
+function WarmUp({ onWarm }: { onWarm: () => void }) {
+  const gl = useThree((state) => state.gl);
+  const scene = useThree((state) => state.scene);
+  const camera = useThree((state) => state.camera);
+  const loading = useProgress((state) => state.active);
+  const warmed = useRef(false);
+  useEffect(() => {
+    if (loading || warmed.current) return;
+    warmed.current = true;
+    const compile = (gl as unknown as { compileAsync?: (scene: unknown, camera: unknown) => Promise<unknown> }).compileAsync;
+    const done = compile ? compile.call(gl, scene, camera) : Promise.resolve(gl.compile(scene, camera));
+    void done.catch(() => undefined).then(onWarm);
+  }, [loading, gl, scene, camera, onWarm]);
+  return null;
+}
+
 /** Development only: exposes the scene and camera for inspection from the console. */
 function DevExpose() {
   const scene = useThree((state) => state.scene);
@@ -387,11 +437,12 @@ function playerFocus() {
   return { x: car.x, y: surfaceY, z: car.z };
 }
 
-export function GameScene({ muted, lite = false }: { muted: boolean; lite?: boolean }) {
-  // Render resolution follows the frame rate: full on a machine that keeps
-  // up, stepped down on one that does not. Smooth motion beats sharp pixels.
-  // Phones start at 1 with no shadows: they have the pixels but not the GPU.
-  const [dpr, setDpr] = useState(lite ? 1 : 1.5);
+export function GameScene({ muted, lite = false, onWarm }: { muted: boolean; lite?: boolean; onWarm: () => void }) {
+  // Render resolution follows the frame rate: it starts at native and climbs
+  // only when frames have headroom. The start, with the whole field in view,
+  // is the heaviest moment of the race, so it is never also the sharpest.
+  // Phones stay at 1 with no shadows: they have the pixels but not the GPU.
+  const [dpr, setDpr] = useState(1);
   return (
     <Canvas
       className="race-canvas"
@@ -414,6 +465,7 @@ export function GameScene({ muted, lite = false }: { muted: boolean; lite?: bool
       <AiField />
       <PlayerCar />
       <ChequeredFlag />
+      <WarmUp onWarm={onWarm} />
       <DevExpose />
       <ChaseCamera />
       <GameLoop muted={muted} />

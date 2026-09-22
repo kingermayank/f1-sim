@@ -13,8 +13,8 @@ const CAR_LENGTH_METRES = 5.6;
  * The supplied models are authored at three different scales, so each is
  * measured and scaled from its own bounds rather than trusting the file.
  */
-export function TeamCarModel({ teamId }: { teamId: string }) {
-  const gltf = useGLTF(ASSETS.teamCar(teamId));
+export function TeamCarModel({ teamId, detail = 'full' }: { teamId: string; detail?: 'full' | 'low' }) {
+  const gltf = useGLTF(detail === 'low' ? ASSETS.teamCarLod(teamId) : ASSETS.teamCar(teamId));
   const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
     if (!(material instanceof MeshStandardMaterial)) return;
     material.roughness = Math.min(0.95, Math.max(0.18, material.roughness));

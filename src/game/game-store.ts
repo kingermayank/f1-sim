@@ -57,6 +57,12 @@ const SHARP_REACTION_SECONDS = 0.3;
 const EVENT_LIMIT = 6;
 /** Rough average AI speed for projecting the gap of a car still running at the flag. */
 const PROJECTED_AI_SPEED_MPS = 52;
+/**
+ * The engine has no launch: at lights out its cars are at race speed within
+ * a tick, which on the grid looks like teleporting away. Engine time is
+ * ramped over these seconds so the field accelerates off the line.
+ */
+const AI_LAUNCH_SECONDS = 4.5;
 
 export interface LapRecord {
   lap: number;
@@ -96,6 +102,8 @@ export interface GameState {
   difficulty: Difficulty;
   driverId: string;
   seed: string;
+  /** Assets loaded and shaders compiled: the intro clock waits for this. */
+  ready: boolean;
   /** Seconds into the intro cinematic. */
   introSeconds: number;
   /** Lights lit on the gantry, 0-5. */
@@ -153,6 +161,7 @@ export interface GameActions {
   configure(options: { driverId: string; laps?: number; difficulty?: Difficulty; fieldSize?: FieldSize; seed?: string }): void;
   /** Begin the journey: the intro, then the lights. */
   start(): void;
+  setReady(ready: boolean): void;
   skipIntro(): void;
   step(dt: number, input: CarInput): void;
   resetToTrack(): void;
@@ -247,9 +256,11 @@ export function createGameStore() {
     return next.length > EVENT_LIMIT ? next.slice(next.length - EVENT_LIMIT) : next;
   }
 
-  function stepField(dt: number, playerProgress: number, playerLateral: number): AiCarState[] {
+  function stepField(dt: number, playerProgress: number, playerLateral: number, raceSeconds = Number.POSITIVE_INFINITY): AiCarState[] {
     if (!engine) return [];
-    engine.advance(dt);
+    // Launch ramp: engine time runs slow for the first seconds after lights out.
+    const launch = Math.min(1, Math.max(0.08, raceSeconds / AI_LAUNCH_SECONDS));
+    engine.advance(dt * launch);
     // The engine moves in tenth-of-a-second ticks. Between ticks, carry each
     // running car forward along its own speed so it moves every frame.
     const between = engine.tickFraction() * TICK_SECONDS;
@@ -322,6 +333,7 @@ export function createGameStore() {
     difficulty: 'easy',
     driverId: DRIVERS_2026[0].id,
     seed: 'apex-race',
+    ready: false,
     introSeconds: 0,
     lights: 0,
     lightsSeconds: 0,
@@ -372,7 +384,7 @@ export function createGameStore() {
       previousFraction = projectedTrack.project(car.x, car.z).fraction;
       set({
         phase: 'setup', laps, difficulty, driverId, seed,
-        introSeconds: 0, lights: 0, lightsSeconds: 0, lightsOut: false, reactionSeconds: null,
+        ready: false, introSeconds: 0, lights: 0, lightsSeconds: 0, lightsOut: false, reactionSeconds: null,
         elapsed: 0, car,
         fraction: previousFraction, lateral: 0, surface: 'tarmac', onTrack: true, placement: get().placement + 1, paused: false,
         lap: -1, lapTimes: [], bestLap: null, currentLapStart: 0,
@@ -387,6 +399,10 @@ export function createGameStore() {
     start() {
       if (!engine) get().configure({ driverId: get().driverId });
       set({ phase: 'intro', introSeconds: 0 });
+    },
+
+    setReady(ready) {
+      set({ ready });
     },
 
     skipIntro() {
@@ -443,7 +459,7 @@ export function createGameStore() {
       const surface = surfaceAt(projection.lateral);
       const onTrack = surface !== 'grass';
       const playerProgress = state.lap + projection.fraction;
-      const ai = stepField(dt, playerProgress, projection.lateral);
+      const ai = stepField(dt, playerProgress, projection.lateral, state.elapsed);
       const elapsed = state.elapsed + dt;
       for (const rival of ai) {
         if (rival.status === 'finished' && !aiFinishTimes.has(rival.driverId)) aiFinishTimes.set(rival.driverId, elapsed);

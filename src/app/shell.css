@@ -586,3 +586,15 @@
 .game-shell--touch .game-banner { font-size: 1.3rem; }
 .game-shell--touch .game-result { padding: .5rem; align-items: start; }
 .game-shell--touch .game-result__pos { font-size: 2.4rem; }
+
+/* -- loading screen ---------------------------------------------------------- */
+.game-loading { position: absolute; inset: 0; z-index: 9; display: grid; place-content: center; justify-items: center; gap: .6rem; padding: 2rem; text-align: center; background: radial-gradient(900px 500px at 50% 70%, color-mix(in srgb, var(--team) 26%, transparent), transparent 60%), #05080d; }
+.game-loading__eyebrow { margin: 0; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; color: var(--signal); }
+.game-loading__title { margin: 0 0 .6rem; font-family: var(--font-wide); font-size: clamp(1.6rem, 4vw, 3rem); text-transform: uppercase; line-height: 1; }
+.game-loading__bar { width: min(22rem, 70vw); height: 3px; background: rgb(255 255 255 / 12%); border-radius: 999px; overflow: hidden; }
+.game-loading__bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--team), var(--signal)); transition: width .3s ease-out; }
+.game-loading__status { margin: .2rem 0 0; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.game-loading__go { margin-top: .6rem; display: flex; align-items: center; gap: .6rem; padding: .9rem 2.2rem; border: 0; border-radius: .6rem; background: var(--signal); color: #07100d; font: inherit; font-family: var(--font-wide); font-size: 1.2rem; text-transform: uppercase; letter-spacing: .04em; cursor: pointer; box-shadow: 0 0 40px rgb(219 255 74 / 35%); animation: loading-go-in .4s cubic-bezier(.2,.8,.2,1) both; }
+.game-loading__go kbd { font: inherit; font-family: var(--font-mono); font-size: .62rem; letter-spacing: .12em; border: 1px solid rgb(7 16 13 / 40%); border-radius: 3px; padding: .1rem .35rem; }
+.game-shell--touch .game-loading__go kbd { display: none; }
+@keyframes loading-go-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

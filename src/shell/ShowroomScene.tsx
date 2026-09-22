@@ -91,5 +91,8 @@ export function ShowroomScene({ teamId, direction = 1, serial = 0, lite = false 
 
 /** Warm every team model so flipping through the field never waits on a download. */
 export function preloadShowroom() {
-  for (const team of TEAMS_2026) useGLTF.preload(ASSETS.teamCar(team.id));
+  for (const team of TEAMS_2026) {
+    useGLTF.preload(ASSETS.teamCar(team.id));
+    useGLTF.preload(ASSETS.teamCarLod(team.id));
+  }
 }

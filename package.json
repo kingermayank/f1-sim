@@ -9,7 +9,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "verify:assets": "node scripts/verify-assets.mjs",
-    "generate:assets": "node scripts/generate-race-assets.mjs"
+    "generate:assets": "node scripts/generate-race-assets.mjs",
+    "cars:lod": "node scripts/generate-car-lods.mjs && for f in public/assets/models/cars-lod/*.glb; do npx gltf-transform meshopt \"$f\" \"$f\"; done"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

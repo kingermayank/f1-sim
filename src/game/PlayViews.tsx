@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useProgress } from '@react-three/drei';
+import { useCallback, useEffect, useState } from 'react';
 import { findCircuit } from '../content/circuits';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { routeHref } from '../shell/router';
@@ -19,7 +20,10 @@ function teamOf(teamId: string) {
 /** The race itself. */
 export function PlayRaceView() {
   const phase = useGameStore((state) => state.phase);
+  const ready = useGameStore((state) => state.ready);
   const [muted, setMuted] = useState(false);
+  const [warm, setWarm] = useState(false);
+  const onWarm = useCallback(() => setWarm(true), []);
   const touch = useCoarsePointer();
 
   // Landing here directly without configuring: send to the picker.
@@ -29,8 +33,9 @@ export function PlayRaceView() {
 
   return (
     <div className={touch ? 'game-shell game-shell--touch' : 'game-shell'}>
-      <GameScene muted={muted} lite={touch} />
+      <GameScene muted={muted} lite={touch} onWarm={onWarm} />
       <GameHud />
+      {phase === 'intro' && !ready && <LoadingScreen warm={warm} />}
       {touch && <TouchControls />}
       <div className="game-topbar">
         <a className="shell-btn" href="#/play">← Choose race</a>
@@ -39,6 +44,39 @@ export function PlayRaceView() {
         </button>
       </div>
       {phase === 'finished' && <RaceResultOverlay />}
+    </div>
+  );
+}
+
+/**
+ * Loading: progress while the circuit and cars arrive and the shaders
+ * compile, then one Start. Pressing it is also the gesture that lets audio
+ * run, so the intro is never silent.
+ */
+function LoadingScreen({ warm }: { warm: boolean }) {
+  const progress = useProgress((state) => state.progress);
+  const active = useProgress((state) => state.active);
+  const driverId = useGameStore((state) => state.driverId);
+  const team = teamOfDriver(driverId);
+  const circuit = findCircuit('shanghai')!;
+  const done = !active && warm;
+  const go = () => gameStore.getState().setReady(true);
+  useEffect(() => {
+    if (!done) return;
+    const onKey = (event: KeyboardEvent) => { if (event.code === 'Enter' || event.code === 'Space') go(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [done]);
+  return (
+    <div className="game-loading" role="status" aria-live="polite" style={{ '--team': team.color } as React.CSSProperties}>
+      <p className="game-loading__eyebrow">Round {circuit.round} · {circuit.grandPrix}</p>
+      <h2 className="game-loading__title">{circuit.name}</h2>
+      <div className="game-loading__bar" aria-hidden="true"><span style={{ width: `${done ? 100 : Math.max(4, progress * 0.92)}%` }} /></div>
+      {done ? (
+        <button type="button" className="game-loading__go" onClick={go} autoFocus>Start <kbd>Enter</kbd></button>
+      ) : (
+        <p className="game-loading__status">{active ? `Loading ${Math.round(progress)}%` : 'Warming up shaders'}</p>
+      )}
     </div>
   );
 }
