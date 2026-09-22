@@ -7,9 +7,10 @@ import { RacePreferenceBridge } from '../store/RacePreferenceBridge';
 import { ExplainPanel } from '../explain/ExplainPanel';
 import { AppNav } from '../shell/AppNav';
 import { LearnView } from '../shell/LearnView';
-import { CircuitView, CircuitsView, DriversView, GarageView, HomeView } from '../shell/views';
+import { CircuitView, CircuitsView, DriversView, GarageView } from '../shell/views';
 import { routeHref, useRoute } from '../shell/router';
-import { ChooseRaceView, PlayRaceView } from '../game/PlayViews';
+import { Showroom } from '../shell/Showroom';
+import { PlayRaceView } from '../game/PlayViews';
 
 /** The race view, unchanged, with Explain Mode layered beside it. */
 function RaceRoute() {
@@ -46,16 +47,23 @@ export function App() {
     );
   }
 
+  // The front door is the game menu: pick the car, pick the circuit, race.
+  if (route.name === 'home' || route.name === 'play') {
+    return (
+      <main className="app-shell app-shell--showroom">
+        <Showroom />
+      </main>
+    );
+  }
+
   return (
     <main className="app-shell app-shell--browse">
       <AppNav active={route.name} />
-      {route.name === 'home' && <HomeView />}
       {route.name === 'circuits' && <CircuitsView />}
       {route.name === 'circuit' && <CircuitView id={route.param} />}
       {route.name === 'garage' && <GarageView />}
       {route.name === 'drivers' && <DriversView />}
       {route.name === 'learn' && <LearnView />}
-      {route.name === 'play' && <ChooseRaceView />}
     </main>
   );
 }

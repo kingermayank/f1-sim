@@ -24,50 +24,6 @@ function driversOf(teamId: string) {
   return DRIVERS_2026.filter((driver) => driver.teamId === teamId);
 }
 
-/* ------------------------------------------------------------------ home -- */
-
-export function HomeView() {
-  const featured = findCircuit('shanghai') ?? PLAYABLE_CIRCUITS[0];
-  return (
-    <div className="shell-view">
-      <section className="hero-panel">
-        <p className="shell-eyebrow">Race it yourself</p>
-        <h1 className="hero-panel__title">{featured.name}</h1>
-        <p className="hero-panel__lede">
-          Choose a car and drive five laps of the real circuit against the field. Keyboard controls,
-          DRS, lap times — or sit back and watch the simulation with every decision explained.
-        </p>
-        <div className="shell-actions">
-          <a className="shell-btn shell-btn--primary" href={routeHref('play')}>Choose race</a>
-          <a className="shell-btn" href={routeHref('race')}>Watch the simulation</a>
-        </div>
-        <div className="hero-panel__map" aria-hidden="true">
-          <CircuitMap circuit={featured} />
-        </div>
-      </section>
-
-      <div className="tile-grid">
-        <a className="tile" href={routeHref('circuits')}>
-          <h2>Circuits</h2>
-          <p>{PLAYABLE_CIRCUITS.length} playable, {CIRCUITS.length - PLAYABLE_CIRCUITS.length} on the way</p>
-        </a>
-        <a className="tile" href={routeHref('garage')}>
-          <h2>Garage</h2>
-          <p>{TEAMS_2026.length} cars — inspect and compare</p>
-        </a>
-        <a className="tile" href={routeHref('drivers')}>
-          <h2>Drivers</h2>
-          <p>{DRIVERS_2026.length} on the grid — find yours</p>
-        </a>
-        <a className="tile" href={routeHref('learn')}>
-          <h2>Learn</h2>
-          <p>What DRS, an undercut and tyre wear actually mean</p>
-        </a>
-      </div>
-    </div>
-  );
-}
-
 /* -------------------------------------------------------------- circuits -- */
 
 function CircuitCard({ circuit }: { circuit: Circuit }) {

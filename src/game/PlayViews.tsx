@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { findCircuit } from '../content/circuits';
-import { findProfile } from '../content/driver-profiles';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
-import { CircuitMap } from '../shell/CircuitMap';
 import { routeHref } from '../shell/router';
 import { GameHud } from './GameHud';
 import { GameScene } from './GameScene';
-import { driverName, formatGap, formatLapTime, gameStore, teamOfDriver, useGameStore, type Difficulty, type FieldSize } from './game-store';
+import { driverName, formatGap, formatLapTime, gameStore, teamOfDriver, useGameStore } from './game-store';
 
 const CAR_NAMES: Record<string, string> = {
   'red-bull': 'RB21', ferrari: 'SF-25', mclaren: 'MCL39', 'aston-martin': 'AMR25',
@@ -15,124 +13,6 @@ const CAR_NAMES: Record<string, string> = {
 
 function teamOf(teamId: string) {
   return TEAMS_2026.find((team) => team.id === teamId) ?? TEAMS_2026[0];
-}
-
-/** Choose race: circuit → car → go. */
-export function ChooseRaceView() {
-  // The game drives the Shanghai spline and model specifically; other circuits
-  // may be listed as playable for watching before their driving surface is ready.
-  const circuit = findCircuit('shanghai')!;
-  const [driverId, setDriverId] = useState(DRIVERS_2026[0].id);
-  const [difficulty, setDifficulty] = useState<Difficulty>('easy');
-  const [laps, setLaps] = useState(5);
-  const [fieldSize, setFieldSize] = useState<FieldSize>(14);
-  const driver = DRIVERS_2026.find((candidate) => candidate.id === driverId) ?? DRIVERS_2026[0];
-  const team = teamOf(driver.teamId);
-
-  const go = () => {
-    gameStore.getState().configure({ driverId, laps, difficulty, fieldSize });
-    gameStore.getState().start();
-    window.location.hash = '#/play/race';
-  };
-
-  return (
-    <div className="shell-view choose-view">
-      <header className="shell-head">
-        <h1>Choose race</h1>
-        <p>Pick a car, set the laps, then hit <strong>Start race</strong>. Keyboard: W/S throttle and brake, A/D steer, Shift for DRS, R to reset, P to pause, Enter to skip the intro. A gamepad works too: stick to steer, triggers for throttle and brake, A for DRS.</p>
-      </header>
-
-      <div className="choose-grid">
-        <section className="panel choose-card" aria-label="Circuit">
-          <p className="choose-card__eyebrow">Round {circuit.round} · {circuit.grandPrix}</p>
-          <div className="choose-circuit">
-            <div className="choose-circuit__map"><CircuitMap circuit={circuit} /></div>
-            <div>
-              <h2 className="choose-card__title">{circuit.name}</h2>
-              <dl className="choose-specs">
-                <div><dt>Length</dt><dd>{circuit.lengthKm.toFixed(3)} km</dd></div>
-                <div><dt>Turns</dt><dd>{circuit.turns}</dd></div>
-                <div><dt>DRS zones</dt><dd>{circuit.drsZones}</dd></div>
-                <div><dt>Longest straight</dt><dd>{circuit.longestStraightKm} km</dd></div>
-              </dl>
-              <p className="choose-card__note">The circuit built for driving so far. More are on the way.</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="panel choose-card choose-card--hero" aria-label="Your car" style={{ '--team': team.color, '--accent': team.accent } as React.CSSProperties}>
-          <p className="choose-card__eyebrow">{team.name} · {CAR_NAMES[team.id]}</p>
-          <h2 className="choose-hero__name"><span className="choose-hero__num">{driver.number}</span>{driver.name}</h2>
-          <p className="choose-hook">{findProfile(driver.id)?.hook}</p>
-        </section>
-
-        <section className="panel" aria-label="Car">
-          <h2 className="choose-card__eyebrow">Choose your car</h2>
-          <div className="choose-cars" role="radiogroup" aria-label="Choose your driver">
-            {DRIVERS_2026.map((candidate) => {
-              const candidateTeam = teamOf(candidate.teamId);
-              const selected = candidate.id === driverId;
-              return (
-                <button
-                  key={candidate.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  className={selected ? 'choose-car is-selected' : 'choose-car'}
-                  style={{ '--team': candidateTeam.color, '--accent': candidateTeam.accent } as React.CSSProperties}
-                  onClick={() => setDriverId(candidate.id)}
-                >
-                  <span className="choose-car__num">{candidate.number}</span>
-                  <span className="choose-car__name">{candidate.name}</span>
-                  <span className="choose-car__team">{candidateTeam.name} · {CAR_NAMES[candidateTeam.id]}</span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="panel" aria-label="Race settings">
-          <h2 className="choose-card__eyebrow">Race</h2>
-          <div className="choose-settings">
-            <label>
-              <span>Laps</span>
-              <select value={laps} onChange={(event) => setLaps(Number(event.target.value))}>
-                {[3, 5, 8, 10].map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>Cars on track</span>
-              <select value={fieldSize} onChange={(event) => setFieldSize(Number(event.target.value) as FieldSize)}>
-                <option value={14}>14 — full grid</option>
-                <option value={10}>10</option>
-                <option value={6}>6 — lighter on the GPU</option>
-              </select>
-            </label>
-            <label>
-              <span>AI pace</span>
-              <select value={difficulty} onChange={(event) => setDifficulty(event.target.value as Difficulty)}>
-                <option value="easy">Easy</option>
-                <option value="medium">Medium</option>
-                <option value="hard">Hard — real F1 pace</option>
-              </select>
-            </label>
-          </div>
-        </section>
-      </div>
-
-      {/* Pinned to the bottom of the screen so the way in is never below the fold. */}
-      <div className="choose-start" style={{ '--team': team.color } as React.CSSProperties}>
-        <div className="choose-start__summary">
-          <span className="choose-start__num">{driver.number}</span>
-          <span><strong>{driver.name}</strong> · {team.name}</span>
-          <span className="choose-start__meta">{laps} laps · {fieldSize} cars · {difficulty === 'hard' ? 'Hard' : difficulty === 'medium' ? 'Medium' : 'Easy'} · Shanghai</span>
-        </div>
-        <button type="button" className="shell-btn shell-btn--primary choose-start__go" onClick={go}>
-          Start race →
-        </button>
-      </div>
-    </div>
-  );
 }
 
 /** The race itself. */
