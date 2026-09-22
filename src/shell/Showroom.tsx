@@ -164,10 +164,7 @@ export function Showroom() {
           </div>
           <button type="button" className="showroom__arrow" onClick={() => move(1)} aria-label="Next driver">›</button>
         </div>
-        <button type="button" className="showroom__start" onClick={start}>
-          <span>Start race</span>
-          <small>{laps} laps · {fieldSize} cars · {PACE_LABEL[difficulty]}{!touch && <> · <kbd>Enter</kbd></>}</small>
-        </button>
+        <button type="button" className="showroom__start" onClick={start}>Start race</button>
       </footer>
 
       {pickingCircuit && (
