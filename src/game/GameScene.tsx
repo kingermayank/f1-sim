@@ -160,7 +160,7 @@ function PlayerCar() {
 
   return (
     <group ref={group} name="player-car">
-      <Suspense fallback={null}><TeamCarModel teamId={teamId} alwaysVisible /></Suspense>
+      <Suspense fallback={null}><TeamCarModel teamId={teamId} /></Suspense>
     </group>
   );
 }
@@ -264,8 +264,8 @@ function ChaseCamera() {
     const placed = gameStore.getState().placement;
     if (placed !== placement.current) { placement.current = placed; snapped.current = false; }
     const speedFraction = Math.min(1, car.speed / 85);
-    const back = 7.5 + speedFraction * 5.5;
-    const up = 2.8 + speedFraction * 1.4;
+    const back = 9 + speedFraction * 5;
+    const up = 3.2 + speedFraction * 1.2;
     desiredOffset.set(-Math.cos(car.heading) * back, up, -Math.sin(car.heading) * back);
     desiredLook.set(Math.cos(car.heading) * 12, 1.2, Math.sin(car.heading) * 12);
     // Snap on the first frame so the race never opens on a camera gliding in

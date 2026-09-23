@@ -13,15 +13,7 @@ const CAR_LENGTH_METRES = 5.6;
  * The supplied models are authored at three different scales, so each is
  * measured and scaled from its own bounds rather than trusting the file.
  */
-export function TeamCarModel({
-  teamId,
-  detail = 'full',
-  alwaysVisible = false,
-}: {
-  teamId: string;
-  detail?: 'full' | 'low';
-  alwaysVisible?: boolean;
-}) {
+export function TeamCarModel({ teamId, detail = 'full' }: { teamId: string; detail?: 'full' | 'low' }) {
   const gltf = useGLTF(detail === 'low' ? ASSETS.teamCarLod(teamId) : ASSETS.teamCar(teamId));
   const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
     if (!(material instanceof MeshStandardMaterial)) return;
@@ -45,18 +37,10 @@ export function TeamCarModel({
     const centre = scaled.getCenter(new Vector3());
     object.position.set(-centre.x, -scaled.min.y, -centre.z);
     object.traverse((child) => {
-      if (child instanceof Mesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-        // The supplied models contain deep transformed hierarchies. Their
-        // mesh-local bounds can briefly miss the chase-camera frustum on
-        // some aspect ratios even though the car itself is in view, leaving
-        // only its shadow. The player is always on screen, so never cull it.
-        child.frustumCulled = !alwaysVisible;
-      }
+      if (child instanceof Mesh) { child.castShadow = true; child.receiveShadow = true; }
     });
     return object;
-  }, [resources, alwaysVisible]);
+  }, [resources]);
 
   return <primitive object={scene} dispose={null} />;
 }
