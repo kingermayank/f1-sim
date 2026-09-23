@@ -54,7 +54,7 @@ export function App() {
   if (route.name === 'race') {
     return (
       <main className="app-shell">
-        <h1 className="visually-hidden">Shanghai 2026 Simulation</h1>
+        <h1 className="visually-hidden">Apex F1</h1>
         <RaceRoute />
       </main>
     );
