@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { CIRCUITS, findCircuit, PLAYABLE_CIRCUITS, type Circuit, type CornerNote } from '../content/circuits';
-import { DRIVER_PROFILES, FULL_GRID_2026, STYLE_LABELS, findProfile } from '../content/driver-profiles';
+import { CIRCUITS, findCircuit, type Circuit, type CornerNote } from '../content/circuits';
+import { DRIVER_PROFILES, STYLE_LABELS, findProfile } from '../content/driver-profiles';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { CircuitMap } from './CircuitMap';
 import { RaceResult } from './RaceResult';
@@ -55,10 +55,6 @@ export function CircuitsView() {
       <header className="shell-head">
         <p className="shell-eyebrow">2026 calendar · {CIRCUITS.length} rounds</p>
         <h1>Circuits</h1>
-        <p>
-          The real {CIRCUITS.length}-round 2026 calendar. {PLAYABLE_CIRCUITS.length} circuits have
-          validated local models and fitted splines; the rest remain planned without invented outlines.
-        </p>
       </header>
       <div className="circuit-grid">
         {CIRCUITS.map((circuit) => <CircuitCard key={circuit.id} circuit={circuit} />)}
@@ -161,7 +157,6 @@ export function GarageView() {
       <header className="shell-head">
         <p className="shell-eyebrow">{TEAMS_2026.length} cars · 2026</p>
         <h1>Garage</h1>
-        <p>The {TEAMS_2026.length} teams we hold real car models for. Each is loaded once and shared by both of its drivers.</p>
       </header>
       <div className="car-grid">
         {TEAMS_2026.map((team) => (
@@ -190,10 +185,6 @@ export function DriversView() {
       <header className="shell-head">
         <p className="shell-eyebrow">The grid · {DRIVERS_2026.length} in the game</p>
         <h1>Drivers</h1>
-        <p>
-          Most people pick a driver before they pick a team, and they pick on personality. Here is a
-          reason to care about each of the {DRIVERS_2026.length}.
-        </p>
       </header>
       <div className="driver-grid">
         {ordered.map((driver) => {
@@ -214,29 +205,6 @@ export function DriversView() {
           );
         })}
       </div>
-      <p className="shell-foot">
-        Styles above are editorial. The pace, overtaking and tyre-management ratings that actually
-        drive the simulation live in the grid definition, so the two can never disagree.
-      </p>
-
-      <section className="panel" aria-label="Full 2026 grid">
-        <h2>The full 2026 grid</h2>
-        <p>
-          Eleven teams and {FULL_GRID_2026.length} drivers are racing in 2026, verified against the
-          official entry list. We simulate the {FULL_GRID_2026.filter((entry) => entry.simulated).length}{' '}
-          drivers whose cars we hold licensed models for — the rest are listed here so the picture stays complete.
-        </p>
-        <ul className="grid-list">
-          {FULL_GRID_2026.map((entry) => (
-            <li key={entry.number} className={entry.simulated ? 'grid-list__row is-simulated' : 'grid-list__row'}>
-              <span className="grid-list__number">{entry.number}</span>
-              <span className="grid-list__name">{entry.name}</span>
-              <span className="grid-list__team">{entry.team}</span>
-              <span className="grid-list__flag">{entry.simulated ? 'Simulated' : 'Not simulated'}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
     </div>
   );
 }

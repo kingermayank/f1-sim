@@ -305,7 +305,7 @@ function RacingLineOverlay({ quality }: { quality: SceneQualityTier }) {
   if (quality === 'mobile') return null;
   return (
     <mesh geometry={geometry} renderOrder={2}>
-      <meshBasicMaterial color="#dbff4a" transparent opacity={0.15} depthWrite={false} />
+      <meshBasicMaterial color="#ffb82e" transparent opacity={0.15} depthWrite={false} />
     </mesh>
   );
 }

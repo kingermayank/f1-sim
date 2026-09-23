@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import f1Logo from '../assets/f1-logo.svg';
 import { routeHref, type RouteName } from './router';
 import { isUiSoundEnabled, setUiSoundEnabled } from './ui-sound';
 
@@ -6,15 +7,11 @@ const LINKS: { name: RouteName; label: string }[] = [
   { name: 'circuits', label: 'Circuits' },
   { name: 'garage', label: 'Garage' },
   { name: 'drivers', label: 'Drivers' },
-  { name: 'learn', label: 'Learn' },
 ];
 
 /**
  * The one top bar, on every page: the brand, the browse links with the
- * current one lit, the broadcast simulation, the sound toggle, and Race.
- * The homepage is the race menu with Start race on it, so there the Race
- * button would be a second door to the room you are standing in; it is
- * left off.
+ * current one lit, the broadcast simulation, and the sound toggle.
  */
 export function AppNav({ active }: { active: RouteName }) {
   // Detail pages light their section's tab.
@@ -30,7 +27,7 @@ export function AppNav({ active }: { active: RouteName }) {
   return (
     <header className={onHome ? 'shell-nav shell-nav--home' : 'shell-nav'}>
       <a className="shell-nav__brand" href={routeHref('home')} aria-label="APEX home">
-        <span className="shell-nav__mark" aria-hidden="true">A</span>
+        <span className="shell-nav__mark" aria-hidden="true"><img src={f1Logo} alt="" /></span>
         <span className="shell-nav__wordmark">APEX</span>
       </a>
       <nav aria-label="Primary">
@@ -44,19 +41,18 @@ export function AppNav({ active }: { active: RouteName }) {
             {link.label}
           </a>
         ))}
-        <a href={routeHref('race')} className="shell-nav__watch">Watch the simulation</a>
+        <a href={routeHref('race')} className="shell-nav__watch">Watch the Simulation</a>
       </nav>
       <button
         type="button"
         className="shell-nav__sound"
         onClick={toggleSound}
         aria-pressed={sound}
-        aria-label={sound ? 'Menu sounds on' : 'Menu sounds off'}
-        title={sound ? 'Menu sounds on' : 'Menu sounds off'}
+        aria-label={sound ? 'Music and menu sounds on' : 'Music and menu sounds off'}
+        title={sound ? 'Music and menu sounds on' : 'Music and menu sounds off'}
       >
         ♪
       </button>
-      {!onHome && <a className="shell-nav__cta" href={routeHref('home')}>Race →</a>}
     </header>
   );
 }

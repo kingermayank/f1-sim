@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
  * with no server rewrite rules, which matters because this product is
  * frontend-only with no backend.
  */
-export const ROUTES = ['home', 'circuits', 'circuit', 'garage', 'drivers', 'learn', 'race', 'play', 'play-race'] as const;
+export const ROUTES = ['home', 'circuits', 'circuit', 'garage', 'drivers', 'race', 'play', 'play-race'] as const;
 export type RouteName = (typeof ROUTES)[number];
 
 export interface Route {
@@ -30,8 +30,6 @@ export function parseHash(hash: string): Route {
       return { name: 'garage' };
     case 'drivers':
       return { name: 'drivers' };
-    case 'learn':
-      return { name: 'learn' };
     case 'race':
       return { name: 'race' };
     case 'play':

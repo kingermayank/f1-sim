@@ -20,7 +20,7 @@ describe('router', () => {
     expect(parseHash('#/circuits/shanghai')).toEqual({ name: 'circuit', param: 'shanghai' });
     expect(parseHash('#/garage')).toEqual({ name: 'garage' });
     expect(parseHash('#/drivers')).toEqual({ name: 'drivers' });
-    expect(parseHash('#/learn')).toEqual({ name: 'learn' });
+    expect(parseHash('#/learn')).toEqual({ name: 'home' });
     expect(parseHash('#/race')).toEqual({ name: 'race' });
   });
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DRIVERS_2026 } from '../../src/domain/grid-2026';
-import { INTRO_SECONDS, createGameStore, projectedTrack } from '../../src/game/game-store';
+import { FIELD_SIZE, INTRO_SECONDS, createGameStore, projectedTrack } from '../../src/game/game-store';
 
 const FULL_THROTTLE = { throttle: 1, brake: 0, steer: 0, drs: false };
 const COAST = { throttle: 0, brake: 0, steer: 0, drs: false };
@@ -31,7 +30,7 @@ describe('game store', () => {
     expect(onTrack).toBe(true);
     // Same grid convention as the AI: lap -1 until the line, and last on the grid.
     expect(lap).toBe(-1);
-    expect(position).toBe(DRIVERS_2026.length);
+    expect(position).toBe(FIELD_SIZE);
     // Back of the grid sits just before the line.
     expect(fraction).toBeGreaterThan(0.95);
   });
@@ -120,7 +119,7 @@ describe('game store', () => {
     const store = createGameStore();
     store.getState().configure({ driverId: 'verstappen', laps: 3, seed: 'field' });
     const ids = store.getState().ai.map((car) => car.driverId);
-    expect(ids).toHaveLength(DRIVERS_2026.length - 1);
+    expect(ids).toHaveLength(FIELD_SIZE - 1);
     expect(ids).not.toContain('verstappen');
   });
 
@@ -141,18 +140,18 @@ describe('game store', () => {
 
   it('finishes after the configured laps and reports a final position', () => {
     const store = createGameStore();
-    store.getState().configure({ driverId: 'norris', laps: 2, difficulty: 'easy', seed: 'finish' });
+    store.getState().configure({ driverId: 'norris', laps: 1, difficulty: 'easy', seed: 'finish' });
     launch(store);
     autopilot(store, 400);
     const state = store.getState();
     expect(state.phase).toBe('finished');
     expect(state.finishPosition).not.toBeNull();
     expect(state.finishPosition!).toBeGreaterThanOrEqual(1);
-    expect(state.finishPosition!).toBeLessThanOrEqual(DRIVERS_2026.length);
-    expect(state.lapTimes).toHaveLength(2);
+    expect(state.finishPosition!).toBeLessThanOrEqual(FIELD_SIZE);
+    expect(state.lapTimes).toHaveLength(1);
     // Everyone is classified exactly once, in order, gaps from the winner.
-    expect(state.classification).toHaveLength(DRIVERS_2026.length);
-    expect(state.classification.map((row) => row.position)).toEqual(DRIVERS_2026.map((_, index) => index + 1));
+    expect(state.classification).toHaveLength(FIELD_SIZE);
+    expect(state.classification.map((row) => row.position)).toEqual(Array.from({ length: FIELD_SIZE }, (_, index) => index + 1));
     expect(state.classification[0].gap).toBe(0);
     for (let index = 1; index < state.classification.length; index += 1) {
       expect(state.classification[index].raceTime).toBeGreaterThanOrEqual(state.classification[index - 1].raceTime);

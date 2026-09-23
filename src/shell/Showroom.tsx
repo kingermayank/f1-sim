@@ -1,14 +1,16 @@
 import { useProgress } from '@react-three/drei';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CALENDAR_2026 } from '../content/calendar-2026';
 import { findCircuit } from '../content/circuits';
 import { findProfile } from '../content/driver-profiles';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
-import { gameStore, type Difficulty, type FieldSize } from '../game/game-store';
+import { gameStore, type Difficulty } from '../game/game-store';
 import { useCoarsePointer } from '../game/TouchControls';
 import { AppNav } from './AppNav';
 import { CircuitMap } from './CircuitMap';
+import { HomepageMusic } from './HomepageMusic';
 import { ShowroomScene, preloadShowroom } from './ShowroomScene';
+import { persistSelectedDriverId, readSelectedDriverId, teamThemeStyle } from './team-theme';
 import { uiSound } from './ui-sound';
 
 const CAR_NAMES: Record<string, string> = {
@@ -31,46 +33,41 @@ function teamOf(teamId: string) {
  * button. The browse pages are still a tap away in the top bar.
  */
 export function Showroom() {
-  const [index, setIndex] = useState(0);
-  // Which way the last flip went (for the sweep) and how many flips there have been (to retrigger it).
+  const [index, setIndex] = useState(() => {
+    const storedIndex = DRIVERS_2026.findIndex((driver) => driver.id === readSelectedDriverId());
+    return storedIndex < 0 ? 0 : storedIndex;
+  });
+  // Direction still gives the driver card its subtle entrance.
   const [direction, setDirection] = useState(1);
-  const [serial, setSerial] = useState(0);
   const [circuitId, setCircuitId] = useState('shanghai');
   const [pickingCircuit, setPickingCircuit] = useState(false);
   const [laps, setLaps] = useState(5);
-  // Phones default to a lighter field; they can dial it up.
-  const [fieldSize, setFieldSize] = useState<FieldSize>(() => (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches ? 6 : 14));
   const [difficulty, setDifficulty] = useState<Difficulty>('easy');
 
   const driver = DRIVERS_2026[index];
   const team = teamOf(driver.teamId);
   const profile = findProfile(driver.id);
   const circuit = findCircuit(circuitId) ?? findCircuit('shanghai')!;
+  const nameParts = driver.name.split(/\s+/);
+  const hasLongNamePart = nameParts.some((part) => part.length >= 8);
 
   const touch = useCoarsePointer();
   const loading = useProgress((state) => state.active);
-  const chips = useRef<HTMLDivElement>(null);
 
   useEffect(() => { preloadShowroom(); }, []);
-
-  // Keep the chosen chip in view as you flip through the field.
-  useEffect(() => {
-    const chip = chips.current?.querySelector<HTMLElement>('.showroom__chip.is-selected');
-    chip?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
-  }, [index]);
 
   const choose = (next: number, towards: number) => {
     if (next === index) return;
     uiSound.flip(towards);
     setDirection(towards);
-    setSerial((current) => current + 1);
     setIndex(next);
+    persistSelectedDriverId(DRIVERS_2026[next].id);
   };
   const move = (delta: number) => choose((index + delta + DRIVERS_2026.length) % DRIVERS_2026.length, Math.sign(delta) || 1);
 
   const start = () => {
     uiSound.confirm();
-    gameStore.getState().configure({ driverId: driver.id, laps, difficulty, fieldSize });
+    gameStore.getState().configure({ driverId: driver.id, laps, difficulty });
     gameStore.getState().start();
     window.location.hash = '#/play/race';
   };
@@ -95,11 +92,16 @@ export function Showroom() {
   ] as const;
 
   return (
-    <div className="showroom" style={{ '--team': team.color, '--accent': team.accent } as React.CSSProperties}>
+    <div
+      className="showroom"
+      style={teamThemeStyle(driver.id)}
+    >
       <AppNav active="home" />
+      <HomepageMusic />
 
       <div className="showroom__stage" aria-hidden="true">
-        <ShowroomScene teamId={team.id} direction={direction} serial={serial} lite={touch} />
+        <ShowroomScene teamId={team.id} lite={touch} />
+        <div key={team.id} className="showroom__swap" />
         {loading && (
           <div className="showroom__loading">
             <span className="showroom__loading-bar" />
@@ -112,7 +114,9 @@ export function Showroom() {
         <div key={driver.id} className={`showroom__card${direction > 0 ? ' is-from-right' : ' is-from-left'}`}>
           <p className="showroom__eyebrow">{team.name} · {CAR_NAMES[team.id]}</p>
           <div className="showroom__number" aria-hidden="true">{driver.number}</div>
-          <h1 className="showroom__name">{driver.name}</h1>
+          <h1 className={`showroom__name${hasLongNamePart ? ' showroom__name--long' : ''}`}>
+            {nameParts.map((part) => <span key={part}>{part}</span>)}
+          </h1>
           <p className="showroom__hook">{profile?.hook}</p>
           <dl className="showroom__ratings">
             {ratings.map(([label, value]) => (
@@ -137,8 +141,7 @@ export function Showroom() {
         </button>
 
         <div className="showroom__settings">
-          <Segmented<number> label="Laps" value={laps} options={[3, 5, 8, 10]} onChange={setLaps} />
-          <Segmented<FieldSize> label="Cars" value={fieldSize} options={[6, 10, 14]} onChange={setFieldSize} />
+          <Segmented<number> label="Laps" value={laps} options={[1, 3, 5]} onChange={setLaps} />
           <Segmented<Difficulty> label="AI pace" value={difficulty} options={['easy', 'medium', 'hard']} format={(value) => PACE_LABEL[value]} onChange={setDifficulty} />
         </div>
       </section>
@@ -146,7 +149,7 @@ export function Showroom() {
       <footer className="showroom__foot">
         <div className="showroom__field" role="radiogroup" aria-label="Choose your driver">
           <button type="button" className="showroom__arrow" onClick={() => move(-1)} aria-label="Previous driver">‹</button>
-          <div className="showroom__chips" ref={chips}>
+          <div className="showroom__chips">
             {DRIVERS_2026.map((candidate, candidateIndex) => {
               const candidateTeam = teamOf(candidate.teamId);
               const selected = candidateIndex === index;

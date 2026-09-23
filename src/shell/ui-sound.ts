@@ -7,6 +7,7 @@
  * respects one switch, persisted in localStorage and exposed in the top bar.
  */
 const STORAGE_KEY = 'apex.ui-sound';
+export const UI_SOUND_EVENT = 'apex-ui-sound-change';
 let context: AudioContext | null = null;
 let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;
@@ -22,6 +23,7 @@ export function isUiSoundEnabled(): boolean {
 export function setUiSoundEnabled(value: boolean): void {
   enabled = value;
   try { window.localStorage.setItem(STORAGE_KEY, value ? 'on' : 'off'); } catch { /* private mode */ }
+  window.dispatchEvent(new CustomEvent(UI_SOUND_EVENT, { detail: value }));
   if (value) click(0.5);
 }
 

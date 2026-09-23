@@ -24,12 +24,19 @@ export function PlayRaceView() {
   const [muted, setMuted] = useState(false);
   const [warm, setWarm] = useState(false);
   const onWarm = useCallback(() => setWarm(true), []);
+  const loading = useProgress((state) => state.active);
   const touch = useCoarsePointer();
 
   // Landing here directly without configuring: send to the picker.
   useEffect(() => {
     if (gameStore.getState().phase === 'setup') window.location.hash = '#/play';
   }, []);
+
+  useEffect(() => {
+    if (loading || !warm || phase !== 'intro' || ready) return;
+    gameStore.getState().setReady(true);
+    gameStore.getState().skipIntro();
+  }, [loading, warm, phase, ready]);
 
   return (
     <div className={touch ? 'game-shell game-shell--touch' : 'game-shell'}>
@@ -49,9 +56,8 @@ export function PlayRaceView() {
 }
 
 /**
- * Loading: progress while the circuit and cars arrive and the shaders
- * compile, then one Start. Pressing it is also the gesture that lets audio
- * run, so the intro is never silent.
+ * Show real asset progress while the scene loads and its shaders compile.
+ * The race proceeds automatically once both are ready.
  */
 function LoadingScreen({ warm }: { warm: boolean }) {
   const progress = useProgress((state) => state.progress);
@@ -59,24 +65,12 @@ function LoadingScreen({ warm }: { warm: boolean }) {
   const driverId = useGameStore((state) => state.driverId);
   const team = teamOfDriver(driverId);
   const circuit = findCircuit('shanghai')!;
-  const done = !active && warm;
-  const go = () => gameStore.getState().setReady(true);
-  useEffect(() => {
-    if (!done) return;
-    const onKey = (event: KeyboardEvent) => { if (event.code === 'Enter' || event.code === 'Space') go(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [done]);
   return (
     <div className="game-loading" role="status" aria-live="polite" style={{ '--team': team.color } as React.CSSProperties}>
       <p className="game-loading__eyebrow">Round {circuit.round} · {circuit.grandPrix}</p>
       <h2 className="game-loading__title">{circuit.name}</h2>
-      <div className="game-loading__bar" aria-hidden="true"><span style={{ width: `${done ? 100 : Math.max(4, progress * 0.92)}%` }} /></div>
-      {done ? (
-        <button type="button" className="game-loading__go" onClick={go} autoFocus>Start <kbd>Enter</kbd></button>
-      ) : (
-        <p className="game-loading__status">{active ? `Loading ${Math.round(progress)}%` : 'Warming up shaders'}</p>
-      )}
+      <div className="game-loading__bar" aria-hidden="true"><span style={{ width: `${!active && warm ? 100 : Math.max(4, progress * 0.92)}%` }} /></div>
+      <p className="game-loading__status">{active ? `Getting engines ready · ${Math.round(progress)}%` : 'Warming up engines'}</p>
     </div>
   );
 }
@@ -128,6 +122,7 @@ function RaceResultOverlay() {
           </dl>
         </header>
 
+        <div className="game-result__classification" tabIndex={0} aria-label="Race classification">
         <table className="game-result__table">
           <thead>
             <tr><th scope="col">Pos</th><th scope="col">Driver</th><th scope="col">Team</th><th scope="col">Time / gap</th><th scope="col">Best lap</th></tr>
@@ -151,6 +146,7 @@ function RaceResultOverlay() {
             })}
           </tbody>
         </table>
+        </div>
 
         <div className="game-result__foot">
           <ol className="game-result__laps" aria-label="Your laps">

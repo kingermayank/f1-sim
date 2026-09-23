@@ -26,8 +26,8 @@ import { constrainToWalls, createProjectedTrack } from './track-projection';
  */
 export type GamePhase = 'setup' | 'intro' | 'lights' | 'racing' | 'finished';
 export type Difficulty = 'easy' | 'medium' | 'hard';
-/** How many cars line up including the player: the full field, or fewer for slower machines. */
-export type FieldSize = 14 | 10 | 6;
+/** The player and nine rivals line up for every race. */
+export const FIELD_SIZE = 10;
 
 /**
  * AI pace as a multiple of real Formula 1 pace. The engine fits `laps` into a
@@ -158,7 +158,7 @@ export interface GameState {
 }
 
 export interface GameActions {
-  configure(options: { driverId: string; laps?: number; difficulty?: Difficulty; fieldSize?: FieldSize; seed?: string }): void;
+  configure(options: { driverId: string; laps?: number; difficulty?: Difficulty; seed?: string }): void;
   /** Begin the journey: the intro, then the lights. */
   start(): void;
   setReady(ready: boolean): void;
@@ -182,9 +182,9 @@ export function driverName(id: string): string {
   return driverById(id).name;
 }
 
-function createEngine(seed: string, laps: number, difficulty: Difficulty, playerId: string, fieldSize: FieldSize): RaceEngine {
+function createEngine(seed: string, laps: number, difficulty: Difficulty, playerId: string): RaceEngine {
   // Trim from the back of the grid order so the front-runners are always there.
-  const field = DRIVERS_2026.filter((driver) => driver.id !== playerId).slice(0, fieldSize - 1);
+  const field = DRIVERS_2026.filter((driver) => driver.id !== playerId).slice(0, FIELD_SIZE - 1);
   const presentationMinutes = (laps * REFERENCE_LAP_SECONDS) / 60 / AI_PACE[difficulty];
   return createRaceEngine(
     { ...DEFAULT_RACE_CONFIG, seed, laps, presentationMinutes, safetyCars: false, incidents: false },
@@ -351,8 +351,8 @@ export function createGameStore() {
     lapTimes: [],
     bestLap: null,
     currentLapStart: 0,
-    position: DRIVERS_2026.length,
-    fieldSize: DRIVERS_2026.length,
+    position: FIELD_SIZE,
+    fieldSize: FIELD_SIZE,
     gapAheadSeconds: null,
     gapBehindSeconds: null,
     drsAvailable: false,
@@ -371,8 +371,8 @@ export function createGameStore() {
     raceTime: null,
     classification: [],
 
-    configure({ driverId, laps = 5, difficulty = 'easy', fieldSize = 14, seed = `apex-${Date.now().toString(36)}` }) {
-      engine = createEngine(seed, laps, difficulty, driverId, fieldSize);
+    configure({ driverId, laps = 5, difficulty = 'easy', seed = `apex-${Date.now().toString(36)}` }) {
+      engine = createEngine(seed, laps, difficulty, driverId);
       aiLateral.clear();
       aiSide.clear();
       aiFinishTimes.clear();
@@ -388,7 +388,7 @@ export function createGameStore() {
         elapsed: 0, car,
         fraction: previousFraction, lateral: 0, surface: 'tarmac', onTrack: true, placement: get().placement + 1, paused: false,
         lap: -1, lapTimes: [], bestLap: null, currentLapStart: 0,
-        position: fieldSize, fieldSize,
+        position: FIELD_SIZE, fieldSize: FIELD_SIZE,
         gapAheadSeconds: null, gapBehindSeconds: null, drsAvailable: false, drsActive: false, hitWall: false, hitCar: 0,
         surfaceY: projectedTrack.project(car.x, car.z).point.y, bodyRoll: 0, bodyPitch: 0,
         gear: 1, rpm: 0, ai: spaceField(engine.snapshot().cars, projectedTrack.lengthMeters),
@@ -614,8 +614,8 @@ export function createGameStore() {
     },
 
     restart() {
-      const { driverId, laps, difficulty, fieldSize } = get();
-      get().configure({ driverId, laps, difficulty, fieldSize: fieldSize as FieldSize });
+      const { driverId, laps, difficulty } = get();
+      get().configure({ driverId, laps, difficulty });
       get().start();
     },
   }));
