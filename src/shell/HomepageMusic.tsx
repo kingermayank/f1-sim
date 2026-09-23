@@ -121,5 +121,9 @@ export function HomepageMusic() {
     };
   }, []);
 
-  return <div ref={host} className="showroom__spotify-embed" aria-hidden="true" />;
+  return (
+    <div className="showroom__music" aria-hidden="true">
+      <div ref={host} className="showroom__spotify-embed" />
+    </div>
+  );
 }

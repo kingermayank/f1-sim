@@ -426,7 +426,12 @@
 /* On the homepage the bar floats over the stage. */
 .showroom > .shell-nav { position: relative; z-index: 4; background: none; backdrop-filter: none; }
 .showroom .shell-nav__mark { color: var(--on-team); }
-.showroom__spotify-embed, .showroom__spotify-embed iframe { position: fixed !important; width: 1px !important; height: 1px !important; overflow: hidden; clip-path: inset(50%); pointer-events: none; }
+.showroom__music {
+  position: fixed !important; inset: 0 auto auto 0; z-index: -1;
+  width: 1px !important; height: 1px !important; overflow: hidden;
+  opacity: 0; clip-path: inset(50%); pointer-events: none;
+}
+.showroom__spotify-embed, .showroom__music iframe { width: 1px !important; height: 1px !important; border: 0 !important; pointer-events: none; }
 
 .showroom__stage { position: absolute; inset: 0; z-index: 0; }
 .showroom__stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgb(3 5 10 / 70%) 0%, transparent 32%, transparent 68%, rgb(3 5 10 / 70%) 100%); }
