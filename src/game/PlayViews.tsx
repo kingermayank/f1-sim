@@ -21,6 +21,7 @@ function teamOf(teamId: string) {
 export function PlayRaceView() {
   const phase = useGameStore((state) => state.phase);
   const ready = useGameStore((state) => state.ready);
+  const loading = useProgress((state) => state.active);
   const [muted, setMuted] = useState(false);
   const [warm, setWarm] = useState(false);
   const onWarm = useCallback(() => setWarm(true), []);
@@ -30,6 +31,25 @@ export function PlayRaceView() {
   useEffect(() => {
     if (gameStore.getState().phase === 'setup') window.location.hash = '#/play';
   }, []);
+
+  // Give the fully loaded scene two painted frames before revealing it. This
+  // keeps the WebGL material handoff stable without requiring another click.
+  useEffect(() => {
+    if (phase !== 'intro' || ready || loading || !warm) return;
+
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const state = gameStore.getState();
+        if (state.phase === 'intro' && !state.ready) state.setReady(true);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [loading, phase, ready, warm]);
 
   return (
     <div className={touch ? 'game-shell game-shell--touch' : 'game-shell'}>
@@ -48,11 +68,7 @@ export function PlayRaceView() {
   );
 }
 
-/**
- * Loading: progress while the circuit and cars arrive and the shaders
- * compile, then one Start. Pressing it is also the gesture that lets audio
- * run, so the intro is never silent.
- */
+/** Loading progress while the circuit, cars, and shaders become race-ready. */
 function LoadingScreen({ warm }: { warm: boolean }) {
   const progress = useProgress((state) => state.progress);
   const active = useProgress((state) => state.active);
@@ -60,23 +76,12 @@ function LoadingScreen({ warm }: { warm: boolean }) {
   const team = teamOfDriver(driverId);
   const circuit = findCircuit('shanghai')!;
   const done = !active && warm;
-  const go = () => gameStore.getState().setReady(true);
-  useEffect(() => {
-    if (!done) return;
-    const onKey = (event: KeyboardEvent) => { if (event.code === 'Enter' || event.code === 'Space') go(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [done]);
   return (
     <div className="game-loading" role="status" aria-live="polite" style={{ '--team': team.color } as React.CSSProperties}>
       <p className="game-loading__eyebrow">Round {circuit.round} · {circuit.grandPrix}</p>
       <h2 className="game-loading__title">{circuit.name}</h2>
       <div className="game-loading__bar" aria-hidden="true"><span style={{ width: `${done ? 100 : Math.max(4, progress * 0.92)}%` }} /></div>
-      {done ? (
-        <button type="button" className="game-loading__go" onClick={go} autoFocus>Start <kbd>Enter</kbd></button>
-      ) : (
-        <p className="game-loading__status">{active ? `Loading ${Math.round(progress)}%` : 'Warming up shaders'}</p>
-      )}
+      <p className="game-loading__status">{active ? `Loading ${Math.round(progress)}%` : done ? 'Starting race' : 'Warming up shaders'}</p>
     </div>
   );
 }
