@@ -10,6 +10,7 @@ import { AppNav } from '../shell/AppNav';
 import { CircuitView, CircuitsView, DriversView, GarageView } from '../shell/views';
 import { routeHref, useRoute } from '../shell/router';
 import { Showroom } from '../shell/Showroom';
+import { HomepageMusic } from '../shell/HomepageMusic';
 import { readSelectedDriverId, TEAM_THEME_EVENT, teamThemeStyle } from '../shell/team-theme';
 import { PlayRaceView } from '../game/PlayViews';
 
@@ -59,16 +60,13 @@ export function App() {
     );
   }
 
-  // The front door is the game menu: pick the car, pick the circuit, race.
-  if (route.name === 'home' || route.name === 'play') {
-    return (
+  // Keep one soundtrack controller mounted across every arcade/menu route.
+  // Race routes return above and own their separate engine/broadcast audio.
+  const page = route.name === 'home' || route.name === 'play' ? (
       <main className="app-shell app-shell--showroom">
         <Showroom />
       </main>
-    );
-  }
-
-  return (
+  ) : (
     <main className="app-shell app-shell--browse" style={teamThemeStyle(themeDriverId)}>
       <AppNav active={route.name} />
       {route.name === 'circuits' && <CircuitsView />}
@@ -76,5 +74,12 @@ export function App() {
       {route.name === 'garage' && <GarageView />}
       {route.name === 'drivers' && <DriversView />}
     </main>
+  );
+
+  return (
+    <>
+      <HomepageMusic />
+      {page}
+    </>
   );
 }

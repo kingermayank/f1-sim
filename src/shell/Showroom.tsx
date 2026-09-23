@@ -8,7 +8,6 @@ import { gameStore, type Difficulty } from '../game/game-store';
 import { useCoarsePointer } from '../game/TouchControls';
 import { AppNav } from './AppNav';
 import { CircuitMap } from './CircuitMap';
-import { HomepageMusic } from './HomepageMusic';
 import { ShowroomScene, preloadShowroom } from './ShowroomScene';
 import { persistSelectedDriverId, readSelectedDriverId, teamThemeStyle } from './team-theme';
 import { uiSound } from './ui-sound';
@@ -97,7 +96,6 @@ export function Showroom() {
       style={teamThemeStyle(driver.id)}
     >
       <AppNav active="home" />
-      <HomepageMusic />
 
       <div className="showroom__stage" aria-hidden="true">
         <ShowroomScene teamId={team.id} lite={touch} />

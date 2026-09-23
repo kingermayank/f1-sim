@@ -28,16 +28,42 @@ interface SpotifyIframeApi {
 declare global {
   interface Window {
     onSpotifyIframeApiReady?: (api: SpotifyIframeApi) => void;
+    __apexSpotifyIframeApi?: SpotifyIframeApi;
   }
 }
 
-/** Streams the supplied soundtrack through Spotify and follows the menu sound switch. */
+let spotifyApiPromise: Promise<SpotifyIframeApi> | null = null;
+
+/** Load Spotify's iframe API once, even when React Strict Mode remounts the player. */
+function loadSpotifyApi(): Promise<SpotifyIframeApi> {
+  if (window.__apexSpotifyIframeApi) return Promise.resolve(window.__apexSpotifyIframeApi);
+  if (spotifyApiPromise) return spotifyApiPromise;
+
+  spotifyApiPromise = new Promise((resolve) => {
+    window.onSpotifyIframeApiReady = (api) => {
+      window.__apexSpotifyIframeApi = api;
+      resolve(api);
+    };
+
+    if (!document.querySelector(`script[src="${SPOTIFY_SCRIPT}"]`)) {
+      const script = document.createElement('script');
+      script.src = SPOTIFY_SCRIPT;
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  });
+
+  return spotifyApiPromise;
+}
+
+/** Streams the supplied soundtrack through Spotify and follows the global sound switch. */
 export function HomepageMusic() {
   const host = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let controller: SpotifyController | null = null;
     let hasInteracted = false;
+    let hasStarted = false;
     let hasEnded = false;
     let isRestarting = false;
     let disposed = false;
@@ -53,25 +79,26 @@ export function HomepageMusic() {
       if (!controller) return;
       if (isUiSoundEnabled()) {
         if (hasEnded) restartPlayback();
-        else if (hasInteracted) controller.resume();
+        else if (hasStarted) controller.resume();
         else controller.play();
       } else {
         controller.pause();
       }
     };
 
-    const unlock = (event: Event) => {
-      if (event.target instanceof Element && event.target.closest('.shell-nav__sound')) return;
+    const unlock = () => {
       hasInteracted = true;
       syncPlayback();
+      window.removeEventListener('pointerdown', unlock, true);
+      window.removeEventListener('keydown', unlock, true);
     };
     const onSoundChange = () => syncPlayback();
 
-    window.addEventListener('pointerdown', unlock, { capture: true, once: true });
-    window.addEventListener('keydown', unlock, { capture: true, once: true });
+    window.addEventListener('pointerdown', unlock, { capture: true });
+    window.addEventListener('keydown', unlock, { capture: true });
     window.addEventListener(UI_SOUND_EVENT, onSoundChange);
 
-    window.onSpotifyIframeApiReady = (api) => {
+    void loadSpotifyApi().then((api) => {
       if (disposed || !host.current) return;
       api.createController(
         host.current,
@@ -84,6 +111,7 @@ export function HomepageMusic() {
           controller = nextController;
           controller.addListener('ready', syncPlayback);
           controller.addListener('playback_started', () => {
+            hasStarted = true;
             hasEnded = false;
             isRestarting = false;
           });
@@ -102,14 +130,7 @@ export function HomepageMusic() {
           });
         },
       );
-    };
-
-    if (!document.querySelector(`script[src="${SPOTIFY_SCRIPT}"]`)) {
-      const script = document.createElement('script');
-      script.src = SPOTIFY_SCRIPT;
-      script.async = true;
-      document.body.appendChild(script);
-    }
+    });
 
     return () => {
       disposed = true;
@@ -117,7 +138,6 @@ export function HomepageMusic() {
       window.removeEventListener('keydown', unlock, true);
       window.removeEventListener(UI_SOUND_EVENT, onSoundChange);
       controller?.destroy();
-      if (window.onSpotifyIframeApiReady) delete window.onSpotifyIframeApiReady;
     };
   }, []);
 
