@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from 'react';
-import { BufferGeometry, Float32BufferAttribute } from 'three';
-import { projectedTrack } from './game-store';
+import { useFrame } from '@react-three/fiber';
+import { useCallback, useEffect, useMemo } from 'react';
+import { BufferGeometry, Float32BufferAttribute, Vector3 } from 'three';
+import { gameStore, projectedTrack } from './game-store';
 import { computeRacingGuide, guideColor } from './racing-line';
 
 /** Half the drawn width of the line, metres. */
@@ -50,10 +51,42 @@ function buildGuideGeometry(): BufferGeometry {
 
 export function GuideLine() {
   const geometry = useMemo(buildGuideGeometry, []);
+  const playerPosition = useMemo(() => new Vector3(), []);
+  const fadeNearPlayer = useCallback((shader: {
+    uniforms: Record<string, { value: unknown }>;
+    vertexShader: string;
+    fragmentShader: string;
+  }) => {
+    shader.uniforms.guidePlayerPosition = { value: playerPosition };
+    shader.vertexShader = `varying vec3 guideWorldPosition;\n${shader.vertexShader}`.replace(
+      '#include <worldpos_vertex>',
+      '#include <worldpos_vertex>\nguideWorldPosition = worldPosition.xyz;',
+    );
+    shader.fragmentShader = `uniform vec3 guidePlayerPosition;\nvarying vec3 guideWorldPosition;\n${shader.fragmentShader}`.replace(
+      '#include <alphatest_fragment>',
+      `#include <alphatest_fragment>
+       float guidePlayerDistance = distance(guideWorldPosition.xz, guidePlayerPosition.xz);
+       diffuseColor.a *= smoothstep(4.0, 8.0, guidePlayerDistance);`,
+    );
+  }, [playerPosition]);
+
+  useFrame(() => {
+    const { car, surfaceY } = gameStore.getState();
+    playerPosition.set(car.x, surfaceY, car.z);
+  });
   useEffect(() => () => geometry.dispose(), [geometry]);
   return (
     <mesh geometry={geometry} renderOrder={3} frustumCulled={false}>
-      <meshBasicMaterial vertexColors transparent opacity={0.9} depthWrite={false} toneMapped={false} />
+      <meshBasicMaterial
+        vertexColors
+        transparent
+        opacity={0.9}
+        depthTest
+        depthWrite={false}
+        toneMapped={false}
+        onBeforeCompile={fadeNearPlayer}
+        customProgramCacheKey={() => 'guide-fade-near-player-v1'}
+      />
     </mesh>
   );
 }
