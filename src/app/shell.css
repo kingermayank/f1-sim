@@ -452,7 +452,9 @@
 }
 .showroom__spotify-embed, .showroom__music iframe { width: 1px !important; height: 1px !important; border: 0 !important; pointer-events: none; }
 
-.showroom__stage { position: absolute; inset: 0; z-index: 0; }
+.showroom__stage {
+  grid-area: preview; position: relative; min-height: 0; overflow: hidden; z-index: 0;
+}
 .showroom__stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgb(3 5 10 / 70%) 0%, transparent 32%, transparent 68%, rgb(3 5 10 / 70%) 100%); }
 .showroom__canvas { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; }
 .showroom__swap { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle at 50% 55%, #05080d 0 18%, rgb(5 8 13 / 84%) 42%, transparent 72%); opacity: 0; animation: showroom-swap .3s ease-in-out both; }
@@ -569,12 +571,24 @@
 .showroom__start { min-height: 2.75rem; padding: .7rem 1rem; }
 .showroom > .shell-nav .shell-nav__watch { display: none; }
 
+@media (max-width: 639px) {
+  /* A short phone scrolls instead of shrinking the only unobstructed car
+     preview until it becomes decorative. Every setup control remains intact. */
+  .app-shell--showroom { overflow-y: auto; overscroll-behavior: contain; }
+  .showroom {
+    height: auto; min-height: 100%; overflow: visible;
+    grid-template-rows: auto auto auto minmax(15rem, 1fr) auto;
+  }
+  .showroom__stage { min-height: 15rem; }
+}
+
 @media (min-width: 640px) {
   .showroom {
     grid-template-areas: "nav nav" "driver preview" "race preview" "footer footer";
     grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
     grid-template-rows: auto auto minmax(0, 1fr) auto;
   }
+  .showroom__stage { position: absolute; inset: 0; }
   .showroom__driver, .showroom__race { width: min(24rem, 100%); padding: .5rem 1rem; }
   .showroom__driver { padding-bottom: .25rem; }
   .showroom__race { justify-self: start; align-self: start; padding-top: .25rem; }
