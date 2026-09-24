@@ -1,13 +1,12 @@
 /**
- * Procedural race audio for the player's car. Everything is synthesised, so
- * there is nothing new to license.
+ * Race audio for the player's car.
  *
- * The note is built the way a turbo V6 makes it: a firing frequency of three
- * pulses per revolution (about 200 Hz at idle to just under 600 Hz at the
- * limiter), a sub-octave for body, a slightly detuned copy for growl, a soft
- * clip for exhaust rasp, and a resonant low-pass that opens with the throttle.
- * Over that sit a turbo whine, wind, tyre scrub, and the nearest rival's engine
- * panned to the side it is on, with Doppler from the closing rate.
+ * When the recorded onboard loop has loaded, it is the engine and it plays
+ * at the speed it was recorded. Throttle and revs only change how loud it
+ * is. Speeding the file up to imitate a rev made the note climb like a
+ * synthesizer, and none of the recordings is a single engine being blipped.
+ * The oscillators, turbo whine and intake stay silent. Wind, tyre scrub and
+ * the off-track rumble are still generated.
  */
 export interface EngineAudioFrame {
   rpm: number;
@@ -307,9 +306,10 @@ export function createEngineAudio(): EngineAudio {
       const now = context.currentTime;
       const v = Math.abs(speed);
 
+      const recorded = Boolean(onboard && onboardGain);
       // Shifts are seamless on a modern gearbox: a brief pitch settle and a crack, no dip in power.
       if (gear !== lastGear) {
-        if (gear > lastGear) crack(now);
+        if (gear > lastGear && !recorded) crack(now);
         lastGear = gear;
         shiftUntil = now + 0.06;
       }
@@ -320,16 +320,16 @@ export function createEngineAudio(): EngineAudio {
       const load = throttle > 0 ? throttle : brake > 0 ? 0 : 0.08;
       const cutoff = 500 + load * 2600 + rpm * 2600;
       const level = 0.09 + load * 0.2 + rpm * 0.1;
-      // With the recorded onboard present the synth steps back to a bed under it.
-      setVoice(engine, firing, cutoff, onboard ? level * 0.45 : level, now);
+      // The recording is the engine. The oscillators only play if it never loaded.
+      setVoice(engine, firing, cutoff, recorded ? 0 : level, now);
       if (onboard && onboardGain) {
-        onboard.playbackRate.setTargetAtTime(0.72 + rpm * 0.62, now, 0.04);
-        onboardGain.gain.setTargetAtTime(0.16 + load * 0.3 + rpm * 0.12, now, 0.05);
+        onboard.playbackRate.setTargetAtTime(1, now, 0.05);
+        onboardGain.gain.setTargetAtTime(0.28 + load * 0.62 + rpm * 0.12, now, 0.05);
       }
 
       whine.frequency.setTargetAtTime(1800 + rpm * 4200, now, 0.05);
-      whineGain.gain.setTargetAtTime(0.006 + throttle * 0.018 * rpm, now, 0.08);
-      intakeGain.gain.setTargetAtTime(throttle * 0.028 * (0.4 + rpm * 0.6), now, 0.08);
+      whineGain.gain.setTargetAtTime(recorded ? 0 : 0.006 + throttle * 0.018 * rpm, now, 0.08);
+      intakeGain.gain.setTargetAtTime(recorded ? 0 : throttle * 0.028 * (0.4 + rpm * 0.6), now, 0.08);
 
       const speedFraction = Math.min(1, v / 85);
       windFilter.frequency.setTargetAtTime(250 + speedFraction * 900, now, 0.1);
@@ -350,7 +350,7 @@ export function createEngineAudio(): EngineAudio {
           lastRivalAt = now;
           // Rivals hold a steady, fairly high note; theirs is not a keyboard car.
           rivalRpm += (0.72 - rivalRpm) * 0.02;
-          const rivalLevel = 0.22 / (1 + (nearest.distance / 10) ** 2);
+          const rivalLevel = recorded ? 0 : 0.22 / (1 + (nearest.distance / 10) ** 2);
           setVoice(rival, (FIRING_BASE_HZ + rivalRpm * FIRING_RANGE_HZ) * doppler, 1400, rivalLevel, now, 0.06);
           rivalPan.pan.setTargetAtTime(nearest.pan * 0.8, now, 0.08);
         } else {
@@ -387,7 +387,9 @@ export function createEngineAudio(): EngineAudio {
 
     passBy(pan) {
       if (!context || !compressor) return;
-      const choices = [samples.passby, samples.passbyB].filter((buffer): buffer is AudioBuffer => Boolean(buffer));
+      const choices = (['passby', 'passbyB', 'passbyC', 'passbyD', 'passbyE'] as const)
+        .map((name) => samples[name])
+        .filter((buffer): buffer is AudioBuffer => Boolean(buffer));
       const buffer = choices[Math.floor(Math.random() * choices.length)];
       if (!buffer) return;
       const source = context.createBufferSource();

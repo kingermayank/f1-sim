@@ -7,19 +7,25 @@
  * with a credit link (see `public/assets/audio/sfx/README.md` and
  * `src/assets/credits.json`). A missing file simply means that layer is silent.
  */
-export type SfxName = 'onboard' | 'passby' | 'passbyB' | 'ambience' | 'straight';
+export type SfxName = 'onboard' | 'passby' | 'passbyB' | 'passbyC' | 'passbyD' | 'passbyE' | 'ambience' | 'straight';
 
 export const SFX_FILES: Record<SfxName, { file: string; source: string }> = {
-  /** A six-second steady-revs stretch cut from a Sound Ideas F1 recording, crossfaded into a seamless loop and pitched by RPM. WAV so the loop is sample-exact. */
-  onboard: { file: '/assets/audio/sfx/f1-onboard-loop.wav', source: 'Sound Ideas Series 1000 · Formula 1 (freesfx 13458)' },
-  /** "Formula 1 Race Cars Pass By Fast", trimmed to the pass: one-shot when a rival goes by. */
-  passby: { file: '/assets/audio/sfx/f1-passby.mp3', source: 'Formula 1 Race Cars Pass By Fast (freesfx 13461)' },
-  /** Digiffects "Race car, Formula 1, several passing", trimmed: a second pass-by voice so repeats do not sound identical. */
-  passbyB: { file: '/assets/audio/sfx/f1-passby-b.mp3', source: 'Digiffects Power Pack · Formula 1 several passing (freesfx 18920)' },
-  /** "Formula 1 Racing", crossfaded into a loop: trackside bed under the intro and grid. */
-  ambience: { file: '/assets/audio/sfx/f1-ambience.mp3', source: 'Formula 1 Racing (freesfx 13462)' },
-  /** "Formula 1 Cars on Straight Away": the flyover bed. */
-  straight: { file: '/assets/audio/sfx/f1-straight.mp3', source: 'Formula 1 Cars on Straight Away (freesfx 13463)' },
+  /** A six-second steady stretch of the race start, crossfaded into a seamless loop and pitched by RPM. WAV so the loop is sample-exact. */
+  onboard: { file: '/assets/audio/sfx/f1-onboard-loop.wav', source: 'Sound Ideas · start of the race, racing by (freesfx 13458)' },
+  /** One car going past: one-shot when a rival goes by. */
+  passby: { file: '/assets/audio/sfx/f1-passby.mp3', source: 'Sound Ideas · one car, racing by (freesfx 13461)' },
+  /** Several cars passing, so a second pass does not sound identical. */
+  passbyB: { file: '/assets/audio/sfx/f1-passby-b.mp3', source: 'Digiffects · Formula 1, several passing (freesfx 18920)' },
+  /** Second lap, the first pack going by. */
+  passbyC: { file: '/assets/audio/sfx/f1-passby-c.mp3', source: 'Sound Ideas · 2nd lap, racing by (freesfx 13459)' },
+  /** Third lap, the first car going by. */
+  passbyD: { file: '/assets/audio/sfx/f1-passby-d.mp3', source: 'Sound Ideas · 3rd lap, racing by (freesfx 13460)' },
+  /** A car downshifting as it goes by. */
+  passbyE: { file: '/assets/audio/sfx/f1-passby-e.mp3', source: 'Sound Ideas · down-shifting, racing by (freesfx 13464)' },
+  /** Trackside racing, crossfaded into a loop: bed under the intro, grid and race. */
+  ambience: { file: '/assets/audio/sfx/f1-ambience.mp3', source: 'Sound Ideas · Formula 1 racing (freesfx 13462)' },
+  /** Cars on the straight: the flyover bed under the intro. */
+  straight: { file: '/assets/audio/sfx/f1-straight.mp3', source: 'Sound Ideas · straight away (freesfx 13463)' },
 };
 
 export type SfxLibrary = Partial<Record<SfxName, AudioBuffer>>;
