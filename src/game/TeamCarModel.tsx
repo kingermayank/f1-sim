@@ -1,7 +1,16 @@
 import { useGLTF } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import { Box3, DirectionalLight, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import {
+  Box3,
+  CubeTexture,
+  DirectionalLight,
+  Mesh,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  SRGBColorSpace,
+  Vector3,
+} from 'three';
 import { ASSETS } from '../assets/asset-registry';
 import { faceNoseForward } from '../scene/car-orientation';
 import { cloneSceneWithOwnedMaterials } from '../scene/scene-resources';
@@ -12,6 +21,33 @@ const CAR_LIGHT_LAYER = 1;
 
 const cameraDirection = new Vector3();
 const fillTarget = new Vector3();
+
+let skyCube: CubeTexture | null = null;
+
+/** A tiny sky/ground cube. Built from canvases so the race renderer is never asked to bake a probe. */
+function getSkyCube(): CubeTexture {
+  if (skyCube) return skyCube;
+  const face = (color: string) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 8;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = color;
+    context.fillRect(0, 0, 8, 8);
+    return canvas;
+  };
+  const cube = new CubeTexture([
+    face('#b7cfe0'),
+    face('#b7cfe0'),
+    face('#dceaf3'),
+    face('#3a403c'),
+    face('#b7cfe0'),
+    face('#b7cfe0'),
+  ]);
+  cube.colorSpace = SRGBColorSpace;
+  cube.needsUpdate = true;
+  skyCube = cube;
+  return cube;
+}
 
 /**
  * Extra light that only hits the cars. The circuit is lit by the sun and
@@ -62,17 +98,31 @@ export function TeamCarModel({
   teamId,
   detail = 'full',
   alwaysVisible = false,
+  sunlit = false,
 }: {
   teamId: string;
   detail?: 'full' | 'low';
   alwaysVisible?: boolean;
+  /** Outdoor chase view: show the livery under the sun, not a studio key. */
+  sunlit?: boolean;
 }) {
   const gltf = useGLTF(detail === 'low' ? ASSETS.teamCarLod(teamId) : ASSETS.teamCar(teamId));
   const resources = useMemo(() => {
+    const envMap = sunlit ? getSkyCube() : null;
     const cloned = cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
       if (!(material instanceof MeshStandardMaterial)) return;
-      material.roughness = Math.min(0.95, Math.max(0.18, material.roughness));
-      material.envMapIntensity = 0.85;
+      material.roughness = Math.min(0.95, Math.max(sunlit ? 0.32 : 0.18, material.roughness));
+      material.envMapIntensity = sunlit ? 0.55 : 0.85;
+      if (sunlit) {
+        // Carbon and specular paint are authored as mirrors. With no scene IBL
+        // they come out black from behind, so the albedo has to carry the livery.
+        material.metalnessMap = null;
+        material.metalness = Math.min(0.2, material.metalness);
+        if (material instanceof MeshPhysicalMaterial) {
+          material.specularIntensity = Math.min(0.28, material.specularIntensity);
+        }
+        if (envMap) material.envMap = envMap;
+      }
       if (!material.transparent) return;
       // The race uses a logarithmic depth buffer. Transparent livery that skips
       // the depth write smears a second ghost of the car down the road.
@@ -97,13 +147,13 @@ export function TeamCarModel({
       if (child instanceof Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
-        child.layers.enable(CAR_LIGHT_LAYER);
+        if (sunlit) child.layers.enable(CAR_LIGHT_LAYER);
         child.geometry.computeBoundingBox();
         child.geometry.computeBoundingSphere();
       }
     });
     return cloned;
-  }, [gltf.scene]);
+  }, [gltf.scene, sunlit]);
   useEffect(() => () => resources.dispose(), [resources]);
   useEffect(() => {
     resources.scene.traverse((child) => {

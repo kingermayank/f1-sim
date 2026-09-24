@@ -160,7 +160,7 @@ function PlayerCar() {
 
   return (
     <group ref={group} name="player-car">
-      <Suspense fallback={null}><TeamCarModel teamId={teamId} alwaysVisible /></Suspense>
+      <Suspense fallback={null}><TeamCarModel teamId={teamId} alwaysVisible sunlit /></Suspense>
     </group>
   );
 }
@@ -213,8 +213,8 @@ function AiCar({ driverId, teamId }: { driverId: string; teamId: string }) {
   });
   return (
     <group ref={group} name={`ai-car-${driverId}`}>
-      <group ref={full} visible={false}><Suspense fallback={null}><TeamCarModel teamId={teamId} /></Suspense></group>
-      <group ref={low}><Suspense fallback={null}><TeamCarModel teamId={teamId} detail="low" /></Suspense></group>
+      <group ref={full} visible={false}><Suspense fallback={null}><TeamCarModel teamId={teamId} sunlit /></Suspense></group>
+      <group ref={low}><Suspense fallback={null}><TeamCarModel teamId={teamId} detail="low" sunlit /></Suspense></group>
     </group>
   );
 }
