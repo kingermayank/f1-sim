@@ -12,7 +12,7 @@ const CAR_NAMES: Record<string, string> = {
 /**
  * The race HUD. Layout follows broadcast and game convention: position and
  * lap top-left where the eye rests, the gear inside an RPM arc bottom-right
- * where a wheel display would be, a mini-map with every car on the left, and
+ * where a wheel display would be, a mini-map in the bottom-left, and
  * short event toasts top-centre so they never cover the road ahead.
  */
 export function GameHud() {
