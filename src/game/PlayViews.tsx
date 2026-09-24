@@ -1,5 +1,5 @@
 import { useProgress } from '@react-three/drei';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { findCircuit } from '../content/circuits';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { routeHref } from '../shell/router';
@@ -63,6 +63,7 @@ export function PlayRaceView() {
           {muted ? 'Unmute' : 'Mute'}
         </button>
       </div>
+      <PauseList muted={muted} setMuted={setMuted} />
       {phase === 'finished' && <RaceResultOverlay />}
     </div>
   );
@@ -82,6 +83,25 @@ function LoadingScreen({ warm }: { warm: boolean }) {
       <h2 className="game-loading__title">{circuit.name}</h2>
       <div className="game-loading__bar" aria-hidden="true"><span style={{ width: `${done ? 100 : Math.max(4, progress * 0.92)}%` }} /></div>
       <p className="game-loading__status">{active ? `Loading ${Math.round(progress)}%` : done ? 'Starting race' : 'Warming up shaders'}</p>
+    </div>
+  );
+}
+
+/** Resume first, then the few actions that leave or change the race. The circuit stays visible behind it. */
+function PauseList({ muted, setMuted }: { muted: boolean; setMuted: (value: boolean | ((value: boolean) => boolean)) => void }) {
+  const paused = useGameStore((state) => state.paused);
+  const resume = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (paused) resume.current?.focus(); }, [paused]);
+  if (!paused) return null;
+  return (
+    <div className="game-pause" role="dialog" aria-modal="true" aria-label="Paused">
+      <div className="game-pause__sheet">
+        <p className="game-pause__label">Paused</p>
+        <button ref={resume} type="button" className="game-pause__row" onClick={() => gameStore.getState().togglePause()}>Resume</button>
+        <button type="button" className="game-pause__row" onClick={() => gameStore.getState().restart()}>Restart</button>
+        <button type="button" className="game-pause__row" aria-pressed={muted} onClick={() => setMuted((value) => !value)}>{muted ? 'Unmute' : 'Mute'}</button>
+        <a className="game-pause__row" href="#/play">Choose race</a>
+      </div>
     </div>
   );
 }
@@ -110,9 +130,18 @@ function RaceResultOverlay() {
     const timer = window.setTimeout(() => setRevealed(true), 2600);
     return () => window.clearTimeout(timer);
   }, []);
-  if (!revealed) return null;
 
   const headline = finishPosition === 1 ? 'You won' : finishPosition && finishPosition <= 3 ? 'On the podium' : 'Classified';
+
+  if (!revealed) {
+    return (
+      <div className="game-finish" role="status" style={{ '--team': team.color } as React.CSSProperties}>
+        <p className="game-finish__circuit">{circuit.name}</p>
+        <p className="game-finish__pos">P{finishPosition}</p>
+        <p className="game-finish__note">{headline}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="game-result" role="dialog" aria-modal="true" aria-labelledby="game-result-title" style={{ '--team': team.color, '--accent': team.accent } as React.CSSProperties}>
@@ -168,8 +197,8 @@ function RaceResultOverlay() {
             ))}
           </ol>
           <div className="shell-actions">
-            <button type="button" className="shell-btn shell-btn--primary" onClick={() => gameStore.getState().restart()}>Race again</button>
-            <a className="shell-btn" href="#/play">Change car</a>
+            <button type="button" className="shell-btn shell-btn--primary" onClick={() => gameStore.getState().restart()}>Race Again</button>
+            <a className="shell-btn" href="#/play">Change Car</a>
             <a className="shell-btn" href={routeHref('home')}>Home</a>
           </div>
         </div>

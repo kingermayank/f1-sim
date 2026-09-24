@@ -287,7 +287,7 @@
   position: absolute; right: .75rem; bottom: 9.4rem; padding: .45rem .7rem; border-radius: max(0px, calc(.4rem - 2px));
   background: rgb(255 96 77 / 92%); color: #fff; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
 }
-.game-hud__keys { position: absolute; left: .75rem; bottom: calc(.75rem + 11rem + .45rem); display: flex; gap: .8rem; flex-wrap: wrap; max-width: calc(100vw - 13rem); font-family: var(--font-mono); font-size: .66rem; letter-spacing: .06em; color: var(--muted); }
+.game-hud__keys { position: absolute; left: .75rem; bottom: .75rem; display: flex; gap: .55rem; flex-wrap: nowrap; font-family: var(--font-mono); font-size: .66rem; letter-spacing: .06em; color: var(--muted); }
 .game-hud__keys b { color: var(--text); border: 1px solid rgb(255 255 255 / 25%); border-radius: 2px; padding: 0 .3rem; font-weight: 400; }
 
 /* -- intro title cards ---------------------------------------------------- */
@@ -338,7 +338,7 @@
 @keyframes banner-in { from { opacity: 0; transform: translateX(-50%) scale(.9); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
 
 /* -- mini-map --------------------------------------------------------------- */
-.minimap { position: absolute; left: .75rem; bottom: .75rem; width: 11rem; height: 11rem; padding: .4rem; border-radius: max(0px, calc(.6rem - 2px)); background: var(--hud-bg); border: 1px solid var(--hud-line); backdrop-filter: blur(10px); }
+.minimap { position: absolute; left: .75rem; bottom: calc(.75rem + 1.55rem); width: 11rem; height: 11rem; padding: .4rem; border-radius: max(0px, calc(.6rem - 2px)); background: var(--hud-bg); border: 1px solid var(--hud-line); backdrop-filter: blur(10px); }
 .minimap__track { fill: none; stroke: rgb(255 255 255 / 55%); stroke-width: 2.2; stroke-linejoin: round; }
 .minimap__drs { fill: none; stroke: var(--signal); stroke-width: 2.6; stroke-linecap: round; }
 .minimap__start { stroke: #fff; stroke-width: 1.4; }
@@ -362,6 +362,19 @@
 .game-wheel__speed { position: absolute; bottom: .6rem; font-family: var(--font-mono); font-size: 1.15rem; font-variant-numeric: tabular-nums; text-shadow: 0 2px 10px rgb(0 0 0 / 70%); }
 .game-wheel__speed em { font-style: normal; font-size: .55rem; letter-spacing: .12em; color: var(--muted); margin-left: .25rem; }
 
+/* -- pause list ------------------------------------------------------------- */
+.game-pause { position: absolute; inset: 0; z-index: 7; display: grid; align-items: center; justify-items: start; padding: 4.5rem; background: rgb(3 6 10 / 42%); pointer-events: auto; }
+.game-pause__sheet { width: min(16rem, calc(100% - 2rem)); background: rgb(6 10 16 / 90%); border: 1px solid rgb(255 255 255 / 16%); backdrop-filter: blur(10px); }
+.game-pause__label { margin: 0; padding: .7rem 1rem .55rem; font-family: var(--font-mono); font-size: .66rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.game-pause__row { display: block; width: 100%; text-align: left; text-decoration: none; background: transparent; border: 0; border-top: 1px solid rgb(255 255 255 / 10%); color: var(--text); padding: .72rem 1rem; font: inherit; font-weight: 700; cursor: pointer; min-height: 0; }
+.game-pause__row:hover, .game-pause__row:focus-visible { background: rgb(255 255 255 / 8%); outline: none; }
+
+/* -- finish plate, before the classification sheet -------------------------- */
+.game-finish { position: absolute; left: .75rem; bottom: calc(.75rem + 1.55rem + 11rem + .45rem); z-index: 6; display: grid; gap: .15rem; padding: .7rem 1.1rem .75rem .9rem; border-left: 4px solid var(--team, var(--signal)); background: var(--hud-bg); border-radius: 0 max(0px, calc(.4rem - 2px)) max(0px, calc(.4rem - 2px)) 0; pointer-events: none; animation: result-in .4s ease-out both; }
+.game-finish__circuit { margin: 0; font-family: var(--font-mono); font-size: .66rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+.game-finish__pos { margin: 0; font-family: var(--font-wide); font-size: 2.4rem; line-height: .95; color: var(--team, var(--signal)); }
+.game-finish__note { margin: 0; font-family: var(--font-body); font-weight: 700; font-size: .95rem; text-transform: uppercase; letter-spacing: .04em; }
+
 /* -- classification --------------------------------------------------------- */
 .game-result { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 1rem; background: rgb(3 6 10 / 66%); backdrop-filter: blur(8px); overflow: auto; animation: result-in .5s ease-out both; }
 @keyframes result-in { from { opacity: 0; } to { opacity: 1; } }
@@ -370,7 +383,7 @@
 .game-result__sheet::before { left: 0; bottom: 0; border-width: 0 0 1px 1px; }
 .game-result__sheet::after { right: 0; bottom: 0; border-width: 0 1px 1px 0; }
 .game-result__head { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-end; padding: 1.2rem 1.4rem 1rem; border-bottom: 1px solid rgb(255 255 255 / 12%); flex-wrap: wrap; }
-.game-result__eyebrow { margin: 0 0 .5rem; font-family: var(--font-mono); font-size: .68rem; letter-spacing: .2em; text-transform: uppercase; color: var(--signal); }
+.game-result__eyebrow { margin: 0 0 .5rem; font-family: var(--font-mono); font-size: .68rem; letter-spacing: .2em; text-transform: uppercase; color: var(--text); }
 .game-result__title { margin: 0; display: flex; align-items: center; gap: 1rem; font-family: var(--font-wide); font-size: 1.7rem; line-height: 1.05; text-transform: uppercase; }
 .game-result__title small { display: block; font-family: var(--font-body); font-size: .8rem; text-transform: none; color: var(--muted); margin-top: .3rem; letter-spacing: 0; }
 .game-result__pos { font-size: 3.6rem; color: var(--team, var(--signal)); }
@@ -392,6 +405,7 @@
 .game-result__fl { margin-left: .5rem; font-size: .6rem; letter-spacing: .12em; padding: .1rem .35rem; border: 1px solid currentcolor; border-radius: 1px; }
 .game-result__penalty { color: #ff9a8f; }
 .game-result__foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding: 1rem 1.4rem 1.2rem; }
+.game-result__foot .shell-btn { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
 .game-result__laps { margin: 0; padding: 0; list-style: none; display: flex; gap: .8rem; flex-wrap: wrap; font-family: var(--font-mono); font-size: .74rem; font-variant-numeric: tabular-nums; }
 .game-result__laps li { display: flex; gap: .4rem; color: var(--muted); }
 .game-result__laps li span:last-child { color: var(--text); }
@@ -401,8 +415,8 @@
 @media (max-width: 720px) {
   .game-timing { flex-wrap: wrap; max-width: calc(100vw - 1.5rem); }
   .game-timing__times { min-width: 0; width: 100%; }
-  .minimap { width: 7.5rem; height: 7.5rem; bottom: .75rem; }
-  .game-hud__keys { bottom: calc(.75rem + 7.5rem + .4rem); }
+  .minimap { width: 7.5rem; height: 7.5rem; bottom: calc(.75rem + 1.55rem); }
+  .game-finish { bottom: calc(.75rem + 1.55rem + 7.5rem + .4rem); }
   .game-wheel__gauge { width: 7.6rem; height: 7.6rem; }
   .game-wheel__gear { font-size: 2.6rem; }
   .game-intro { padding: 1.2rem; }
@@ -629,6 +643,7 @@
 .game-shell--touch .game-wheel__gauge { width: 5.6rem; height: 5.6rem; }
 .game-shell--touch .game-wheel__gear { font-size: 2rem; }
 .game-shell--touch .game-wheel__speed { font-size: .9rem; bottom: .4rem; }
+.game-shell--touch .game-finish { bottom: calc(7.4rem + 5.4rem + .4rem); }
 .game-shell--touch .minimap { width: 5.4rem; height: 5.4rem; top: auto; bottom: 7.4rem; left: .6rem; transform: none; }
 .game-shell--touch .game-timing { top: 3rem; gap: .35rem; }
 .game-shell--touch .game-timing__pos, .game-shell--touch .game-timing__lap { min-width: 3.6rem; padding: .35rem .5rem; }

@@ -160,7 +160,7 @@ function PlayerCar() {
 
   return (
     <group ref={group} name="player-car">
-      <Suspense fallback={null}><TeamCarModel teamId={teamId} /></Suspense>
+      <Suspense fallback={null}><TeamCarModel teamId={teamId} alwaysVisible /></Suspense>
     </group>
   );
 }

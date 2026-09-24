@@ -11,9 +11,9 @@ const CAR_NAMES: Record<string, string> = {
 
 /**
  * The race HUD. Layout follows broadcast and game convention: position and
- * lap top-left where the eye rests, the gear inside an RPM arc bottom-right
- * where a wheel display would be, a mini-map in the bottom-left, and
- * short event toasts top-centre so they never cover the road ahead.
+ * lap top-left where the eye rests, gear and speed in the bottom-right, a
+ * mini-map in the bottom-left, and short event toasts top-centre so they
+ * never cover the road ahead.
  */
 export function GameHud() {
   const phase = useGameStore((state) => state.phase);
@@ -134,19 +134,12 @@ function Timing() {
   );
 }
 
-/** Full-width moments: lights out, final lap, the flag, pause. */
+/** Full-width moments: lights out and the final lap. Pause and the finish live outside this banner. */
 function Banners() {
   const finalLap = useGameStore((state) => state.finalLap);
-  const phase = useGameStore((state) => state.phase);
-  const paused = useGameStore((state) => state.paused);
   const elapsed = useGameStoreSampled((state) => state.elapsed, 10);
   const currentLapStart = useGameStore((state) => state.currentLapStart);
-  const finishPosition = useGameStore((state) => state.finishPosition);
   const showFinal = finalLap && elapsed - currentLapStart < 3;
-  if (paused) return <div className="game-banner game-banner--pause" role="status">Paused<small>P or Esc to resume</small></div>;
-  if (phase === 'finished') {
-    return <div className="game-banner game-banner--flag" role="status"><span className="game-banner__flag" aria-hidden="true" />Chequered flag · P{finishPosition}</div>;
-  }
   if (showFinal) return <div className="game-banner" role="status">Final lap</div>;
   return null;
 }

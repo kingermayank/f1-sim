@@ -13,19 +13,31 @@ const CAR_LENGTH_METRES = 5.6;
  * The supplied models are authored at three different scales, so each is
  * measured and scaled from its own bounds rather than trusting the file.
  */
-export function TeamCarModel({ teamId, detail = 'full' }: { teamId: string; detail?: 'full' | 'low' }) {
+export function TeamCarModel({
+  teamId,
+  detail = 'full',
+  alwaysVisible = false,
+}: {
+  teamId: string;
+  detail?: 'full' | 'low';
+  alwaysVisible?: boolean;
+}) {
   const gltf = useGLTF(detail === 'low' ? ASSETS.teamCarLod(teamId) : ASSETS.teamCar(teamId));
-  const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
-    if (!(material instanceof MeshStandardMaterial)) return;
-    material.roughness = Math.min(0.95, Math.max(0.18, material.roughness));
-    material.envMapIntensity = 0.85;
-  }), [gltf.scene]);
-  useEffect(() => () => resources.dispose(), [resources]);
-
-  const scene = useMemo(() => {
-    const object = resources.scene;
+  const resources = useMemo(() => {
+    const cloned = cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
+      if (!(material instanceof MeshStandardMaterial)) return;
+      material.roughness = Math.min(0.95, Math.max(0.18, material.roughness));
+      material.envMapIntensity = 0.85;
+      if (!material.transparent) return;
+      // The race uses a logarithmic depth buffer. Transparent livery that skips
+      // the depth write smears a second ghost of the car down the road.
+      material.depthWrite = true;
+      material.needsUpdate = true;
+    });
+    const object = cloned.scene;
     object.scale.set(1, 1, 1);
     object.position.set(0, 0, 0);
+    object.rotation.set(0, 0, 0);
     const size = new Box3().setFromObject(object).getSize(new Vector3());
     const length = Math.max(size.x, size.z) || 1;
     object.scale.setScalar(CAR_LENGTH_METRES / length);
@@ -37,10 +49,21 @@ export function TeamCarModel({ teamId, detail = 'full' }: { teamId: string; deta
     const centre = scaled.getCenter(new Vector3());
     object.position.set(-centre.x, -scaled.min.y, -centre.z);
     object.traverse((child) => {
-      if (child instanceof Mesh) { child.castShadow = true; child.receiveShadow = true; }
+      if (child instanceof Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.geometry.computeBoundingBox();
+        child.geometry.computeBoundingSphere();
+      }
     });
-    return object;
-  }, [resources]);
+    return cloned;
+  }, [gltf.scene]);
+  useEffect(() => () => resources.dispose(), [resources]);
+  useEffect(() => {
+    resources.scene.traverse((child) => {
+      if (child instanceof Mesh) child.frustumCulled = !alwaysVisible;
+    });
+  }, [resources, alwaysVisible]);
 
-  return <primitive object={scene} dispose={null} />;
+  return <primitive object={resources.scene} dispose={null} />;
 }
