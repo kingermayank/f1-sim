@@ -78,6 +78,18 @@ export function createProjectedTrack(track: TrackDefinition, halfWidth = 6.8, wa
     return best;
   }
 
+  function interpolateSample(index: number, t: number): { point: Vector3; tangent: Vector3 } {
+    const clamped = Math.max(-1, Math.min(1, t));
+    const neighbor = clamped >= 0
+      ? (index + 1) % SAMPLES
+      : (index - 1 + SAMPLES) % SAMPLES;
+    const blend = Math.abs(clamped);
+    const point = points[index].clone().lerp(points[neighbor], blend);
+    const tangent = tangents[index].clone().lerp(tangents[neighbor], blend);
+    if (tangent.lengthSq() > 0) tangent.normalize();
+    return { point, tangent };
+  }
+
   return {
     lengthMeters: track.lengthMeters,
     halfWidth,
@@ -86,13 +98,16 @@ export function createProjectedTrack(track: TrackDefinition, halfWidth = 6.8, wa
 
     project(x, z, hint) {
       const index = nearestIndex(x, z, hint);
-      const point = points[index];
-      const tangent = tangents[index];
-      // Refine the fraction along the local tangent so it is continuous rather
-      // than stepping in 1/2048ths.
-      const along = (x - point.x) * tangent.x + (z - point.z) * tangent.z;
+      const nearest = points[index];
+      const nearestTangent = tangents[index];
+      // Refine along the local tangent so fraction and height are continuous
+      // rather than stepping every 1/2048th of the lap (~2.6 m). Those steps
+      // read as the car bouncing on a corner that has any slope.
+      const along = (x - nearest.x) * nearestTangent.x + (z - nearest.z) * nearestTangent.z;
       const segment = track.lengthMeters / SAMPLES;
-      const fraction = (((index + along / segment) / SAMPLES) % 1 + 1) % 1;
+      const t = along / segment;
+      const fraction = (((index + t) / SAMPLES) % 1 + 1) % 1;
+      const { point, tangent } = interpolateSample(index, t);
       // Left of travel is +ve: cross(up, tangent) gives the left normal.
       const leftX = -tangent.z;
       const leftZ = tangent.x;
@@ -101,9 +116,9 @@ export function createProjectedTrack(track: TrackDefinition, halfWidth = 6.8, wa
     },
 
     at(fraction, lateral = 0) {
-      const index = ((Math.round((((fraction % 1) + 1) % 1) * SAMPLES)) % SAMPLES + SAMPLES) % SAMPLES;
-      const point = points[index].clone();
-      const tangent = tangents[index];
+      const exact = ((((fraction % 1) + 1) % 1) * SAMPLES);
+      const index = ((Math.floor(exact) % SAMPLES) + SAMPLES) % SAMPLES;
+      const { point, tangent } = interpolateSample(index, exact - Math.floor(exact));
       point.x += -tangent.z * lateral;
       point.z += tangent.x * lateral;
       return { point, tangent };

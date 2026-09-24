@@ -107,6 +107,21 @@ describe('track projection', () => {
     expect(track.inPassingZone(0.98)).toBe(true);
     expect(track.inPassingZone(0.4)).toBe(false);
   });
+
+  it('keeps height continuous along the lap instead of stepping sample to sample', () => {
+    let previous = track.at(0).point;
+    let maxJump = 0;
+    for (let f = 0.0002; f < 1; f += 0.0002) {
+      const { point } = track.at(f);
+      const travel = Math.hypot(point.x - previous.x, point.z - previous.z);
+      if (travel > 0.15) maxJump = Math.max(maxJump, Math.abs(point.y - previous.y));
+      previous = point;
+    }
+    // A metre of Shanghai never climbs more than a few centimetres. A raw
+    // 2048-sample hop on the T1 rise was several times that, and the chase
+    // camera read it as the car bouncing.
+    expect(maxJump).toBeLessThan(0.12);
+  });
 });
 
 describe('barriers', () => {

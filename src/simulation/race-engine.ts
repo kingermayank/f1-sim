@@ -652,6 +652,10 @@ export function createRaceEngine(
   function applyOvertakes(cars: CarState[]): CarState[] {
     const result = cars.map((car) => {
       if (car.status !== 'running' || car.pitState !== 'track') return car;
+      // Still in the grid boxes: keep the staggered slots. The start/finish is
+      // inside a DRS zone, so without this they jump onto an attack line at
+      // lights out.
+      if (car.lap < 0 || car.distance >= 0.94) return car;
       const inPassingZone = passingZones.some((zone) => atZone(car.distance, zone));
       return state.flag !== 'green' || !inPassingZone
         ? { ...car, targetLine: 'racing' as const, lateralOffset: 0 }

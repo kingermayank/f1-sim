@@ -196,24 +196,24 @@ describe('game store', () => {
     expect(store.getState().hitCar).toBe(0);
   });
 
-  it('moves rivals near the player to the other side of the track', () => {
+  it('sends the field away in their grid lanes instead of sliding across the player', () => {
     const store = createGameStore();
     store.getState().configure({ driverId: 'norris', laps: 3, seed: 'avoid', difficulty: 'easy' });
+    const gridLaterals = new Map(store.getState().ai.map((car) => [car.driverId, car.lateralOffset]));
     launch(store);
-    let checked = 0;
-    for (let t = 0; t < 6; t += 1 / 60) {
-      store.getState().step(1 / 60, FULL_THROTTLE);
-      const state = store.getState();
-      if (t < 2) continue; // let the move settle
-      for (const rival of state.ai) {
-        const along = Math.abs((rival.lap + rival.distance) - (state.lap + state.fraction)) * projectedTrack.lengthMeters;
-        if (rival.status !== 'running' || along > 12) continue;
-        checked += 1;
-        expect(Math.sign(rival.lateralOffset)).toBe(-Math.sign(state.lateral));
-        expect(Math.abs(rival.lateralOffset - state.lateral)).toBeGreaterThan(2.4);
-      }
+    for (let t = 0; t < 2; t += 1 / 60) store.getState().step(1 / 60, FULL_THROTTLE);
+    const { car, ai, fraction, lap } = store.getState();
+    const playerProgress = lap + fraction;
+    let nearest = Number.POSITIVE_INFINITY;
+    for (const rival of ai) {
+      expect(rival.lateralOffset).toBeCloseTo(gridLaterals.get(rival.driverId) ?? 0, 1);
+      if (rival.status !== 'running') continue;
+      const along = ((rival.lap + rival.distance) - playerProgress) * projectedTrack.lengthMeters;
+      if (along > 0) nearest = Math.min(nearest, along);
     }
-    expect(checked).toBeGreaterThan(0);
+    expect(nearest).toBeGreaterThan(18);
+    expect(nearest).toBeLessThan(48);
+    expect(car.speed).toBeLessThan(40);
   });
 
   it('resets the car onto the racing line after going off', () => {
