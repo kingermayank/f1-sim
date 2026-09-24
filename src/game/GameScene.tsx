@@ -10,7 +10,7 @@ import { createEngineAudio } from './engine-audio';
 import { INTRO_SECONDS, gameStore, projectedTrack, useGameStore } from './game-store';
 import { getPlayerInput } from './input';
 import { GuideLine } from './GuideLine';
-import { TeamCarModel } from './TeamCarModel';
+import { CarFillLights, TeamCarModel } from './TeamCarModel';
 
 const SPLINE = createSplineTrack(SHANGHAI_TRACK);
 
@@ -462,6 +462,7 @@ export function GameScene({ muted, lite = false, onWarm }: { muted: boolean; lit
       />
       <Environment quality={lite ? 'mobile' : 'high'} shadowFocus={playerFocus} racingLine={false} />
       <GuideLine />
+      <CarFillLights />
       <AiField />
       <PlayerCar />
       <ChequeredFlag />

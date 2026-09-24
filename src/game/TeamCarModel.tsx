@@ -1,11 +1,56 @@
 import { useGLTF } from '@react-three/drei';
-import { useEffect, useMemo } from 'react';
-import { Box3, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import { useFrame } from '@react-three/fiber';
+import { useEffect, useMemo, useRef } from 'react';
+import { Box3, DirectionalLight, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 import { ASSETS } from '../assets/asset-registry';
 import { faceNoseForward } from '../scene/car-orientation';
 import { cloneSceneWithOwnedMaterials } from '../scene/scene-resources';
 
 const CAR_LENGTH_METRES = 5.6;
+/** Cars also sit on this layer so a fill light can reach them without lifting the circuit. */
+const CAR_LIGHT_LAYER = 1;
+
+const cameraDirection = new Vector3();
+const fillTarget = new Vector3();
+
+/**
+ * Extra light that only hits the cars. The circuit is lit by the sun and
+ * hemisphere alone; these models are authored as metals and specular paint, so
+ * that same setup reads as black silhouettes from the chase camera.
+ */
+export function CarFillLights() {
+  const fill = useRef<DirectionalLight>(null);
+  useEffect(() => {
+    const light = fill.current;
+    if (!light) return;
+    light.layers.disable(0);
+    light.layers.enable(CAR_LIGHT_LAYER);
+    light.target.layers.disable(0);
+    light.target.layers.enable(CAR_LIGHT_LAYER);
+  }, []);
+  useFrame(({ camera }) => {
+    const light = fill.current;
+    if (!light) return;
+    camera.getWorldDirection(cameraDirection);
+    light.position.copy(camera.position);
+    fillTarget.copy(camera.position).addScaledVector(cameraDirection, 24);
+    light.target.position.copy(fillTarget);
+    light.target.updateMatrixWorld();
+  });
+  return (
+    <>
+      <hemisphereLight
+        args={['#e8f2fa', '#3a4044', 1.7]}
+        ref={(light) => {
+          if (!light) return;
+          light.layers.disable(0);
+          light.layers.enable(CAR_LIGHT_LAYER);
+        }}
+      />
+      <directionalLight ref={fill} color="#fff4e8" intensity={1.15} />
+    </>
+  );
+}
 
 /**
  * A team's car model, normalised to real size and sat on the ground.
@@ -52,6 +97,7 @@ export function TeamCarModel({
       if (child instanceof Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
+        child.layers.enable(CAR_LIGHT_LAYER);
         child.geometry.computeBoundingBox();
         child.geometry.computeBoundingSphere();
       }
