@@ -137,3 +137,14 @@ export function preloadShowroom() {
     useGLTF.preload(ASSETS.teamCarLod(team.id));
   }
 }
+
+/**
+ * Drop the cached cars when the showroom canvas goes away. Those GPU uploads
+ * belong to a dead WebGL context; if the race reused them the field drew black.
+ */
+export function releaseShowroom() {
+  for (const team of TEAMS_2026) {
+    useGLTF.clear(ASSETS.teamCar(team.id));
+    useGLTF.clear(ASSETS.teamCarLod(team.id));
+  }
+}

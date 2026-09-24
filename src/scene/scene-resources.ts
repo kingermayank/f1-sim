@@ -9,7 +9,7 @@ export interface OwnedSceneClone {
  * Maps that GLTF materials carry. `Material.clone()` keeps the same Texture
  * objects, and those stay bound to the WebGL context that first drew them.
  * Leaving the showroom therefore leaves the race with dead uploads — the cars
- * draw as black shells until each map is marked to upload again.
+ * draw as black shells. Each clone gets its own maps so they can upload again.
  */
 const TEXTURE_KEYS = [
   'map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap',
@@ -19,10 +19,15 @@ const TEXTURE_KEYS = [
   'thicknessMap', 'anisotropyMap', 'iridescenceMap', 'iridescenceThicknessMap',
 ] as const;
 
-function rebindMaps(material: Material) {
+function detachMaps(material: Material, ownedTextures: Set<Texture>) {
+  const record = material as Material & Record<string, unknown>;
   for (const key of TEXTURE_KEYS) {
-    const texture = (material as Material & Record<string, unknown>)[key];
-    if (texture instanceof Texture) texture.needsUpdate = true;
+    const texture = record[key];
+    if (!(texture instanceof Texture)) continue;
+    const clone = texture.clone();
+    clone.needsUpdate = true;
+    record[key] = clone;
+    ownedTextures.add(clone);
   }
 }
 
@@ -32,13 +37,14 @@ export function cloneSceneWithOwnedMaterials(
 ): OwnedSceneClone {
   const scene = source.clone(true);
   const ownedMaterials = new Set<Material>();
+  const ownedTextures = new Set<Texture>();
 
   scene.traverse((object) => {
     if (!(object instanceof Mesh)) return;
     const sourceMaterials = Array.isArray(object.material) ? object.material : [object.material];
     const clonedMaterials = sourceMaterials.map((sourceMaterial) => {
       const clonedMaterial = sourceMaterial.clone();
-      rebindMaps(clonedMaterial);
+      detachMaps(clonedMaterial, ownedTextures);
       ownedMaterials.add(clonedMaterial);
       configureMaterial?.(clonedMaterial, object);
       return clonedMaterial;
@@ -56,6 +62,8 @@ export function cloneSceneWithOwnedMaterials(
      * but was never rendered.
      */
     dispose() {
+      for (const texture of ownedTextures) texture.dispose();
+      ownedTextures.clear();
       for (const material of ownedMaterials) material.dispose();
       ownedMaterials.clear();
     },
