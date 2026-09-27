@@ -174,30 +174,22 @@ const SHADOW_METRES = 40;
 /**
  * One AI car on the spline. Position is read imperatively each frame. Both
  * detail levels are mounted and toggled by distance with hysteresis, so a
- * swap never waits on a load and never flickers at the boundary.
+ * swap never waits on a load and never flickers at the boundary. The full
+ * model stays up until the low one has actually mounted: the low group used
+ * to start visible with the full one hidden, and a failed or still-loading
+ * low model left that rival invisible for the whole race.
  */
 function AiCar({ driverId, teamId }: { driverId: string; teamId: string }) {
   const group = useRef<Group>(null);
   const full = useRef<Group>(null);
   const low = useRef<Group>(null);
-  const usingLow = useRef(true);
+  const usingLow = useRef(false);
   useFrame(() => {
     const object = group.current;
     if (!object) return;
     const state = gameStore.getState();
     const car = state.ai.find((candidate) => candidate.driverId === driverId);
     if (!car) return;
-    const distance = Math.hypot(object.position.x - state.car.x, object.position.z - state.car.z);
-    if (usingLow.current && distance < LOD_NEAR_METRES) usingLow.current = false;
-    else if (!usingLow.current && distance > LOD_FAR_METRES) usingLow.current = true;
-    if (full.current) full.current.visible = !usingLow.current;
-    if (low.current) low.current.visible = usingLow.current;
-    const casts = distance < SHADOW_METRES;
-    const active = usingLow.current ? low.current : full.current;
-    if (active && active.userData.casts !== casts) {
-      active.userData.casts = casts;
-      active.traverse((child) => { if (child instanceof Mesh) child.castShadow = casts; });
-    }
     if (car.targetLine === 'pit' || car.pitState !== 'track') {
       const transform = SPLINE.sample(car.pitProgress, 0, 'pit');
       object.position.copy(transform.position);
@@ -210,11 +202,24 @@ function AiCar({ driverId, teamId }: { driverId: string; teamId: string }) {
       object.rotation.set(0, -Math.atan2(tangent.z, tangent.x) + Math.PI / 2, 0);
     }
     object.visible = car.status !== 'retired';
+    const distance = Math.hypot(object.position.x - state.car.x, object.position.z - state.car.z);
+    const lowReady = (low.current?.children.length ?? 0) > 0;
+    if (!lowReady) usingLow.current = false;
+    else if (usingLow.current && distance < LOD_NEAR_METRES) usingLow.current = false;
+    else if (!usingLow.current && distance > LOD_FAR_METRES) usingLow.current = true;
+    if (full.current) full.current.visible = !usingLow.current;
+    if (low.current) low.current.visible = usingLow.current;
+    const casts = distance < SHADOW_METRES;
+    const active = usingLow.current ? low.current : full.current;
+    if (active && active.userData.casts !== casts) {
+      active.userData.casts = casts;
+      active.traverse((child) => { if (child instanceof Mesh) child.castShadow = casts; });
+    }
   });
   return (
     <group ref={group} name={`ai-car-${driverId}`}>
-      <group ref={full} visible={false}><Suspense fallback={null}><TeamCarModel teamId={teamId} sunlit /></Suspense></group>
-      <group ref={low}><Suspense fallback={null}><TeamCarModel teamId={teamId} detail="low" sunlit /></Suspense></group>
+      <group ref={full}><Suspense fallback={null}><TeamCarModel teamId={teamId} sunlit /></Suspense></group>
+      <group ref={low} visible={false}><Suspense fallback={null}><TeamCarModel teamId={teamId} detail="low" sunlit /></Suspense></group>
     </group>
   );
 }

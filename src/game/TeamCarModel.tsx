@@ -7,27 +7,18 @@ import { faceNoseForward } from '../scene/car-orientation';
 import { cloneSceneWithOwnedMaterials } from '../scene/scene-resources';
 
 const CAR_LENGTH_METRES = 5.6;
-/** Cars also sit on this layer so a fill light can reach them without lifting the circuit. */
-const CAR_LIGHT_LAYER = 1;
 
 const cameraDirection = new Vector3();
 const fillTarget = new Vector3();
 
 /**
- * Extra light that only hits the cars. The circuit is lit by the sun and
- * hemisphere alone; these models are authored as metals and specular paint, so
- * the chase view would otherwise lose the livery on the rear bodywork.
+ * A light that rides with the chase camera. These models are authored as
+ * metals, and the sun sits in front of the car, so the rear the player
+ * actually sees would otherwise fall off to black. It stays on the default
+ * layer: a light the camera cannot see is dropped before it shades anything.
  */
 export function CarFillLights() {
   const fill = useRef<DirectionalLight>(null);
-  useEffect(() => {
-    const light = fill.current;
-    if (!light) return;
-    light.layers.disable(0);
-    light.layers.enable(CAR_LIGHT_LAYER);
-    light.target.layers.disable(0);
-    light.target.layers.enable(CAR_LIGHT_LAYER);
-  }, []);
   useFrame(({ camera }) => {
     const light = fill.current;
     if (!light) return;
@@ -37,19 +28,7 @@ export function CarFillLights() {
     light.target.position.copy(fillTarget);
     light.target.updateMatrixWorld();
   });
-  return (
-    <>
-      <hemisphereLight
-        args={['#e8f2fa', '#3a4044', 1.7]}
-        ref={(light) => {
-          if (!light) return;
-          light.layers.disable(0);
-          light.layers.enable(CAR_LIGHT_LAYER);
-        }}
-      />
-      <directionalLight ref={fill} color="#fff4e8" intensity={1.15} />
-    </>
-  );
+  return <directionalLight ref={fill} color="#fff6ee" intensity={0.85} />;
 }
 
 /**
@@ -73,8 +52,12 @@ export function TeamCarModel({
   const resources = useMemo(() => {
     const cloned = cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
       if (!(material instanceof MeshStandardMaterial)) return;
-      material.roughness = Math.min(0.95, Math.max(0.18, material.roughness));
-      material.envMapIntensity = 0.85;
+      material.roughness = Math.min(0.95, Math.max(sunlit ? 0.32 : 0.18, material.roughness));
+      // Fully metallic paint with no environment map multiplies the livery by
+      // zero, so the car is a black shell from the chase view. Keep enough
+      // diffuse for the sun to show the colours.
+      material.metalness = sunlit ? Math.min(material.metalness, 0.58) : material.metalness;
+      material.envMapIntensity = sunlit ? 0.45 : 1.05;
       if (!material.transparent) return;
       // The race uses a logarithmic depth buffer. Transparent livery that skips
       // the depth write smears a second ghost of the car down the road.
@@ -99,19 +82,19 @@ export function TeamCarModel({
       if (child instanceof Mesh) {
         child.castShadow = true;
         child.receiveShadow = true;
-        if (sunlit) child.layers.enable(CAR_LIGHT_LAYER);
+        child.frustumCulled = !(alwaysVisible || sunlit);
         child.geometry.computeBoundingBox();
         child.geometry.computeBoundingSphere();
       }
     });
     return cloned;
-  }, [gltf.scene, sunlit]);
+  }, [alwaysVisible, gltf.scene, sunlit]);
   useEffect(() => () => resources.dispose(), [resources]);
   useEffect(() => {
     resources.scene.traverse((child) => {
-      if (child instanceof Mesh) child.frustumCulled = !alwaysVisible;
+      if (child instanceof Mesh) child.frustumCulled = !(alwaysVisible || sunlit);
     });
-  }, [resources, alwaysVisible]);
+  }, [resources, alwaysVisible, sunlit]);
 
   return <primitive object={resources.scene} dispose={null} />;
 }

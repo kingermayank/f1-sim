@@ -1,4 +1,4 @@
-import { ContactShadows, OrbitControls, useGLTF } from '@react-three/drei';
+import { ContactShadows, Environment, Lightformer, OrbitControls, useGLTF } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Color, Group } from 'three';
@@ -96,13 +96,14 @@ export function ShowroomScene({ teamId, lite = false }: { teamId: string; lite?:
   return (
     <Canvas
       className="showroom__canvas"
-      shadows={!lite}
-      dpr={lite ? 1 : [1, 1.5]}
-      gl={{ antialias: !lite, alpha: true, powerPreference: 'high-performance' }}
+      shadows
+      dpr={lite ? [1, 2] : [1, 1.5]}
+      gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       camera={{ position: [7.4, 2.3, 7.2], fov: 30, near: 0.1, far: 100 }}
     >
       <FrameForAspect />
       <Lights accent={team.color} />
+      {lite && <ShowroomStudio key={team.color} accent={team.color} />}
       <CarSwap teamId={teamId} />
       <ContactShadows position={[0, 0.018, 0]} opacity={0.92} scale={10} blur={1.35} far={3.5} color="#000000" />
       <mesh position={[0, -0.095, 0]} receiveShadow castShadow>
@@ -130,21 +131,26 @@ export function ShowroomScene({ teamId, lite = false }: { teamId: string; lite?:
   );
 }
 
+/**
+ * Reflections for the phone showroom. The desktop stage already has enough
+ * light; a phone was drawing the same metal at 1× with no environment, so the
+ * paint read as a soft blur. This bakes once per team.
+ */
+function ShowroomStudio({ accent }: { accent: string }) {
+  return (
+    <Environment resolution={512} frames={1} environmentIntensity={1.05}>
+      <Lightformer form="rect" intensity={3.2} position={[0, 4.2, -3.5]} scale={[9, 3.2, 1]} />
+      <Lightformer form="rect" intensity={1.6} position={[-5.2, 2.2, 1.4]} rotation={[0, Math.PI / 2, 0]} scale={[7, 2.4, 1]} color={accent} />
+      <Lightformer form="rect" intensity={1.35} position={[5.2, 1.6, 1.2]} rotation={[0, -Math.PI / 2, 0]} scale={[7, 2.4, 1]} />
+      <Lightformer form="circle" intensity={0.7} position={[0, 1.8, 5.5]} scale={2.4} />
+    </Environment>
+  );
+}
+
 /** Warm every team model so flipping through the field never waits on a download. */
 export function preloadShowroom() {
   for (const team of TEAMS_2026) {
     useGLTF.preload(ASSETS.teamCar(team.id));
     useGLTF.preload(ASSETS.teamCarLod(team.id));
-  }
-}
-
-/**
- * Drop the cached cars when the showroom canvas goes away. Those GPU uploads
- * belong to a dead WebGL context; if the race reused them the field drew black.
- */
-export function releaseShowroom() {
-  for (const team of TEAMS_2026) {
-    useGLTF.clear(ASSETS.teamCar(team.id));
-    useGLTF.clear(ASSETS.teamCarLod(team.id));
   }
 }

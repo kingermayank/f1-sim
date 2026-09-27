@@ -587,20 +587,29 @@
 
 @media (max-width: 639px) {
   /* A short phone scrolls instead of shrinking the car preview. The driver
-     list and start button stay pinned, and may cover the bottom of the car. */
+     list and start button stay pinned, and may cover the bottom of the car.
+     backdrop-filter on these cards rasterises their text on phones, so the
+     glass is a solid panel there. */
   .app-shell--showroom { overflow-y: auto; overscroll-behavior: contain; }
   .showroom {
     height: auto; min-height: 100%; overflow: visible;
     grid-template-rows: auto auto auto minmax(15rem, 1fr) auto;
     padding-bottom: calc(11rem + env(safe-area-inset-bottom));
   }
-  .showroom__stage { min-height: 15rem; }
+  .showroom__stage { min-height: 18rem; }
+  .showroom__stage::after { background: linear-gradient(180deg, rgb(3 5 10 / 28%) 0%, transparent 22%, transparent 78%, rgb(3 5 10 / 40%) 100%); }
+  .showroom__card,
+  .showroom__circuit,
+  .showroom__settings {
+    backdrop-filter: none;
+    background: rgb(8 12 18 / 94%);
+  }
   .showroom__foot {
     position: fixed;
     inset: auto 0 0 0;
     z-index: 8;
-    background: linear-gradient(180deg, rgb(3 5 10 / 20%), rgb(3 5 10 / 94%) 22%);
-    backdrop-filter: blur(16px);
+    background: linear-gradient(180deg, rgb(3 5 10 / 72%), rgb(3 5 10 / 98%) 24%);
+    backdrop-filter: none;
   }
 }
 
