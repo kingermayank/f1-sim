@@ -28,7 +28,7 @@ export function CarFillLights() {
     light.target.position.copy(fillTarget);
     light.target.updateMatrixWorld();
   });
-  return <directionalLight ref={fill} color="#fff6ee" intensity={0.85} />;
+  return <directionalLight ref={fill} color="#fff6ee" intensity={1.35} />;
 }
 
 /**
@@ -52,12 +52,20 @@ export function TeamCarModel({
   const resources = useMemo(() => {
     const cloned = cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
       if (!(material instanceof MeshStandardMaterial)) return;
-      material.roughness = Math.min(0.95, Math.max(sunlit ? 0.32 : 0.18, material.roughness));
-      // Fully metallic paint with no environment map multiplies the livery by
-      // zero, so the car is a black shell from the chase view. Keep enough
-      // diffuse for the sun to show the colours.
-      material.metalness = sunlit ? Math.min(material.metalness, 0.58) : material.metalness;
-      material.envMapIntensity = sunlit ? 0.45 : 1.05;
+      // These paints are authored as near-perfect mirrors. In the race that
+      // reflection is the grey road, so the livery disappears and the car reads
+      // as a dark blob. Keep a little gloss and let the colour map show.
+      material.roughness = Math.min(0.95, Math.max(sunlit ? 0.58 : 0.18, material.roughness));
+      material.metalness = sunlit ? Math.min(material.metalness, 0.22) : material.metalness;
+      material.envMapIntensity = sunlit ? 0.35 : 1.05;
+      if (sunlit && 'specularIntensity' in material) {
+        const physical = material as MeshStandardMaterial & { specularIntensity: number };
+        physical.specularIntensity = Math.min(physical.specularIntensity, 0.15);
+      }
+      if (sunlit && 'clearcoat' in material) {
+        const physical = material as MeshStandardMaterial & { clearcoat: number };
+        physical.clearcoat = Math.min(physical.clearcoat, 0.15);
+      }
       if (!material.transparent) return;
       // The race uses a logarithmic depth buffer. Transparent livery that skips
       // the depth write smears a second ghost of the car down the road.

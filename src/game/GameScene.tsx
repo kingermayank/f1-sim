@@ -1,4 +1,4 @@
-import { PerformanceMonitor, useProgress } from '@react-three/drei';
+import { Environment as Reflections, Lightformer, PerformanceMonitor, useProgress } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { CanvasTexture, Group, Mesh, PerspectiveCamera, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three';
@@ -269,10 +269,16 @@ function ChaseCamera() {
     const placed = gameStore.getState().placement;
     if (placed !== placement.current) { placement.current = placed; snapped.current = false; }
     const speedFraction = Math.min(1, car.speed / 85);
-    const back = 9 + speedFraction * 5;
-    const up = 3.2 + speedFraction * 1.2;
-    desiredOffset.set(-Math.cos(car.heading) * back, up, -Math.sin(car.heading) * back);
-    desiredLook.set(Math.cos(car.heading) * 12, 1.2, Math.sin(car.heading) * 12);
+    // A dead-rear chase looks at the diffuser and the rear wing, which these
+    // models paint black. Sit up and to the side so the livery on the sidepod
+    // is what the player sees, and the cars ahead show a flank instead of a dot.
+    const back = 9 + speedFraction * 4;
+    const up = 3.6 + speedFraction * 1.1;
+    const side = 3.4;
+    const rightX = Math.sin(car.heading);
+    const rightZ = -Math.cos(car.heading);
+    desiredOffset.set(-Math.cos(car.heading) * back + rightX * side, up, -Math.sin(car.heading) * back + rightZ * side);
+    desiredLook.set(Math.cos(car.heading) * 2, 0.7, Math.sin(car.heading) * 2);
     // Snap on the first frame so the race never opens on a camera gliding in
     // from its far initial position; damp from then on.
     const k = snapped.current ? 1 - Math.exp(-Math.min(delta, 0.1) * 6) : 1;
@@ -339,9 +345,9 @@ function createIntroShots() {
         const carPosition = new Vector3(car.x, surfaceY, car.z);
         const heading = new Vector3(Math.cos(car.heading), 0, Math.sin(car.heading));
         a.copy(carPosition).addScaledVector(heading, -34).addScaledVector(up, 14).addScaledVector(left, -8);
-        b.copy(carPosition).addScaledVector(heading, -9).addScaledVector(up, 3.2);
+        b.copy(carPosition).addScaledVector(heading, -9).addScaledVector(up, 3.6).addScaledVector(left, -3.4);
         position.lerpVectors(a, b, t);
-        look.copy(carPosition).addScaledVector(heading, 12 * t).addScaledVector(up, 1.2);
+        look.copy(carPosition).addScaledVector(heading, 2).addScaledVector(up, 0.7);
       }
       camera.position.copy(position);
       camera.lookAt(look);
@@ -436,6 +442,22 @@ function DevExpose() {
   return null;
 }
 
+/**
+ * The car paints are glossy and the chase camera looks at their unlit rear.
+ * With no environment they reflect black, so a red car reads as a dark blob.
+ * This cubemap is the sky they reflect. It is baked once.
+ */
+function RaceReflections() {
+  return (
+    <Reflections frames={1} resolution={256} environmentIntensity={1.25}>
+      <Lightformer form="rect" intensity={8} color="#fff3e2" position={[10, 12, 8]} scale={[22, 10, 1]} />
+      <Lightformer form="rect" intensity={3.5} color="#d7e8f6" position={[-12, 7, -6]} scale={[18, 8, 1]} />
+      <Lightformer form="rect" intensity={4} color="#f7f9fb" position={[0, 6, -14]} scale={[26, 7, 1]} />
+      <Lightformer form="rect" intensity={1.6} color="#c5cfc6" position={[0, -5, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[30, 30, 1]} />
+    </Reflections>
+  );
+}
+
 /** Where the shadow frustum should sit: on the player's car. */
 function playerFocus() {
   const { car, surfaceY } = gameStore.getState();
@@ -466,6 +488,7 @@ export function GameScene({ muted, lite = false, onWarm }: { muted: boolean; lit
         onFallback={() => setDpr(1)}
       />
       <Environment quality={lite ? 'mobile' : 'high'} shadowFocus={playerFocus} racingLine={false} />
+      <RaceReflections />
       <GuideLine />
       <CarFillLights />
       <AiField />
