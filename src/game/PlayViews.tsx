@@ -82,7 +82,7 @@ function LoadingScreen({ warm }: { warm: boolean }) {
       <p className="game-loading__eyebrow">Round {circuit.round} · {circuit.grandPrix}</p>
       <h2 className="game-loading__title">{circuit.name}</h2>
       <div className="game-loading__bar" aria-hidden="true"><span style={{ width: `${done ? 100 : Math.max(4, progress * 0.92)}%` }} /></div>
-      <p className="game-loading__status">{active ? `Loading ${Math.round(progress)}%` : done ? 'Starting race' : 'Warming up shaders'}</p>
+      <p className="game-loading__status">{active ? `Loading ${Math.round(progress)}%` : done ? 'Starting race' : 'Preparing car model'}</p>
     </div>
   );
 }

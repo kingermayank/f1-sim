@@ -11,6 +11,7 @@ import { INTRO_SECONDS, gameStore, projectedTrack, useGameStore } from './game-s
 import { getPlayerInput } from './input';
 import { GuideLine } from './GuideLine';
 import { CarFillLights, TeamCarModel } from './TeamCarModel';
+import { RaceReady } from './RaceReady';
 
 const SPLINE = createSplineTrack(SHANGHAI_TRACK);
 
@@ -66,8 +67,7 @@ function GameLoop({ muted }: { muted: boolean }) {
 
   useFrame((_, delta) => {
     const state = gameStore.getState();
-    // The intro waits for the loading screen: assets in, shaders compiled,
-    // and the player ready. Everything after it is already warm.
+    // The intro waits for loaded assets and a rendered player model.
     if ((loading || !state.ready) && state.phase === 'intro') { wasReady.current = false; return; }
     const controls = input.read();
     let skip = input.consumeSkip();
@@ -269,15 +269,10 @@ function ChaseCamera() {
     const placed = gameStore.getState().placement;
     if (placed !== placement.current) { placement.current = placed; snapped.current = false; }
     const speedFraction = Math.min(1, car.speed / 85);
-    // A dead-rear chase looks at the diffuser and the rear wing, which these
-    // models paint black. Sit up and to the side so the livery on the sidepod
-    // is what the player sees, and the cars ahead show a flank instead of a dot.
+    // Stay on the car's centreline, directly behind its heading.
     const back = 9 + speedFraction * 4;
     const up = 3.6 + speedFraction * 1.1;
-    const side = 3.4;
-    const rightX = Math.sin(car.heading);
-    const rightZ = -Math.cos(car.heading);
-    desiredOffset.set(-Math.cos(car.heading) * back + rightX * side, up, -Math.sin(car.heading) * back + rightZ * side);
+    desiredOffset.set(-Math.cos(car.heading) * back, up, -Math.sin(car.heading) * back);
     desiredLook.set(Math.cos(car.heading) * 2, 0.7, Math.sin(car.heading) * 2);
     // Snap on the first frame so the race never opens on a camera gliding in
     // from its far initial position; damp from then on.
@@ -409,27 +404,6 @@ function ChequeredFlag() {
   );
 }
 
-/**
- * Compiles every shader the race will need before the first frame is shown.
- * Without this the first seconds of the race — the busiest — also pay for
- * thirty-odd program compilations, one hitch each.
- */
-function WarmUp({ onWarm }: { onWarm: () => void }) {
-  const gl = useThree((state) => state.gl);
-  const scene = useThree((state) => state.scene);
-  const camera = useThree((state) => state.camera);
-  const loading = useProgress((state) => state.active);
-  const warmed = useRef(false);
-  useEffect(() => {
-    if (loading || warmed.current) return;
-    warmed.current = true;
-    const compile = (gl as unknown as { compileAsync?: (scene: unknown, camera: unknown) => Promise<unknown> }).compileAsync;
-    const done = compile ? compile.call(gl, scene, camera) : Promise.resolve(gl.compile(scene, camera));
-    void done.catch(() => undefined).then(onWarm);
-  }, [loading, gl, scene, camera, onWarm]);
-  return null;
-}
-
 /** Development only: exposes the scene and camera for inspection from the console. */
 function DevExpose() {
   const scene = useThree((state) => state.scene);
@@ -494,7 +468,7 @@ export function GameScene({ muted, lite = false, onWarm }: { muted: boolean; lit
       <AiField />
       <PlayerCar />
       <ChequeredFlag />
-      <WarmUp onWarm={onWarm} />
+      <RaceReady onReady={onWarm} />
       <DevExpose />
       <ChaseCamera />
       <GameLoop muted={muted} />
