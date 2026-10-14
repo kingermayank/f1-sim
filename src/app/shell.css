@@ -439,112 +439,17 @@
   .game-result__head { align-items: flex-start; }
 }
 
-/* -------------------------------------------------------------- showroom -- */
+/* ------------------------------------------- showroom music + picker -- */
+/* The homepage itself is styled in garage.css; these serve its music
+   embed and the circuit picker dialog. */
 .app-shell--showroom { min-height: 0; }
-.showroom {
-  position: relative; height: 100%; min-height: 0; display: grid; overflow: hidden;
-  grid-template-areas: "nav" "driver" "race" "preview" "footer";
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-  grid-template-columns: minmax(0, 1fr);
-  background:
-    radial-gradient(1100px 620px at 50% 78%, color-mix(in srgb, var(--team) 34%, transparent), transparent 62%),
-    radial-gradient(800px 420px at 8% 8%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
-    linear-gradient(180deg, #05080d 0%, #070b11 55%, #03050a 100%);
-  transition: background .5s ease;
-}
-.showroom > .shell-nav { grid-area: nav; }
-.showroom__driver { grid-area: driver; }
-.showroom__race { grid-area: race; }
-.showroom__foot { grid-area: footer; }
-/* On the homepage the bar floats over the stage. */
-.showroom > .shell-nav { position: relative; z-index: 4; background: none; backdrop-filter: none; }
-.showroom .shell-nav__mark { color: var(--on-team); }
+.showroom__eyebrow { margin: 0 0 .25rem; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; color: var(--signal); }
 .showroom__music {
   position: fixed !important; inset: 0 auto auto 0; z-index: -1;
   width: 1px !important; height: 1px !important; overflow: hidden;
   opacity: 0; clip-path: inset(50%); pointer-events: none;
 }
 .showroom__spotify-embed, .showroom__music iframe { width: 1px !important; height: 1px !important; border: 0 !important; pointer-events: none; }
-
-.showroom__stage {
-  grid-area: preview; position: relative; min-height: 0; overflow: hidden; z-index: 0;
-}
-.showroom__stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgb(3 5 10 / 70%) 0%, transparent 32%, transparent 68%, rgb(3 5 10 / 70%) 100%); }
-.showroom__canvas { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; }
-.showroom__swap { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle at 50% 55%, #05080d 0 18%, rgb(5 8 13 / 84%) 42%, transparent 72%); opacity: 0; animation: showroom-swap .3s ease-in-out both; }
-@keyframes showroom-swap { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
-.showroom__loading { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); display: grid; gap: .5rem; justify-items: center; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
-.showroom__loading-bar { width: 9rem; height: 2px; background: rgb(255 255 255 / 12%); overflow: hidden; position: relative; }
-.showroom__loading-bar::after { content: ''; position: absolute; inset: 0; width: 40%; background: var(--team); animation: showroom-loading 1s ease-in-out infinite alternate; }
-@keyframes showroom-loading { from { transform: translateX(-20%); } to { transform: translateX(170%); } }
-@media (prefers-reduced-motion: reduce) { .showroom__card, .showroom__swap { animation: none; } .showroom__loading-bar::after { animation: none; width: 100%; } }
-
-.showroom__eyebrow { margin: 0 0 .5rem; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; color: var(--signal); }
-.showroom__card .showroom__eyebrow { margin-bottom: 4px; font-weight: 500; }
-
-.showroom__driver { position: relative; z-index: 2; align-self: start; justify-self: start; width: min(27rem, 40vw); padding: clamp(.5rem, 2vh, 2rem) clamp(1rem, 3vw, 2rem) 0; pointer-events: none; }
-.showroom__driver > * { pointer-events: auto; }
-/* The driver card: the same glass as the circuit card, team colour on its edge. A flip slides it in from the side you flipped towards. */
-.showroom__card {
-  position: relative; padding: 1rem 1.2rem 1.1rem 1.3rem; border-radius: max(0px, calc(.6rem - 2px));
-  background: rgb(5 9 14 / 74%); border: 1px solid rgb(255 255 255 / 16%); border-left: 4px solid var(--team); backdrop-filter: blur(12px);
-  animation: showroom-card-in .5s cubic-bezier(.2,.8,.2,1) both;
-}
-.showroom__card::before, .showroom__card::after { content: ''; position: absolute; width: 12px; height: 12px; border-color: rgb(255 255 255 / 40%); border-style: solid; pointer-events: none; }
-.showroom__card::before { top: 7px; right: 7px; border-width: 1px 1px 0 0; }
-.showroom__card::after { bottom: 7px; right: 7px; border-width: 0 1px 1px 0; }
-.showroom__card.is-from-left { --from: -28px; }
-.showroom__card.is-from-right { --from: 28px; }
-@keyframes showroom-card-in { from { opacity: 0; transform: translateX(var(--from, 24px)); } to { opacity: 1; transform: none; } }
-.showroom__number { max-width: 100%; overflow: hidden; font-family: var(--font-wide); font-size: clamp(3rem, 9vh, 5.75rem); line-height: .85; color: var(--team); letter-spacing: -.02em; text-shadow: 0 0 60px color-mix(in srgb, var(--team) 50%, transparent); }
-.showroom__name { max-width: 100%; margin: 6px 0 2px; font-family: var(--font-wide); font-size: clamp(1.1rem, 1.9vw, 1.7rem); line-height: 1.02; text-transform: uppercase; }
-.showroom__name span { display: block; max-width: 100%; }
-.showroom__name--long { font-size: clamp(1rem, 1.25vw, 1.18rem); }
-.showroom__hook { margin: 0 0 1rem; color: rgb(255 255 255 / 78%); font-size: .95rem; max-width: 34ch; }
-.showroom__ratings { margin: 0; display: grid; gap: .4rem; }
-.showroom__ratings div { display: grid; grid-template-columns: 6.2rem 1fr; align-items: center; gap: .6rem; }
-.showroom__ratings dt { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-.showroom__ratings dd { margin: 0; display: grid; grid-template-columns: 1fr 1.6rem; align-items: center; gap: .5rem; }
-.showroom__meter { display: block; height: .5rem; border-radius: 997px; background: rgb(255 255 255 / 10%); overflow: hidden; }
-.showroom__meter i { display: block; height: 100%; border-radius: 997px; background: linear-gradient(90deg, color-mix(in srgb, var(--team) 68%, white), var(--team) 58%, color-mix(in srgb, var(--team) 82%, var(--accent))); box-shadow: 0 0 12px color-mix(in srgb, var(--team) 28%, transparent); transition: width .4s cubic-bezier(.2,.8,.2,1); }
-.showroom__ratings dd em { font-style: normal; font-family: var(--font-mono); font-size: .68rem; color: var(--text); text-align: right; }
-
-.showroom__race { position: relative; z-index: 2; align-self: center; justify-self: end; width: min(22rem, 40vw); padding: 0 clamp(1rem, 3vw, 2rem); display: grid; gap: .8rem; }
-.showroom__circuit { display: grid; grid-template-columns: 5.6rem 1fr; gap: .8rem; align-items: center; text-align: left; padding: .8rem; border-radius: max(0px, calc(.6rem - 2px)); cursor: pointer; font: inherit; color: var(--text); background: rgb(5 9 14 / 74%); border: 1px solid rgb(255 255 255 / 16%); backdrop-filter: blur(12px); transition: border-color .12s, transform .12s; }
-.showroom__circuit:hover, .showroom__circuit:focus-visible { border-color: var(--signal); transform: translateY(-1px); outline: none; }
-.showroom__circuit-map { display: block; height: 5.6rem; }
-.showroom__circuit-text { display: grid; gap: .15rem; min-width: 0; }
-.showroom__eyebrow--clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.showroom__circuit-text strong { font-size: 1rem; line-height: 1.15; }
-.showroom__circuit-meta { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
-.showroom__change { margin-top: .25rem; font-family: var(--font-mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--signal); }
-
-.showroom__settings { display: grid; gap: .5rem; padding: .8rem; border-radius: max(0px, calc(.6rem - 2px)); background: rgb(5 9 14 / 74%); border: 1px solid rgb(255 255 255 / 16%); backdrop-filter: blur(12px); }
-.showroom__segment { display: grid; grid-template-columns: 4.2rem 1fr; align-items: center; gap: .5rem; }
-.showroom__segment-label { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-.showroom__segment-options { display: flex; gap: .25rem; }
-.showroom__segment-options button { flex: 1; padding: .4rem .3rem; border-radius: max(0px, calc(.35rem - 2px)); border: 1px solid rgb(255 255 255 / 14%); background: rgb(255 255 255 / 4%); color: var(--muted); font: inherit; font-family: var(--font-mono); font-size: .74rem; cursor: pointer; }
-.showroom__segment-options button:hover { color: var(--text); border-color: rgb(255 255 255 / 40%); }
-.showroom__segment-options button.is-selected { color: var(--on-team); background: var(--signal); border-color: var(--signal); font-weight: 700; }
-.showroom__segment-options button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
-
-.showroom__foot { position: relative; z-index: 3; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem; padding: .9rem clamp(1rem, 3vw, 2rem) 1.1rem; background: linear-gradient(180deg, transparent, rgb(3 5 10 / 85%) 40%); }
-.showroom__field { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .4rem; min-width: 0; }
-.showroom__arrow { width: 2.4rem; height: 3.4rem; border-radius: max(0px, calc(.45rem - 2px)); border: 1px solid rgb(255 255 255 / 18%); background: rgb(5 9 14 / 70%); color: var(--text); font: inherit; font-size: 1.6rem; cursor: pointer; }
-.showroom__arrow:hover { border-color: var(--signal); color: var(--signal); }
-.showroom__chips { display: flex; gap: .35rem; overflow-x: auto; scrollbar-width: none; padding: .5rem .2rem; min-width: 0; }
-.showroom__chips::-webkit-scrollbar { display: none; }
-.showroom__chip { flex: 0 0 auto; display: grid; gap: .05rem; min-width: 3.9rem; padding: .45rem .55rem; border-radius: max(0px, calc(.45rem - 2px)); border: 1px solid rgb(255 255 255 / 14%); border-top: 3px solid var(--chip); background: rgb(5 9 14 / 74%); color: var(--muted); font: inherit; cursor: pointer; text-align: left; transition: transform .15s cubic-bezier(.2,.8,.2,1), border-color .15s, color .15s; }
-.showroom__chip:hover { color: var(--text); border-color: rgb(255 255 255 / 40%); }
-.showroom__chip.is-selected { color: var(--text); border-color: var(--signal); transform: translateY(-.35rem) scale(1.06); background: color-mix(in srgb, var(--signal) 12%, rgb(5 9 14 / 74%)); box-shadow: 0 10px 30px rgb(0 0 0 / 45%), 0 0 18px color-mix(in srgb, var(--signal) 18%, transparent); }
-.showroom__chip:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
-.showroom__chip-num { font-family: var(--font-mono); font-size: .66rem; color: var(--chip); }
-.showroom__chip-name { font-family: var(--font-body); font-weight: 800; font-size: .9rem; letter-spacing: .04em; }
-
-.showroom__start { display: grid; place-items: center; padding: 1.1rem 2.6rem; font-family: var(--font-wide); font-size: 1.35rem; text-transform: uppercase; letter-spacing: .04em; border-radius: max(0px, calc(.6rem - 2px)); border: 0; cursor: pointer; font: inherit; color: var(--on-team); background: var(--signal); box-shadow: 0 0 0 1px color-mix(in srgb, var(--signal) 65%, white), 0 0 40px color-mix(in srgb, var(--signal) 38%, transparent); transition: background-color .35s ease, color .35s ease, transform .12s, box-shadow .12s; }
-.showroom__start:hover { transform: translateY(-2px); background: color-mix(in srgb, var(--signal) 88%, white); box-shadow: 0 0 0 1px color-mix(in srgb, var(--signal) 78%, white), 0 0 60px color-mix(in srgb, var(--signal) 52%, transparent); }
-.showroom__start:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-
 .showroom__picker { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 1rem; background: rgb(3 5 10 / 70%); backdrop-filter: blur(10px); }
 .showroom__picker-sheet { width: min(64rem, 100%); max-height: 88vh; overflow: auto; border-radius: max(0px, calc(.7rem - 2px)); border: 1px solid rgb(255 255 255 / 18%); background: rgb(6 10 16 / 97%); padding: 1.2rem 1.4rem; }
 .showroom__picker-sheet header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .4rem 1rem; margin-bottom: 1rem; }
@@ -564,103 +469,6 @@
 .showroom__round-num { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .14em; color: var(--muted); }
 .showroom__round-tag { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; padding: .2rem .45rem; border-radius: 1px; border: 1px solid currentcolor; color: var(--signal); }
 .is-locked .showroom__round-tag { color: var(--muted); }
-
-/* The preview yields space before any race setup controls do. */
-.showroom__driver, .showroom__race { width: auto; min-width: 0; justify-self: stretch; padding: .4rem .75rem; }
-.showroom__card { padding: .6rem .8rem; }
-.showroom__number, .showroom__hook, .showroom__ratings { display: none; }
-.showroom__name { font-size: 1.1rem; margin: .2rem 0 0; }
-.showroom__eyebrow { margin-bottom: .25rem; }
-.showroom__race { gap: .4rem; }
-.showroom__circuit { grid-template-columns: 3.5rem minmax(0, 1fr); padding: .5rem; gap: .5rem; }
-.showroom__circuit-map { height: 3.5rem; }
-.showroom__settings { padding: .5rem; gap: .25rem; }
-.showroom__foot { grid-template-columns: minmax(0, 1fr); padding: .4rem .75rem max(.75rem, env(safe-area-inset-bottom)); gap: .5rem; }
-.showroom__field { grid-template-columns: minmax(0, 1fr); }
-.showroom__arrow { display: none; }
-.showroom__chips { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .25rem; overflow: visible; padding: .2rem 0; }
-.showroom__chip { min-width: 0; min-height: 2.75rem; padding: .2rem; text-align: center; }
-.showroom__chip-name { font-size: .75rem; }
-.showroom__chip.is-selected { transform: none; box-shadow: none; }
-.showroom__start { min-height: 2.75rem; padding: .7rem 1rem; }
-.showroom > .shell-nav .shell-nav__watch { display: none; }
-
-@media (max-width: 639px) {
-  /* A short phone scrolls instead of shrinking the car preview. The driver
-     list and start button stay pinned, and may cover the bottom of the car.
-     backdrop-filter on these cards rasterises their text on phones, so the
-     glass is a solid panel there. */
-  .app-shell--showroom { overflow-y: auto; overscroll-behavior: contain; }
-  .showroom {
-    height: auto; min-height: 100%; overflow: visible;
-    grid-template-rows: auto auto auto minmax(15rem, 1fr) auto;
-    padding-bottom: calc(11rem + env(safe-area-inset-bottom));
-  }
-  .showroom__stage { min-height: 18rem; }
-  .showroom__stage::after { background: linear-gradient(180deg, rgb(3 5 10 / 28%) 0%, transparent 22%, transparent 78%, rgb(3 5 10 / 40%) 100%); }
-  .showroom__card,
-  .showroom__circuit,
-  .showroom__settings {
-    backdrop-filter: none;
-    background: rgb(8 12 18 / 94%);
-  }
-  .showroom__foot {
-    position: fixed;
-    inset: auto 0 0 0;
-    z-index: 8;
-    background: linear-gradient(180deg, rgb(3 5 10 / 72%), rgb(3 5 10 / 98%) 24%);
-    backdrop-filter: none;
-  }
-}
-
-@media (min-width: 640px) {
-  .showroom {
-    grid-template-areas: "nav nav" "driver preview" "race preview" "footer footer";
-    grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-  }
-  .showroom__stage { position: absolute; inset: 0; }
-  .showroom__driver, .showroom__race { width: min(24rem, 100%); padding: .5rem 1rem; }
-  .showroom__driver { padding-bottom: .25rem; }
-  .showroom__race { justify-self: start; align-self: start; padding-top: .25rem; }
-  .showroom__foot { grid-template-columns: minmax(0, 1fr) auto; }
-  .showroom__start { padding-inline: 1.5rem; }
-}
-
-@media (min-width: 900px) and (min-height: 700px) {
-  .showroom__driver, .showroom__race { padding: .75rem 2rem; }
-  .showroom__driver { padding-bottom: .2rem; }
-  .showroom__race { padding-top: .2rem; }
-  .showroom__card { padding: .75rem 1.2rem; }
-  .showroom__number { display: block; }
-  .showroom__hook { display: block; margin-bottom: .5rem; }
-  .showroom__ratings { display: grid; }
-  .showroom__name { font-size: clamp(1.1rem, 1.9vw, 1.7rem); margin: 6px 0 2px; }
-  .showroom__name--long { font-size: clamp(1rem, 1.25vw, 1.18rem); }
-  .showroom__race { align-self: start; gap: .6rem; }
-  .showroom__circuit { grid-template-columns: 3.25rem minmax(0, 1fr); padding: .55rem; gap: .6rem; }
-  .showroom__circuit-map { height: 3.25rem; }
-  .showroom__settings { padding: .55rem; gap: .3rem; }
-  .showroom__segment-options button { padding-block: .3rem; }
-  .showroom__foot { padding: .9rem 2rem max(1.1rem, env(safe-area-inset-bottom)); }
-  .showroom > .shell-nav .shell-nav__watch { display: inline; }
-}
-
-@media (min-width: 1200px) {
-  .showroom__chips { grid-template-columns: repeat(14, minmax(0, 1fr)); }
-}
-
-@media (max-height: 600px) {
-  .showroom .shell-nav { padding-block: .35rem; gap: .25rem .6rem; }
-  .showroom__circuit .showroom__eyebrow, .showroom__circuit-meta { display: none; }
-  .showroom__circuit-map { height: 2rem; }
-  .showroom__circuit { padding-block: .25rem; }
-  .showroom__circuit-text strong { font-size: .85rem; }
-  .showroom__change { display: none; }
-  .showroom__race { padding-block: .2rem; }
-  .showroom__card { padding-block: .35rem; }
-  .showroom__foot { padding-bottom: max(.4rem, env(safe-area-inset-bottom)); }
-}
 
 /* -- touch controls (coarse pointers only) ---------------------------------- */
 .touch { position: absolute; inset: 0; z-index: 6; pointer-events: none; touch-action: none; -webkit-user-select: none; user-select: none; }

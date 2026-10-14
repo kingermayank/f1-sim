@@ -19,7 +19,8 @@ export interface Route {
 const HOME: Route = { name: 'home' };
 
 export function parseHash(hash: string): Route {
-  const cleaned = hash.replace(/^#\/?/, '').replace(/\/+$/, '');
+  // A query after the route (`#/?d=leclerc`) carries page state, not a route.
+  const cleaned = hash.replace(/^#\/?/, '').split('?')[0].replace(/\/+$/, '');
   if (!cleaned) return HOME;
 
   const [head, tail] = cleaned.split('/');
@@ -45,6 +46,12 @@ export function routeHref(name: RouteName, param?: string): string {
   if (name === 'circuit') return `#/circuits/${param ?? ''}`;
   if (name === 'play-race') return '#/play/race';
   return `#/${name}`;
+}
+
+/** The query part of the hash, e.g. the shared car in `#/?d=leclerc&t=soft`. */
+export function readHashParams(hash = typeof window === 'undefined' ? '' : window.location.hash): URLSearchParams {
+  const index = hash.indexOf('?');
+  return new URLSearchParams(index < 0 ? '' : hash.slice(index + 1));
 }
 
 export function useRoute(): Route {

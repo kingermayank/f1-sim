@@ -1,0 +1,219 @@
+/*
+ * The garage: the homepage showroom. A full-bleed 3D room with the car on a
+ * turntable, the driver on the left, a glass card of tabs on the right, and
+ * the circuit drawn as the race button bottom-left. Typography follows the
+ * shell rule: Formula1 Wide only at display size, MonoSpec for figures.
+ */
+.garage {
+  --glass: linear-gradient(150deg, rgb(20 26 42 / 92%), rgb(13 18 32 / 90%));
+  --chip: rgb(13 18 32 / 77%);
+  --mute: #9ea8c2;
+  --fill: rgb(255 255 255 / 6%);
+  --fill2: rgb(255 255 255 / 10%);
+  --pill: #eef4ff;
+  --shadow: 0 18px 50px -20px rgb(0 0 0 / 73%);
+  position: relative; height: 100%; min-height: 0; overflow: hidden; isolation: isolate;
+  background: #0c111b; user-select: none;
+}
+.garage > .shell-nav { position: relative; z-index: 6; background: linear-gradient(180deg, rgb(5 8 13 / 55%), transparent); backdrop-filter: none; }
+.garage .shell-nav__mark { color: var(--on-team); }
+.garage__stage { position: absolute; inset: 0; z-index: 0; }
+.garage__stage .showroom__canvas { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; cursor: grab; touch-action: none; }
+.garage__stage .showroom__canvas:active { cursor: grabbing; }
+.garage__vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgb(7 10 19 / 56%), transparent 24%), radial-gradient(at 50% 52%, transparent 58%, rgb(4 6 12 / 61%) 100%);
+}
+
+/* ---------------------------------------------------------- driver side -- */
+.garage__side { position: absolute; z-index: 4; left: clamp(1rem, 2.2vw, 1.75rem); top: 5.2rem; width: 19rem; pointer-events: none; }
+.garage__side > * { pointer-events: auto; }
+.garage__eyebrow { margin: 0 0 .35rem; font-family: var(--font-mono); font-size: .68rem; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; color: var(--team); text-shadow: 0 2px 14px rgb(0 0 0 / 60%); }
+.garage__ident { display: grid; gap: .1rem; }
+.garage__number { font-family: var(--font-wide); font-size: clamp(3rem, 7.5vh, 4.6rem); line-height: .85; color: var(--team); letter-spacing: -.02em; text-shadow: 0 0 50px color-mix(in srgb, var(--team) 45%, transparent); transition: color .5s ease; }
+.garage__name { margin: .35rem 0 0; font-family: var(--font-wide); font-size: clamp(1.25rem, 2vw, 1.75rem); line-height: 1; text-transform: uppercase; letter-spacing: .01em; text-shadow: 0 2px 18px rgb(0 0 0 / 60%); }
+.garage__name span { display: block; }
+.garage__hook { margin: .7rem 0 .9rem; max-width: 30ch; font-size: .92rem; line-height: 1.4; color: rgb(232 236 247 / 82%); text-shadow: 0 1px 10px rgb(0 0 0 / 70%); }
+.garage__stats { margin: 0; display: flex; gap: .4rem; }
+.garage__stats div { flex: 1; padding: .4rem .55rem .45rem; border-radius: 10px; background: var(--chip); backdrop-filter: blur(8px); }
+.garage__stats dt { font-family: var(--font-mono); font-size: .58rem; letter-spacing: .12em; text-transform: uppercase; color: #8d97b3; }
+.garage__stats dd { margin: .1rem 0 0; font-family: var(--font-mono); font-size: 1.05rem; font-variant-numeric: tabular-nums; color: #fff; }
+.garage__stats .is-hot dd { color: var(--team); }
+
+/* ---------------------------------------------------------------- card -- */
+.garage__card {
+  position: absolute; z-index: 4; right: clamp(1rem, 2.2vw, 1.5rem); top: 4.9rem; width: 352px;
+  display: flex; flex-direction: column; gap: 9px; padding: 9px 10px 10px; max-height: calc(100% - 6.4rem);
+  border-radius: 16px; background: var(--glass); backdrop-filter: blur(14px); box-shadow: var(--shadow);
+  font-family: var(--font-body); color: #eef2fa;
+}
+.garage__grip { display: none; }
+.garage__tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 2px; border-radius: 11px; background: rgb(255 255 255 / 4.7%); }
+.garage__tabs button {
+  min-height: 0; height: 30px; border: 0; border-radius: 9px; background: transparent; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .02em; color: #cfd6e8; transition: background .15s, color .15s;
+}
+.garage__tabs button:hover { background: rgb(255 255 255 / 8%); }
+.garage__tabs button.is-on { background: var(--pill); color: #101626; }
+.garage__panes { overflow: hidden auto; scrollbar-width: thin; min-height: 0; margin: 0 -4px; padding: 0 4px; }
+.garage__pane { display: flex; flex-direction: column; gap: 11px; padding: 2px 0 1px; animation: garage-pane .28s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes garage-pane { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.garage__field { display: flex; flex-direction: column; }
+.garage__lab { display: flex; align-items: baseline; gap: 8px; margin: 0 3px 5px; font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--mute); }
+.garage__lab em { margin-left: auto; font-style: normal; letter-spacing: 0; text-transform: none; color: #7d87a4; font-family: var(--font-mono); font-size: 10px; }
+.garage__v { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: #fff; }
+.garage__note { margin: 0 3px; font-size: 11.5px; line-height: 1.45; color: var(--mute); }
+.garage__note b { font-family: var(--font-mono); font-weight: 500; color: #eef2fa; background: rgb(255 255 255 / 7%); padding: 0 .3rem; border-radius: 4px; }
+
+.garage__liveries { display: grid; grid-template-columns: repeat(7, 30px); justify-content: space-between; gap: 6px; padding: 2px 3px 4px; }
+.garage__chip {
+  position: relative; width: 30px; height: 30px; min-height: 0; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  box-shadow: 0 3px 9px -3px rgb(0 0 0 / 80%), inset 0 0 0 1px rgb(255 255 255 / 12%); transition: transform .15s;
+}
+.garage__chip:hover { transform: translateY(-1px) scale(1.06); }
+.garage__chip::before { content: ''; position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; background: var(--dot); box-shadow: 0 0 0 2px #0d1220; }
+.garage__chip.is-on::after { content: ''; position: absolute; left: 50%; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px rgb(11 15 26 / 80%); }
+.garage__chip.is-on { transform: scale(1.1); box-shadow: 0 0 0 2px #0d1220, 0 0 0 3.5px rgb(255 255 255 / 85%), 0 6px 14px -4px rgb(0 0 0 / 80%); }
+
+.garage__spec { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 0; }
+.garage__spec div { padding: 6px 8px; border-radius: 10px; background: var(--fill); }
+.garage__spec dt { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: #8f99b6; }
+.garage__spec dd { margin: 2px 0 0; font-size: 12.5px; font-weight: 700; color: #e8ecf7; }
+
+.garage__seg { display: flex; gap: 2px; padding: 2px; border-radius: 11px; background: rgb(255 255 255 / 4.7%); }
+.garage__seg button { flex: 1; min-height: 0; height: 28px; padding: 0 6px; border: 0; border-radius: 9px; background: transparent; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; color: #cfd6e8; transition: background .15s, color .15s; }
+.garage__seg button:hover { background: rgb(255 255 255 / 8%); }
+.garage__seg button.is-on { background: var(--pill); color: #101626; }
+
+.garage__dots { display: flex; align-items: center; gap: 8px; padding: 0 3px; }
+.garage__tyre {
+  position: relative; width: 26px; height: 26px; min-height: 0; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  background: radial-gradient(circle, #15161a 0 38%, var(--band) 40% 52%, #15161a 54%); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 12%); transition: transform .15s;
+}
+.garage__tyre:hover { transform: scale(1.1); }
+.garage__tyre.is-on { box-shadow: 0 0 0 2px #0d1220, 0 0 0 3.5px rgb(255 255 255 / 85%); }
+.garage__pill { margin-left: auto; min-height: 0; height: 24px; padding: 0 10px; border: 0; border-radius: 12px; cursor: pointer; font: inherit; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; color: #cfd6e8; background: var(--fill2); }
+.garage__pill.is-on { background: var(--pill); color: #101626; }
+
+.garage__seats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.garage__seat { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; min-height: 0; padding: 8px 10px; border: 0; border-radius: 10px; cursor: pointer; text-align: left; font: inherit; color: #e8ecf7; background: var(--fill); transition: background .15s, box-shadow .15s; }
+.garage__seat:hover { background: var(--fill2); }
+.garage__seat.is-on { background: rgb(238 244 255 / 14%); box-shadow: inset 0 0 0 1.5px var(--team); }
+.garage__seat-num { grid-row: 1 / span 2; font-family: var(--font-wide); font-size: 1.5rem; line-height: 1; color: var(--team); }
+.garage__seat-name { font-size: 12.5px; font-weight: 700; line-height: 1.15; }
+.garage__seat small { font-family: var(--font-mono); font-size: 10px; color: #8f99b6; }
+
+.garage__ratings { margin: 0; display: grid; gap: .4rem; padding: 0 3px; }
+.garage__ratings div { display: grid; grid-template-columns: 5.8rem 1fr; align-items: center; gap: .6rem; }
+.garage__ratings dt { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+.garage__ratings dd { margin: 0; display: grid; grid-template-columns: 1fr 1.6rem; align-items: center; gap: .5rem; }
+.garage__meter { display: block; height: .42rem; border-radius: 997px; background: rgb(255 255 255 / 10%); overflow: hidden; }
+.garage__meter i { display: block; height: 100%; border-radius: 997px; background: linear-gradient(90deg, color-mix(in srgb, var(--team) 68%, white), var(--team)); transition: width .4s cubic-bezier(.2, .8, .2, 1); }
+.garage__ratings dd em { font-style: normal; font-family: var(--font-mono); font-size: .68rem; text-align: right; }
+
+.garage__circuit { display: grid; grid-template-columns: 3.4rem 1fr; gap: .7rem; align-items: center; min-height: 0; padding: 8px; border: 0; border-radius: 10px; cursor: pointer; text-align: left; font: inherit; color: #eef2fa; background: var(--fill); transition: background .15s; }
+.garage__circuit:hover { background: var(--fill2); }
+.garage__circuit-map { display: block; height: 3.4rem; }
+.garage__circuit-text { display: grid; gap: .15rem; min-width: 0; }
+.garage__circuit-text strong { font-size: .92rem; line-height: 1.15; }
+.garage__circuit-text span { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: var(--mute); }
+.garage__circuit-text em { font-style: normal; font-family: var(--font-mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--team); }
+
+.garage__preview { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: rgb(0 0 0 / 40%); display: grid; place-items: center; }
+.garage__preview img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.garage__preview span { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #7d87a4; }
+.garage__share { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.garage__share button { display: grid; justify-items: center; align-content: center; gap: 5px; min-height: 0; height: 64px; border: 0; border-radius: 12px; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700; color: #e8ecf7; background: var(--fill2); transition: background .15s, transform .15s; }
+.garage__share button:hover { background: rgb(255 255 255 / 15%); }
+.garage__share button:active { transform: scale(.98); }
+.garage__share svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.garage__link { width: 100%; min-height: 0; height: 30px; padding: 0 9px; border: 0; border-radius: 8px; background: rgb(255 255 255 / 7%); color: #cfd6e8; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; outline: none; user-select: text; }
+.garage__link:focus { background: rgb(255 255 255 / 12%); }
+
+.garage__foot { padding-top: 1px; }
+.garage__start {
+  display: grid; justify-items: center; gap: .15rem; width: 100%; min-height: 0; padding: .7rem 1rem .65rem; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--team); color: var(--on-team); font: inherit;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--team) 65%, white), 0 10px 34px -10px color-mix(in srgb, var(--team) 70%, transparent);
+  transition: background-color .4s ease, transform .12s, box-shadow .2s;
+}
+.garage__start span { font-family: var(--font-wide); font-size: 1.05rem; letter-spacing: .04em; text-transform: uppercase; }
+.garage__start small { font-family: var(--font-mono); font-size: .6rem; letter-spacing: .14em; text-transform: uppercase; opacity: .78; }
+.garage__start:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--team) 88%, white); }
+.garage__start:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+.garage__toast {
+  position: absolute; z-index: 7; top: 4.6rem; left: 50%; margin: 0; padding: 6px 13px; border-radius: 14px;
+  background: rgb(14 18 32 / 87%); backdrop-filter: blur(10px); font-size: 11.5px; font-weight: 600; color: #eef2fa; white-space: nowrap;
+  opacity: 0; transform: translate(-50%, -6px); transition: opacity .4s, transform .4s; pointer-events: none;
+}
+.garage__toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+/* --------------------------------------------------------------- teaser -- */
+.teaser {
+  position: absolute; z-index: 4; left: clamp(1rem, 2.2vw, 1.5rem); bottom: 1.5rem; display: flex; align-items: center; gap: 12px;
+  min-height: 0; padding: 10px 16px 10px 12px; border: 0; border-radius: 16px; background: var(--glass); backdrop-filter: blur(14px);
+  box-shadow: var(--shadow); text-align: left; cursor: pointer; font: inherit; color: #f2f6ff; transition: transform .25s, background .25s;
+}
+.teaser:hover { transform: translateY(-2px); }
+.teaser__trk { width: 92px; height: 59px; flex: 0 0 auto; overflow: visible; }
+.teaser__rail { fill: none; stroke: #cfeeff; stroke-opacity: .38; stroke-width: 2.4; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgb(127 227 255 / 40%)); }
+.teaser__sector { fill: none; stroke: var(--sc); stroke-width: 2.4; stroke-linejoin: round; stroke-linecap: round; opacity: 0; transition: opacity .35s; }
+.teaser__sector.is-on { opacity: .5; }
+.teaser__sf { stroke: #ffb454; stroke-width: 2.2; stroke-linecap: round; }
+.teaser__dot { fill: var(--tcol, #7fe3ff); filter: drop-shadow(0 0 3px var(--tcol, #7fe3ff)) drop-shadow(0 0 7px var(--tcol, #7fe3ff)); }
+.teaser__tx { display: flex; flex-direction: column; gap: 4px; }
+.teaser__t1 { display: flex; align-items: center; gap: 8px; }
+.teaser b { font-family: var(--font-wide); font-size: 15px; font-weight: 800; font-style: italic; letter-spacing: .04em; text-transform: uppercase; color: #f2f6ff; }
+.teaser i { font-style: normal; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #aab3c9; background: rgb(255 255 255 / 7%); border-radius: 6px; padding: 3px 6px 2px; }
+.teaser small { font-size: 11px; color: var(--mute); }
+.teaser__sh { display: none; }
+.teaser__secs { display: flex; gap: 3px; }
+.teaser__secs em { width: 30px; padding: 3px 0 2px; border-radius: 4px; text-align: center; font-style: normal; font-family: var(--font-mono); font-size: 8.5px; line-height: 1; color: rgb(255 255 255 / 50%); background: rgb(255 255 255 / 6.3%); transition: background .2s, color .2s; }
+.teaser__secs em.is-on { background: var(--sc); color: #0b0f1a; }
+.teaser__lights { display: none; gap: 5px; }
+.teaser__lights span { width: 10px; height: 10px; border-radius: 50%; background: #2a0d0d; box-shadow: inset 0 0 0 1.5px #1a0707; transition: background .06s, box-shadow .06s; }
+.teaser__lights span.is-lit { background: #ff2a1f; box-shadow: 0 0 8px #ff2a1f, 0 0 16px rgb(255 42 31 / 55%); }
+.teaser.is-lights .teaser__secs { display: none; }
+.teaser.is-lights .teaser__lights { display: flex; }
+@media (prefers-reduced-motion: reduce) {
+  .teaser__secs em, .teaser__sector, .garage__pane { transition: none; animation: none; }
+}
+
+/* ---------------------------------------------------------------- phone -- */
+@media (max-width: 899px) {
+  .garage__side { top: 3.6rem; left: .75rem; right: .75rem; width: auto; }
+  .garage__eyebrow { font-size: .6rem; margin-bottom: .2rem; }
+  .garage__ident { grid-template-columns: auto 1fr; align-items: end; column-gap: .55rem; }
+  .garage__number { font-size: 2.4rem; }
+  .garage__name { margin: 0; font-size: 1rem; }
+  .garage__hook { display: none; }
+  .garage__stats { margin-top: .55rem; gap: .3rem; max-width: 22rem; }
+  .garage__stats div { padding: .3rem .45rem; }
+  .garage__stats dd { font-size: .9rem; }
+  .garage__card {
+    left: 8px; right: 8px; top: auto; bottom: max(8px, env(safe-area-inset-bottom)); width: auto; padding: 7px;
+    max-height: min(52vh, 440px); gap: 7px;
+  }
+  .garage__grip { display: grid; place-items: center; align-self: center; width: 44px; height: 16px; min-height: 0; margin: -3px 0 -4px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+  .garage__grip span { width: 34px; height: 4px; border-radius: 2px; background: rgb(255 255 255 / 22%); }
+  .garage__tabs button { height: 28px; }
+  .garage__card.is-min .garage__panes { display: none; }
+  .garage__liveries { grid-template-columns: repeat(7, minmax(0, 30px)); }
+  .garage__start { padding: .55rem 1rem .5rem; }
+  .garage__toast { top: 3.4rem; }
+  .teaser { left: .75rem; bottom: calc(var(--sheet-h, 0px) + 8px); padding: 5px 9px 5px 6px; gap: 7px; border-radius: 12px; }
+  .teaser__trk { width: 46px; height: 30px; }
+  .teaser small, .teaser__secs, .teaser__lg { display: none; }
+  .teaser__sh { display: inline; }
+  .teaser b { font-size: 11px; }
+  .teaser i { font-size: 7.5px; padding: 2px 4px 1px; }
+  .teaser.is-lights .teaser__lights { gap: 3px; }
+  .teaser__lights span { width: 7px; height: 7px; }
+  .garage__vignette { background: radial-gradient(at 50% 45%, transparent 55%, rgb(4 6 12 / 61%) 100%); }
+}
+@media (min-width: 900px) and (max-height: 720px) {
+  .garage__hook { display: none; }
+  .garage__card { top: 4.4rem; max-height: calc(100% - 5.6rem); }
+  .garage__pane { gap: 8px; }
+}

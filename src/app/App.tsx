@@ -1,5 +1,6 @@
 import './styles.css';
 import './shell.css';
+import './garage.css';
 import { useEffect, useState } from 'react';
 import { RaceScene } from '../scene/RaceScene';
 import { RaceHud } from '../ui/RaceHud';
