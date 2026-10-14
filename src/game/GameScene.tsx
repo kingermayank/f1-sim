@@ -1,17 +1,19 @@
-import { Environment as Reflections, Lightformer, PerformanceMonitor, useProgress } from '@react-three/drei';
+import { PerformanceMonitor, useProgress } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CanvasTexture, Group, Mesh, PerspectiveCamera, PlaneGeometry, SRGBColorSpace, Vector3 } from 'three';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
-import { Environment } from '../scene/Environment';
+import { F1Car, type CarMotion } from '../car/F1Car';
+import { liveryFor } from '../car/liveries';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { createSplineTrack } from '../track/spline-track';
 import { createEngineAudio } from './engine-audio';
 import { INTRO_SECONDS, gameStore, projectedTrack, useGameStore } from './game-store';
 import { getPlayerInput } from './input';
 import { GuideLine } from './GuideLine';
-import { CarFillLights, TeamCarModel } from './TeamCarModel';
+import { CarFillLights } from './TeamCarModel';
 import { RaceReady } from './RaceReady';
+import { RaceWorld } from './RaceWorld';
 
 const SPLINE = createSplineTrack(SHANGHAI_TRACK);
 
@@ -141,26 +143,40 @@ function nearestRival(state: ReturnType<typeof gameStore.getState>): { distance:
   return best;
 }
 
+/** Which of the team's two cars a driver has: the second carries the yellow camera pod. */
+function seatOf(driverId: string, teamId: string): 'first' | 'second' {
+  return DRIVERS_2026.find((driver) => driver.teamId === teamId)?.id === driverId ? 'first' : 'second';
+}
+
+/** Steering angle (radians) this far is drawn as full lock on the front wheels. */
+const STEER_DISPLAY_LOCK = 0.3;
+
 /** The player's car, driven from the store's free-moving state. */
 function PlayerCar() {
   const group = useRef<Group>(null);
   const driverId = useGameStore((state) => state.driverId);
-  const teamId = DRIVERS_2026.find((driver) => driver.id === driverId)?.teamId ?? TEAMS_2026[0].id;
+  const driver = DRIVERS_2026.find((candidate) => candidate.id === driverId);
+  const teamId = driver?.teamId ?? TEAMS_2026[0].id;
+  const motion = useRef<CarMotion>({ speed: 0, steer: 0, straight: false });
 
   useFrame(() => {
     const object = group.current;
     if (!object) return;
-    const { car, surfaceY, bodyRoll, bodyPitch } = gameStore.getState();
+    const { car, surfaceY, bodyRoll, bodyPitch, drsActive } = gameStore.getState();
     // Height comes from the track point directly under the car — never from
     // the terrain, which drops away steeply outside the circuit.
     object.position.set(car.x, surfaceY, car.z);
-    // Model noses face -Z; heading 0 faces +X. Roll and pitch sell the weight.
+    // Model noses face +Z; heading 0 faces +X. Roll and pitch sell the weight.
     object.rotation.set(bodyPitch, -car.heading + Math.PI / 2, bodyRoll, 'YXZ');
+    // Positive steer turns the car to its right; the wheels turn the same way.
+    motion.current.speed = car.speed;
+    motion.current.steer = Math.max(-1, Math.min(1, -car.steer / STEER_DISPLAY_LOCK));
+    motion.current.straight = drsActive;
   });
 
   return (
     <group ref={group} name="player-car">
-      <Suspense fallback={null}><TeamCarModel teamId={teamId} alwaysVisible sunlit /></Suspense>
+      <F1Car livery={liveryFor(teamId)} number={driver?.number} pod={seatOf(driverId, teamId)} compound="medium" motion={motion} />
     </group>
   );
 }
@@ -172,18 +188,17 @@ const LOD_NEAR_METRES = 36;
 const SHADOW_METRES = 40;
 
 /**
- * One AI car on the spline. Position is read imperatively each frame. Both
- * detail levels are mounted and toggled by distance with hysteresis, so a
- * swap never waits on a load and never flickers at the boundary. The full
- * model stays up until the low one has actually mounted: the low group used
- * to start visible with the full one hidden, and a failed or still-loading
- * low model left that rival invisible for the whole race.
+ * One AI car on the spline. Position is read imperatively each frame. The car
+ * draws its high-detail geometry near the player and its light one beyond,
+ * switching with hysteresis so it never flickers at the boundary. Geometry is
+ * shared and cached, so a switch is instant.
  */
 function AiCar({ driverId, teamId }: { driverId: string; teamId: string }) {
   const group = useRef<Group>(null);
-  const full = useRef<Group>(null);
-  const low = useRef<Group>(null);
-  const usingLow = useRef(false);
+  const [near, setNear] = useState(false);
+  const nearRef = useRef(false);
+  const motion = useRef<CarMotion>({ speed: 0, steer: 0, straight: false });
+  const number = DRIVERS_2026.find((driver) => driver.id === driverId)?.number;
   useFrame(() => {
     const object = group.current;
     if (!object) return;
@@ -202,24 +217,20 @@ function AiCar({ driverId, teamId }: { driverId: string; teamId: string }) {
       object.rotation.set(0, -Math.atan2(tangent.z, tangent.x) + Math.PI / 2, 0);
     }
     object.visible = car.status !== 'retired';
+    motion.current.speed = car.speed ?? 0;
+    motion.current.straight = state.phase === 'racing' && projectedTrack.inPassingZone(car.distance) && car.lap >= 1;
     const distance = Math.hypot(object.position.x - state.car.x, object.position.z - state.car.z);
-    const lowReady = (low.current?.children.length ?? 0) > 0;
-    if (!lowReady) usingLow.current = false;
-    else if (usingLow.current && distance < LOD_NEAR_METRES) usingLow.current = false;
-    else if (!usingLow.current && distance > LOD_FAR_METRES) usingLow.current = true;
-    if (full.current) full.current.visible = !usingLow.current;
-    if (low.current) low.current.visible = usingLow.current;
+    const wantNear = nearRef.current ? distance < LOD_FAR_METRES : distance < LOD_NEAR_METRES;
+    if (wantNear !== nearRef.current) { nearRef.current = wantNear; setNear(wantNear); }
     const casts = distance < SHADOW_METRES;
-    const active = usingLow.current ? low.current : full.current;
-    if (active && active.userData.casts !== casts) {
-      active.userData.casts = casts;
-      active.traverse((child) => { if (child instanceof Mesh) child.castShadow = casts; });
+    if (object.userData.casts !== casts) {
+      object.userData.casts = casts;
+      object.traverse((child) => { if (child instanceof Mesh) child.castShadow = casts; });
     }
   });
   return (
     <group ref={group} name={`ai-car-${driverId}`}>
-      <group ref={full}><Suspense fallback={null}><TeamCarModel teamId={teamId} sunlit /></Suspense></group>
-      <group ref={low} visible={false}><Suspense fallback={null}><TeamCarModel teamId={teamId} detail="low" sunlit /></Suspense></group>
+      <F1Car livery={liveryFor(teamId)} number={number} pod={seatOf(driverId, teamId)} detail={near ? 'high' : 'low'} compound="medium" motion={motion} castShadow={false} />
     </group>
   );
 }
@@ -416,22 +427,6 @@ function DevExpose() {
   return null;
 }
 
-/**
- * The car paints are glossy and the chase camera looks at their unlit rear.
- * With no environment they reflect black, so a red car reads as a dark blob.
- * This cubemap is the sky they reflect. It is baked once.
- */
-function RaceReflections() {
-  return (
-    <Reflections frames={1} resolution={256} environmentIntensity={1.25}>
-      <Lightformer form="rect" intensity={8} color="#fff3e2" position={[10, 12, 8]} scale={[22, 10, 1]} />
-      <Lightformer form="rect" intensity={3.5} color="#d7e8f6" position={[-12, 7, -6]} scale={[18, 8, 1]} />
-      <Lightformer form="rect" intensity={4} color="#f7f9fb" position={[0, 6, -14]} scale={[26, 7, 1]} />
-      <Lightformer form="rect" intensity={1.6} color="#c5cfc6" position={[0, -5, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={[30, 30, 1]} />
-    </Reflections>
-  );
-}
-
 /** Where the shadow frustum should sit: on the player's car. */
 function playerFocus() {
   const { car, surfaceY } = gameStore.getState();
@@ -461,8 +456,7 @@ export function GameScene({ muted, lite = false, onWarm }: { muted: boolean; lit
         flipflops={3}
         onFallback={() => setDpr(1)}
       />
-      <Environment quality={lite ? 'mobile' : 'high'} shadowFocus={playerFocus} racingLine={false} />
-      <RaceReflections />
+      <RaceWorld quality={lite ? 'mobile' : 'high'} shadowFocus={playerFocus} />
       <GuideLine />
       <CarFillLights />
       <AiField />

@@ -43,7 +43,7 @@ const AVOIDANCE_RANGE_METRES = 40;
 const AVOIDANCE_OFFSET_METRES = 3.6;
 const AVOIDANCE_RATE = 3;
 /** Grid row pitch, matching the engine's own grid. */
-const GRID_ROW_METRES = 9.5;
+export const GRID_ROW_METRES = 9.5;
 export const INTRO_SECONDS = 11;
 /** One light per second, then a hold of unpredictable length before they go out. */
 const LIGHT_INTERVAL_SECONDS = 1;

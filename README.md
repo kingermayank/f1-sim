@@ -29,6 +29,27 @@ npm run generate:assets  # regenerate project-original runtime assets
 
 Playwright uses its matching cached Chromium when present. On macOS it falls back to an installed Google Chrome, so it does not download a duplicate browser. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/absolute/path/to/chrome` to use another local Chromium executable. Only if neither is available, install the matching runtime once with `npx playwright install chromium`.
 
+## The garage (homepage)
+
+The homepage is a showroom: the car turns on a polished turntable in a lit room, the driver sits on the left, and a glass card on the right holds four tabs.
+
+- **Car**: the seven team liveries (keys `1`–`7`, `‹ ›` cycle every driver), the car's pattern and finish, wing mode (`G`, Corner or Straight; the flaps really move) and tyre compound (`T`). `Space` stops or starts the turntable.
+- **Driver**: the team's two drivers and their ratings. Teammates differ by number and camera-pod colour.
+- **Race**: circuit, laps and AI pace.
+- **Share**: a rendered 1920×1080 picture from four angles (Front, Side, Rear, Above), with Copy link, Save picture (`P`), Copy picture and Share…. The link (`L`) carries the car in the address, e.g. `#/?d=leclerc&t=soft&w=corner&a=front`, and opens that exact car.
+
+Changing car never swaps a model. A sphere grows from the nose tip at 3.4 m/s carrying the new paint, number and finish over the car behind a thin glowing shell. The circuit button bottom-left draws Shanghai from the simulation's centreline; its dot laps at a modelled pace (braking into corners) while the sector chips light purple, green and yellow. Pressing it runs the five start lights and the race begins.
+
+The room renders through a multisampled chain with ambient occlusion and bloom. A governor watches the frame rate and drops ambient occlusion, then bloom and reflections, then resolution, on slower GPUs. Touch devices get a lighter path from the start.
+
+## The car
+
+The car is drawn in code (`src/car`) to the 2026 rules: a 3.4 m wheelbase, 1.9 m across, 18-inch wheels and a halo. The bodywork is lofted through superellipse cross-sections smoothed with monotone cubics, and the wings are cambered aerofoils. Liveries are computed in the paint shader from car-space position, so a stripe runs from the nose over the sidepods without a seam. The same geometry, at a lighter detail level for distant rivals, races in the game.
+
+## The circuit in the race
+
+The game draws a high-resolution racing surface over the supplied Shanghai model, generated from the same centreline the cars drive on. Every vertex takes its height from the model's own tarmac. The asphalt, rubbered racing line, braking marks, track-limit lines, grid boxes and chequered timing line are computed in shaders, so they stay sharp at any distance. The surface stops where the model's kerbs begin, so they still show. Surrounding run-off and grass use the same world-space shaders, under a painted sky that is also the light the cars reflect.
+
 ## Race controls
 
 - **Pause / Resume** freezes or resumes authoritative simulation time.

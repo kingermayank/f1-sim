@@ -19,6 +19,7 @@ import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import type { TrackPoint } from '../track/track-types';
 import type { SceneQualityTier } from './RaceScene';
 import { cloneSceneWithOwnedMaterials } from './scene-resources';
+import { upgradeAsphalt, upgradeGrass } from '../game/track-materials';
 
 /**
  * Shanghai is authored in real metres and the supplied model spans roughly
@@ -86,6 +87,8 @@ function createRibbon(points: readonly TrackPoint[], width: number, closed = tru
  * and the sponsor cubes it scattered along the grid and barriers.
  */
 const HIDDEN_TRACK_MATERIALS = new Set(['raceline', 'wall8']);
+/** Also hidden under the generated racing surface, which paints its own braking marks. */
+const HIDDEN_WITH_SURFACE = new Set(['skid']);
 
 /**
  * The model's road is three layers that the source game composited with its
@@ -99,6 +102,8 @@ const HIDDEN_TRACK_MATERIALS = new Set(['raceline', 'wall8']);
 const ROAD_TARMAC_MATERIAL = 'tarmac';
 const ROAD_LINE_MATERIAL = 'Line_asf';
 const ROAD_RUNOFF_MATERIAL = 'Out';
+const GRASS_MATERIAL = 'Prato';
+export const KERB_MATERIAL = '9!0';
 /** The tarmac mesh's UVs repeat about every 1.1 m along the road and 0.5 m across it. */
 const TARMAC_UV_METRES = { along: 1.1, across: 0.5 };
 const TARMAC_TILE_METRES = 2;
@@ -185,7 +190,7 @@ const ROAD_DECAL_MATERIALS = new Set(['Line_asf', 'skid', 'Kerb_giallo', 'sha_gr
  * that drives the simulation was fitted to this same mesh, so the racing line
  * and the rendered tarmac cannot drift apart.
  */
-function LoadedTrack() {
+function LoadedTrack({ procedural }: { procedural: boolean }) {
   const gltf = useGLTF(ASSETS.track);
   const maxAnisotropy = useThree((state) => state.gl.capabilities.getMaxAnisotropy());
   const asphalt = useMemo(() => {
@@ -204,7 +209,12 @@ function LoadedTrack() {
       material.polygonOffsetFactor = -1;
       material.polygonOffsetUnits = -2;
     }
-    if (material.name === ROAD_TARMAC_MATERIAL) {
+    if (procedural && (material.name === ROAD_TARMAC_MATERIAL || material.name === ROAD_RUNOFF_MATERIAL)) {
+      // World-space asphalt, continuous with the generated racing surface.
+      upgradeAsphalt(material, material.name === ROAD_TARMAC_MATERIAL ? 0.072 : 0.09);
+    } else if (procedural && material.name === GRASS_MATERIAL) {
+      upgradeGrass(material);
+    } else if (material.name === ROAD_TARMAC_MATERIAL) {
       material.map = asphalt;
       material.color.set('#ffffff');
       material.roughness = 0.93;
@@ -224,10 +234,13 @@ function LoadedTrack() {
       material.color.set('#3f4042');
       material.roughness = 0.95;
       material.needsUpdate = true;
+    } else if (material.name === KERB_MATERIAL && material.map) {
+      // Kerbs read at grazing angles: filter their stripes as sharply as the GPU allows.
+      material.map.anisotropy = maxAnisotropy;
     } else if (material.map) {
       material.map.anisotropy = Math.min(4, maxAnisotropy);
     }
-  }), [gltf.scene, asphalt, maxAnisotropy]);
+  }), [gltf.scene, asphalt, maxAnisotropy, procedural]);
   useEffect(() => () => resources.dispose(), [resources]);
   useEffect(() => {
     resources.scene.traverse((object) => {
@@ -238,10 +251,11 @@ function LoadedTrack() {
       object.castShadow = false;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       if (materials.some((material) => HIDDEN_TRACK_MATERIALS.has(material.name))) object.visible = false;
+      if (procedural && materials.some((material) => HIDDEN_WITH_SURFACE.has(material.name))) object.visible = false;
       if (materials.some((material) => WINDING_FIX_MATERIALS.has(material.name))) alignWindingToNormals(object);
       if (materials.some((material) => ROAD_DECAL_MATERIALS.has(material.name))) object.renderOrder = 1;
     });
-  }, [resources]);
+  }, [resources, procedural]);
 
   return <primitive object={resources.scene} dispose={null} />;
 }
@@ -316,7 +330,7 @@ export interface ShadowFocus {
   z: number;
 }
 
-const SUN_DIRECTION = new Vector3(620, 780, 420).normalize();
+export const SUN_DIRECTION = new Vector3(620, 780, 420).normalize();
 /** Half-size of the shadow frustum that follows the player, metres. */
 const FOLLOW_SHADOW_EXTENT = 70;
 
@@ -360,11 +374,19 @@ function FollowingSun({ focus, shadows }: { focus: () => ShadowFocus; shadows: b
   );
 }
 
-export function Environment({ quality, shadowFocus, racingLine = true }: { quality: SceneQualityTier; shadowFocus?: () => ShadowFocus; racingLine?: boolean }) {
+export function Environment({ quality, shadowFocus, racingLine = true, atmosphere = true, procedural = false }: {
+  quality: SceneQualityTier;
+  shadowFocus?: () => ShadowFocus;
+  racingLine?: boolean;
+  /** Draw the flat sky colour and fog; off when the caller brings its own sky. */
+  atmosphere?: boolean;
+  /** Procedural world-space asphalt and grass in place of the supplied textures. */
+  procedural?: boolean;
+}) {
   return (
     <>
-      <color attach="background" args={['#8fb2c4']} />
-      <fog attach="fog" args={['#9db9c8', 900, 3400]} />
+      {atmosphere && <color attach="background" args={['#8fb2c4']} />}
+      {atmosphere && <fog attach="fog" args={['#9db9c8', 900, 3400]} />}
       <hemisphereLight args={['#dceaf3', '#2b3338', quality === 'high' ? 1.05 : 1.35]} />
       {shadowFocus ? <FollowingSun focus={shadowFocus} shadows={quality === 'high'} /> : (
         <directionalLight
@@ -389,7 +411,7 @@ export function Environment({ quality, shadowFocus, racingLine = true }: { quali
       </mesh>
       {racingLine && <RacingLineOverlay quality={quality} />}
       <TrackAssetBoundary fallback={<CircuitFallback />}>
-        <Suspense fallback={null}><LoadedTrack /></Suspense>
+        <Suspense fallback={null}><LoadedTrack procedural={procedural} /></Suspense>
       </TrackAssetBoundary>
     </>
   );
