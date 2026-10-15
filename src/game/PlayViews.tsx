@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { findCircuit } from '../content/circuits';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { routeHref } from '../shell/router';
+import { WideNumber } from '../ui/WideNumber';
 import { GameHud } from './GameHud';
 import { GameScene } from './GameScene';
 import { TouchControls, useCoarsePointer } from './TouchControls';
@@ -137,7 +138,7 @@ function RaceResultOverlay() {
     return (
       <div className="game-finish" role="status" style={{ '--team': team.color } as React.CSSProperties}>
         <p className="game-finish__circuit">{circuit.name}</p>
-        <p className="game-finish__pos">P{finishPosition}</p>
+        <p className="game-finish__pos">P<WideNumber value={finishPosition} /></p>
         <p className="game-finish__note">{headline}</p>
       </div>
     );
@@ -150,7 +151,7 @@ function RaceResultOverlay() {
           <div>
             <p className="game-result__eyebrow">{circuit.grandPrix} · {laps} laps · Race classification</p>
             <h2 id="game-result-title" className="game-result__title">
-              <span className="game-result__pos">P{finishPosition}</span>
+              <span className="game-result__pos">P<WideNumber value={finishPosition} /></span>
               <span>{headline}<small>{driver?.name} · {team.name} · of {fieldSize}</small></span>
             </h2>
           </div>
@@ -173,7 +174,7 @@ function RaceResultOverlay() {
               const rowTeam = teamOfDriver(row.driverId);
               return (
                 <tr key={row.driverId} className={row.isPlayer ? 'is-player' : undefined} style={{ '--row-team': rowTeam.color } as React.CSSProperties}>
-                  <td className="game-result__cell-pos">{row.position}</td>
+                  <td className="game-result__cell-pos"><WideNumber value={row.position} /></td>
                   <td className="game-result__cell-driver"><span className="game-result__bar" aria-hidden="true" />{rowDriver?.name}{row.isPlayer && <em> you</em>}</td>
                   <td className="game-result__cell-team">{rowTeam.name}</td>
                   <td className="game-result__cell-time">

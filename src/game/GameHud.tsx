@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { findCircuit } from '../content/circuits';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
+import { WideNumber, wideDigits } from '../ui/WideNumber';
 import {
   ASSISTS,
   formatLapTime,
@@ -70,6 +71,34 @@ function teamColour(driverId: string): string {
 /* ------------------------------------------------------------------ intro -- */
 
 /** Title cards over the flyover: the round, then who you are driving. */
+/**
+ * Shrinks an element's text until it fits its box, for display names whose
+ * longest word can be wider than the screen allows. Refits when its card
+ * changes size and once the display face has loaded.
+ */
+function useFitText<T extends HTMLElement>(text: string) {
+  const ref = useRef<T>(null);
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return undefined;
+    const fit = () => {
+      element.style.fontSize = '';
+      const overflow = element.scrollWidth / Math.max(1, element.clientWidth);
+      if (overflow > 1.005) element.style.fontSize = `${parseFloat(getComputedStyle(element).fontSize) / overflow}px`;
+    };
+    fit();
+    let live = true;
+    document.fonts?.ready.then(() => { if (live) fit(); });
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit);
+    observer?.observe(element.parentElement ?? element);
+    return () => {
+      live = false;
+      observer?.disconnect();
+    };
+  }, [text]);
+  return ref;
+}
+
 function IntroCard() {
   const driverId = useGameStore((state) => state.driverId);
   const laps = useGameStore((state) => state.laps);
@@ -79,6 +108,10 @@ function IntroCard() {
   const driver = driverOf(driverId) ?? DRIVERS_2026[0];
   const team = teamOfDriver(driverId);
   const showDriver = introSeconds > 6.5;
+  // First names over surnames, so the card stays compact.
+  const words = driver.name.split(' ');
+  const surname = words.length > 1 ? words.pop()! : '';
+  const nameRef = useFitText<HTMLHeadingElement>(showDriver ? driver.name : '');
   return (
     <div className="rh-intro">
       {!showDriver ? (
@@ -101,8 +134,10 @@ function IntroCard() {
         <div className="rh-intro__card rh-intro__card--driver" key="driver">
           <p className="rh-eyebrow">{team.name} · {CAR_NAMES[team.id]}</p>
           <div className="rh-intro__driver">
-            <span className="rh-intro__num">{driver.number}</span>
-            <h2 className="rh-intro__title rh-intro__title--name">{driver.name}</h2>
+            <span className="rh-intro__num"><WideNumber value={driver.number} /></span>
+            <h2 className="rh-intro__title rh-intro__title--name" ref={nameRef}>
+              <span>{words.join(' ')}</span>{surname && <> <span>{surname}</span></>}
+            </h2>
           </div>
           <dl className="rh-intro__facts">
             <div><dt>Grid</dt><dd>P{fieldSize}</dd></div>
@@ -304,13 +339,13 @@ function RaceCard() {
       <div className="rh-race__head">
         <div className="rh-race__pos" aria-label={`Position ${position} of ${fieldSize}`}>
           <span className="rh-race__p">P</span>
-          <strong className="rh-race__pnum">{position}</strong>
+          <strong className="rh-race__pnum"><WideNumber value={position} /></strong>
           <span className="rh-race__of">/{fieldSize}</span>
         </div>
         <div className="rh-race__lap">
           <div className="rh-race__lapline">
             <span className="rh-label">{finalLap ? 'Final lap' : 'Lap'}</span>
-            <strong className={finalLap ? 'is-final' : ''}>{shownLap}<em>/{laps}</em></strong>
+            <strong className={finalLap ? 'is-final' : ''}><WideNumber value={shownLap} /><em><WideNumber value={`/${laps}`} /></em></strong>
           </div>
           <div className="rh-race__laps" aria-hidden="true">
             {Array.from({ length: laps }, (_, index) => (
@@ -462,7 +497,7 @@ function Digits({ value }: { value: number }) {
   const text = String(Math.max(0, Math.min(999, value))).padStart(DIGITS, ' ');
   return (
     <span className="rh-digits" aria-hidden="true">
-      {text.split('').map((char, index) => <i key={index} className={char === ' ' ? 'is-blank' : ''}>{char === ' ' ? '0' : char}</i>)}
+      {text.split('').map((char, index) => <i key={index} className={char === ' ' ? 'is-blank' : ''}>{wideDigits(char === ' ' ? '0' : char)}</i>)}
     </span>
   );
 }

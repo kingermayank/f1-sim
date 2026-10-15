@@ -120,12 +120,13 @@
 .rh-shift i.is-on.b { background: #5b8cff; box-shadow: 0 0 8px #5b8cff; }
 .rh-shift.is-flash i { animation: rh-flash .12s steps(2) infinite; background: #5b8cff; box-shadow: 0 0 9px #5b8cff; }
 @keyframes rh-flash { 50% { opacity: .15; } }
-.rh-dash__main { display: grid; grid-template-columns: 60px minmax(0, 1fr) 23px; gap: 10px; align-items: stretch; }
+.rh-dash__main { display: grid; grid-template-columns: 64px minmax(0, 1fr) 23px; gap: 10px; align-items: stretch; }
 .rh-dash__gear { display: grid; justify-items: center; align-content: center; gap: 1px; border-radius: 12px; background: var(--fill); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%); }
-.rh-dash__gear strong { font-family: var(--font-wide); font-size: 40px; line-height: 1; color: #fff; }
+.rh-dash__gear strong { font-family: var(--font-wide); font-size: 34px; line-height: 1; color: #fff; }
 .rh-dash__speed { display: grid; align-content: center; justify-items: end; gap: 2px; }
-.rh-digits { display: flex; font-family: var(--font-wide); font-size: 40px; line-height: .95; letter-spacing: 0; }
-.rh-digits i { display: inline-block; width: 1.02em; text-align: center; font-style: normal; }
+.rh-digits { display: flex; font-family: var(--font-wide); font-size: 34px; line-height: .95; letter-spacing: 0; }
+/* Formula1 Wide figures are up to 1.54 em of ink (the O that stands in for zero); each gets a fixed cell so the number never shifts. */
+.rh-digits i { display: inline-block; width: 1.62em; text-align: center; font-style: normal; }
 .rh-digits i.is-blank { visibility: hidden; }
 .rh-pedals { display: flex; gap: 5px; padding: 3px 0; }
 .rh-pedal { position: relative; width: 9px; border-radius: 5px; background: rgb(255 255 255 / 9%); overflow: hidden; }
@@ -195,14 +196,16 @@
 /* ----------------------------------------------------------------- intro -- */
 .rh-intro { position: absolute; inset: 0; display: grid; place-items: end start; padding: clamp(1.2rem, 3vw, 2.4rem); pointer-events: none; }
 .rh-intro__card {
-  position: relative; width: min(30rem, calc(100vw - 2.4rem)); padding: 16px 18px 16px; border-radius: 18px; background: var(--glass); backdrop-filter: blur(14px);
+  position: relative; box-sizing: border-box; width: max-content; min-width: min(30rem, calc(100vw - 2.4rem)); max-width: calc(100vw - 2.4rem);
+  padding: 16px 18px 16px; border-radius: 18px; background: var(--glass); backdrop-filter: blur(14px);
   box-shadow: var(--shadow), inset 0 1px 0 rgb(255 255 255 / 6%); animation: rh-rise .6s cubic-bezier(.2, .8, .2, 1) both;
 }
 @keyframes rh-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .rh-intro__title { margin: 0; font-family: var(--font-wide); font-size: clamp(1.9rem, 3.6vw, 2.9rem); line-height: .95; text-transform: uppercase; letter-spacing: .01em; }
-.rh-intro__title--name { font-size: clamp(1.4rem, 3vw, 2.1rem); }
+.rh-intro__title--name { min-width: 0; font-size: clamp(1.4rem, 3vw, 2.1rem); white-space: nowrap; }
+.rh-intro__title--name span { display: block; }
 .rh-intro__driver { display: flex; align-items: center; gap: 14px; }
-.rh-intro__num { font-family: var(--font-wide); font-size: clamp(2.6rem, 6vw, 3.8rem); line-height: .85; color: var(--team); text-shadow: 0 0 40px color-mix(in srgb, var(--team) 50%, transparent); }
+.rh-intro__num { flex: none; font-family: var(--font-wide); font-size: clamp(2.6rem, 6vw, 3.8rem); line-height: .85; color: var(--team); text-shadow: 0 0 40px color-mix(in srgb, var(--team) 50%, transparent); }
 .rh-intro__facts { margin: 12px 0 0; display: flex; gap: 4px; flex-wrap: wrap; }
 .rh-intro__facts div { padding: 6px 10px; border-radius: 10px; background: var(--fill); }
 .rh-intro__facts dt { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
@@ -231,8 +234,8 @@
   .rh-map { width: 132px; padding: 6px; bottom: auto; top: 3.3rem; left: auto; right: var(--edge); }
   .rh-map__head { display: none; }
   .rh-dash { width: 220px; padding: 8px; bottom: auto; top: calc(3.3rem + 150px); right: var(--edge); }
-  .rh-digits { font-size: 32px; }
-  .rh-dash__gear strong { font-size: 28px; }
+  .rh-digits { font-size: 22px; }
+  .rh-dash__gear strong { font-size: 24px; }
   .rh-dash__main { grid-template-columns: 48px 1fr auto; }
   .rh-dash__chips .rh-chip:not(.rh-chip--drs) { display: none; }
   .rh-keys { display: none; }

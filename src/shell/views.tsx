@@ -5,6 +5,7 @@ import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { CircuitMap } from './CircuitMap';
 import { RaceResult } from './RaceResult';
 import { routeHref } from './router';
+import { WideNumber } from '../ui/WideNumber';
 
 const CAR_NAMES: Record<string, string> = {
   'red-bull': 'RB21',
@@ -193,7 +194,7 @@ export function DriversView() {
           return (
             <article className="driver-card" key={driver.id} style={{ '--team': team.color } as React.CSSProperties}>
               <div className="driver-card__head">
-                <span className="driver-card__number">{driver.number}</span>
+                <span className="driver-card__number"><WideNumber value={driver.number} /></span>
                 <div>
                   <h2>{driver.name}</h2>
                   <p className="driver-card__team">{team.name} · {driver.nationality}</p>

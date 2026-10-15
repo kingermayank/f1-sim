@@ -18,6 +18,7 @@ import { readHashParams } from './router';
 import { ShowroomScene, type FrameInset, type PictureAngle, type ShowroomCapture } from './ShowroomScene';
 import { persistSelectedDriverId, readSelectedDriverId, teamThemeStyle } from './team-theme';
 import { uiSound } from './ui-sound';
+import { WideNumber, wideDigits } from '../ui/WideNumber';
 
 const CAR_NAMES: Record<string, string> = {
   'red-bull': 'RB21', ferrari: 'SF-25', mclaren: 'MCL39', 'aston-martin': 'AMR25',
@@ -314,7 +315,7 @@ export function Showroom() {
       <section ref={side} className="garage__side" aria-label="Your driver">
         <p className="garage__eyebrow">{team.name} · {CAR_NAMES[team.id]}</p>
         <div className="garage__ident">
-          <span className="garage__number" aria-hidden="true">{driver.number}</span>
+          <span className="garage__number" aria-hidden="true">{wideDigits(driver.number)}</span>
           <h1 className="garage__name">{nameParts.map((part) => <span key={part}>{part}</span>)}</h1>
         </div>
         <p className="garage__hook">{profile?.hook}</p>
@@ -425,7 +426,7 @@ export function Showroom() {
                           className={selected ? 'garage__seat is-on' : 'garage__seat'}
                           onClick={() => { const next = DRIVERS_2026.findIndex((entry) => entry.id === candidate.id); choose(next, next >= index ? 1 : -1); }}
                         >
-                          <span className="garage__seat-num">{candidate.number}</span>
+                          <span className="garage__seat-num"><WideNumber value={candidate.number} /></span>
                           <span className="garage__seat-name">{candidate.name}</span>
                           <small>{candidate.abbreviation}</small>
                         </button>

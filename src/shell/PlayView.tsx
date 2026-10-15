@@ -8,6 +8,7 @@ import { DEFAULT_RACE_CONFIG } from '../domain/race-config';
 import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import { createRaceEngine } from '../simulation/race-engine';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
+import { WideNumber } from '../ui/WideNumber';
 import { readProgress, recordMatchedDriver, recordPrediction } from '../progress/progress-store';
 
 function teamOf(teamId: string) {
@@ -202,7 +203,7 @@ export function FindDriverView() {
           <p className="is-correct">Your driver is {matched.name}.</p>
           <div className="driver-card" style={{ '--team': teamOf(matched.teamId).color } as React.CSSProperties}>
             <div className="driver-card__head">
-              <span className="driver-card__number">{matched.number}</span>
+              <span className="driver-card__number"><WideNumber value={matched.number} /></span>
               <div>
                 <h3>{matched.name}</h3>
                 <p className="driver-card__team">{teamOf(matched.teamId).name} · {matched.nationality}</p>
