@@ -136,7 +136,7 @@ export function StudioReflections({ accent }: { accent: string }) {
   return (
     <Environment resolution={512} frames={1} environmentIntensity={1}>
       <color attach="background" args={['#0b0f17']} />
-      <Lightformer form="rect" intensity={6} color="#ffffff" position={[0, 12, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[14, 7, 1]} />
+      <Lightformer form="rect" intensity={3.5} color="#ffffff" position={[0, 12, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[14, 7, 1]} />
       <Lightformer form="rect" intensity={2.6} color="#ffd6a3" position={[0, 3.2, -12]} scale={[26, 1, 1]} />
       <Lightformer form="rect" intensity={2.6} color="#ffd6a3" position={[0, 3.2, 12]} rotation={[0, Math.PI, 0]} scale={[26, 1, 1]} />
       <Lightformer form="rect" intensity={2.2} color="#a9d6ff" position={[-14, 3, 0]} rotation={[0, Math.PI / 2, 0]} scale={[26, 1, 1]} />

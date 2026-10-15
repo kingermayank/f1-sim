@@ -701,13 +701,13 @@ def build_verges():
             if kind == 'o':
                 strip(inner0, inner1, outer0 + 4, outer1 + 4, 1, -0.06)
             elif kind == 'a':
+                # Side by side, never stacked: overlapping coplanar strips z-fight.
                 band = min(1.4, outer0 - inner0 - 0.5)
-                strip(inner0, inner1, inner0 + band, inner1 + band, 3, -0.025, blue)
-                paint0 = min(outer0 - 1.5, inner0 + band + 7.0)
-                paint1 = min(outer1 - 1.5, inner1 + band + 7.0)
-                if paint0 > inner0 + band + 1.0 and paint1 > inner1 + band + 1.0:
-                    strip(inner0 + band, inner1 + band, paint0, paint1, 3, -0.026, green)
-                strip(inner0 + band, inner1 + band, outer0, outer1, 1)
+                strip(inner0, inner1, inner0 + band, inner1 + band, 3, -0.03, blue)
+                paint0 = max(inner0 + band, min(outer0 - 1.5, inner0 + band + 7.0))
+                paint1 = max(inner1 + band, min(outer1 - 1.5, inner1 + band + 7.0))
+                strip(inner0 + band, inner1 + band, paint0, paint1, 3, -0.03, green)
+                strip(paint0, paint1, outer0, outer1, 1)
             elif kind == 'p':
                 band = min(1.2, outer0 - inner0 - 0.5)
                 # A painted run-off band in APEX amber and graphite, 4 m blocks.

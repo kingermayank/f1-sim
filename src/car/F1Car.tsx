@@ -58,7 +58,6 @@ const EXTREMES = [
 ];
 const WIPE_END = Math.max(...EXTREMES.map((point) => point.distanceTo(WIPE_ORIGIN))) + 0.1;
 /** Parts outside the paint shader change colour as the front passes them. */
-const HELMET_AT = new Vector3(0, 0.845, -0.1).distanceTo(WIPE_ORIGIN);
 const FRONT_WHEELS_AT = new Vector3(0.8, 0.36, 1.7).distanceTo(WIPE_ORIGIN);
 const REAR_WHEELS_AT = new Vector3(0.765, 0.36, -1.7).distanceTo(WIPE_ORIGIN);
 
@@ -117,9 +116,8 @@ export function F1Car({
       nutFront: nutMaterial(),
       nutRear: nutMaterial(),
       brake: new MeshStandardMaterial({ color: '#232427', metalness: 0.2, roughness: 0.75, emissive: '#ff4a10', emissiveIntensity: 0 }),
-      helmet: new MeshPhysicalMaterial({ color: livery.helmet, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.04 }),
-      visor: new MeshPhysicalMaterial({ color: '#08090b', metalness: 0.85, roughness: 0.06, iridescence: 1, iridescenceIOR: 1.9, iridescenceThicknessRange: [260, 640] }),
-      chrome: new MeshStandardMaterial({ color: '#dfe6ee', metalness: 1, roughness: 0.03 }),
+      // Mirror glass: soft enough that the studio softbox never flares off it.
+      chrome: new MeshStandardMaterial({ color: '#aeb6bf', metalness: 1, roughness: 0.16, envMapIntensity: 0.7 }),
       lights: new MeshBasicMaterial({ color: new Color('#ff1a28').multiplyScalar(3), toneMapped: false }),
     };
     // The props only seed the materials; later changes run as wipes.
@@ -145,7 +143,7 @@ export function F1Car({
 
   // Livery, number or camera-pod changes: paint the car with a wipe.
   const shown = useRef<string | null>(null);
-  const wipe = useRef({ running: false, radius: 0, helmet: '', rim: '', accent: '' });
+  const wipe = useRef({ running: false, radius: 0, rim: '', accent: '' });
   useEffect(() => {
     const key = `${livery.teamId}|${number ?? ''}|${pod}`;
     if (shown.current === key) return;
@@ -153,7 +151,6 @@ export function F1Car({
     shown.current = key;
     const state = { livery, number: number === undefined ? null : numberTexture(number), cam: CAMERA_POD[pod] };
     const target = wipe.current;
-    target.helmet = livery.helmet;
     target.rim = livery.rim;
     target.accent = livery.accent;
     if (first || reducedMotion.current) {
@@ -161,7 +158,6 @@ export function F1Car({
       settlePaint(uniforms);
       uniforms.uWipeOn.value = 0;
       target.running = false;
-      materials.helmet.color.set(livery.helmet);
       for (const rim of [materials.rimFront, materials.rimRear]) rim.color.set(livery.rim);
       for (const nut of [materials.nutFront, materials.nutRear]) nut.color.set(livery.accent);
       return;
@@ -197,7 +193,6 @@ export function F1Car({
       uniforms.uWipe.value.w = state.radius;
       const passed = (at: number) => before < at && state.radius >= at;
       if (passed(FRONT_WHEELS_AT)) { materials.rimFront.color.set(state.rim); materials.nutFront.color.set(state.accent); }
-      if (passed(HELMET_AT)) materials.helmet.color.set(state.helmet);
       if (passed(REAR_WHEELS_AT)) { materials.rimRear.color.set(state.rim); materials.nutRear.color.set(state.accent); }
       if (state.radius > WIPE_END) {
         state.running = false;
@@ -248,8 +243,6 @@ export function F1Car({
     <group name="f1-car" dispose={null}>
       <mesh name="paint" geometry={geometry.paint} material={detail === 'low' ? materials.paintLite : materials.paint.material} {...shadow} />
       <mesh name="carbon" geometry={geometry.carbon} material={materials.carbon} {...shadow} />
-      <mesh name="helmet" geometry={geometry.helmet} material={materials.helmet} {...shadow} />
-      <mesh name="visor" geometry={geometry.visor} material={materials.visor} />
       <mesh name="mirrors" geometry={geometry.chrome} material={materials.chrome} />
       <mesh name="lights" geometry={geometry.lights} material={materials.lights} />
       <group ref={rearFlap} position={geometry.rearFlapPivot}>

@@ -1,4 +1,4 @@
-import { BoxGeometry, BufferGeometry, CylinderGeometry, LatheGeometry, RingGeometry, SphereGeometry, Vector2, Vector3 } from 'three';
+import { BoxGeometry, BufferGeometry, CylinderGeometry, LatheGeometry, RingGeometry, Vector2, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {
   bothSides,
@@ -66,8 +66,6 @@ export interface CarGeometry {
   /** Front-wing upper flaps, which also ease off in straight mode. */
   frontFlaps: BufferGeometry;
   frontFlapPivot: Vector3;
-  helmet: BufferGeometry;
-  visor: BufferGeometry;
   /** Mirror glass. */
   chrome: BufferGeometry;
   /** Rain lights. */
@@ -427,17 +425,6 @@ function suspension(): BufferGeometry[] {
   return [...left, uprightFront, uprightRear].flatMap((part) => [part, mirrorX(part)]);
 }
 
-function helmet(r: Resolution): { shell: BufferGeometry; visor: BufferGeometry } {
-  const segments = r === RESOLUTION.high ? 40 : 14;
-  const shell = finish(new SphereGeometry(0.126, segments, Math.round(segments * 0.75)));
-  shell.scale(0.92, 1, 1.12);
-  place(shell, new Vector3(0, 0.845, -0.1));
-  const visor = finish(new SphereGeometry(0.1285, segments, Math.round(segments * 0.5), Math.PI / 2 - 0.95, 1.9, 1.08, 0.42));
-  visor.scale(0.92, 1, 1.12);
-  place(visor, new Vector3(0, 0.845, -0.1));
-  return { shell, visor };
-}
-
 /**
  * One wheel at the origin, axle along X, the rim face towards +X (outboard
  * on the left of the car; the right-hand wheels are turned to face out).
@@ -499,7 +486,6 @@ function build(detail: CarDetail): CarGeometry {
   const front = frontWing(r);
   const rear = rearWing(r);
   const mirror = mirrors(r);
-  const head = helmet(r);
 
   const paint = merge([
     body(r),
@@ -534,8 +520,6 @@ function build(detail: CarDetail): CarGeometry {
     rearFlapPivot: rear.pivot,
     frontFlaps,
     frontFlapPivot,
-    helmet: merge([head.shell]),
-    visor: merge([head.visor]),
     chrome: merge(mirror.glass),
     lights: merge(rear.lights),
     front: wheel(CAR_DIMENSIONS.frontTyreHalfWidth, r),

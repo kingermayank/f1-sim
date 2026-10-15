@@ -14,11 +14,11 @@ export interface PostFXHandle {
 
 /**
  * The showroom's image chain: the scene into a 4× multisampled half-float
- * target, ground-contact ambient occlusion, a bloom that only catches what
- * is brighter than white (LED strips, the paint shell), then tone mapping and
- * sRGB. Taking a frame from R3F (priority 1) replaces its default render.
+ * target, ground-contact ambient occlusion, a gentle bloom that only catches
+ * what is well past white (the LED strips, the paint shell), never the paint's
+ * own highlights, then tone mapping and sRGB. Taking a frame from R3F (priority 1) replaces its default render.
  */
-export function PostFX({ ao = true, bloom = true, bloomStrength = 0.32, onReady }: { ao?: boolean; bloom?: boolean; bloomStrength?: number; onReady?(handle: PostFXHandle): void }) {
+export function PostFX({ ao = true, bloom = true, bloomStrength = 0.2, onReady }: { ao?: boolean; bloom?: boolean; bloomStrength?: number; onReady?(handle: PostFXHandle): void }) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
@@ -37,7 +37,7 @@ export function PostFX({ ao = true, bloom = true, bloomStrength = 0.32, onReady 
       gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 6, normalPhi: 6, radius: 8, rings: 2, samples: 16 });
       composer.addPass(gtao);
     }
-    const bloomPass = bloom ? new UnrealBloomPass(new Vector2(2, 2), bloomStrength, 0.24, 1.25) : null;
+    const bloomPass = bloom ? new UnrealBloomPass(new Vector2(2, 2), bloomStrength, 0.2, 1.6) : null;
     if (bloomPass) composer.addPass(bloomPass);
     composer.addPass(new OutputPass());
     return { composer, bloom: bloomPass };
