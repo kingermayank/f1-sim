@@ -417,13 +417,60 @@ export function createCarbonMaterial(): MeshPhysicalMaterial {
   return material;
 }
 
-/** Slick tyre: rubber with a compound band on each sidewall. */
+/**
+ * Sidewall lettering, wrapped twice round the tyre: the marks that show a
+ * wheel turning. Drawn once, on first use, in the display face.
+ */
+let letteringTexture: CanvasTexture | null = null;
+function sidewallLettering(): CanvasTexture {
+  if (letteringTexture) return letteringTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 2048;
+  canvas.height = 96;
+  const context = canvas.getContext('2d')!;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.textBaseline = 'middle';
+  // Red: compound-coloured marks (tinted in the shader); green: white marks.
+  const half = canvas.width / 2;
+  for (let copy = 0; copy < 2; copy += 1) {
+    const x0 = copy * half;
+    context.fillStyle = '#00ff00';
+    context.font = '700 70px "Formula1 Display Wide", "Formula1 Wide", Arial Black, sans-serif';
+    context.fillText('APEX', x0 + 40, 50);
+    context.fillStyle = '#ff0000';
+    context.font = '700 44px "MonoSpec", "Formula1 Display Regular", Arial, sans-serif';
+    context.fillText('RACE SLICK', x0 + 420, 50);
+    context.fillStyle = '#00ff00';
+    context.font = '400 34px "MonoSpec", Arial, sans-serif';
+    context.fillText('18″  ·  305/720 R18', x0 + 760, 50);
+    context.fillStyle = '#ff0000';
+    context.fillRect(x0 + 330, 30, 46, 40);
+  }
+  letteringTexture = new CanvasTexture(canvas);
+  letteringTexture.anisotropy = 4;
+  return letteringTexture;
+}
+
+/** Shutter time the wheel blur imitates: half a 60 fps frame, as a broadcast camera's. */
+const WHEEL_SHUTTER_SECONDS = 1 / 120;
+
+/**
+ * Slick tyre: rubber with a compound band and lettering on each sidewall.
+ * `uSpin` (rad/s) smears the lettering round the tyre the way a camera shutter
+ * does, so a fast wheel reads as a blur rather than a still picture.
+ */
 export function createTyreMaterial(band: string, halfWidth: number): MeshStandardMaterial {
   const material = new MeshStandardMaterial({ color: '#17181a', roughness: 0.88, metalness: 0 });
   material.name = 'car-tyre';
-  const uniforms = { uBand: { value: new Color(band) }, uHalfWidth: { value: halfWidth } };
+  const uniforms = {
+    uBand: { value: new Color(band) },
+    uHalfWidth: { value: halfWidth },
+    uSpin: { value: 0 },
+    uLetters: { value: null as Texture | null },
+  };
   material.userData.uniforms = uniforms;
   material.onBeforeCompile = (shader) => {
+    uniforms.uLetters.value ??= sidewallLettering();
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
@@ -434,7 +481,9 @@ export function createTyreMaterial(band: string, halfWidth: number): MeshStandar
       .replace('#include <common>', `#include <common>
         varying vec3 vWheelPos;
         uniform vec3 uBand;
-        uniform float uHalfWidth;`)
+        uniform float uHalfWidth;
+        uniform float uSpin;
+        uniform sampler2D uLetters;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         float wheelR = length(vWheelPos.yz);
         float side = abs(vWheelPos.x) / uHalfWidth;
@@ -442,12 +491,73 @@ export function createTyreMaterial(band: string, halfWidth: number): MeshStandar
         float bandW = fwidth(wheelR) * 1.2;
         float stripe = smoothstep(0.296 - bandW, 0.296 + bandW, wheelR) * (1.0 - smoothstep(0.309 - bandW, 0.309 + bandW, wheelR));
         diffuseColor.rgb = mix(diffuseColor.rgb, uBand, stripe * onWall);
+        // Lettering between the band and the shoulder, blurred over the shutter.
+        float letterBand = smoothstep(0.312, 0.315, wheelR) * (1.0 - smoothstep(0.341, 0.344, wheelR)) * onWall;
+        float angle = atan(vWheelPos.y, vWheelPos.z) / 6.2831853 + 0.5;
+        float v = clamp((wheelR - 0.313) / 0.029, 0.0, 1.0);
+        float span = uSpin * ${WHEEL_SHUTTER_SECONDS.toFixed(5)} / 6.2831853;
+        vec2 marks = vec2(0.0);
+        for (int k = 0; k < 8; k++) {
+          float offset = (float(k) / 7.0 - 0.5) * span;
+          marks += texture2D(uLetters, vec2(fract(angle + offset), v)).rg;
+        }
+        marks /= 8.0;
+        marks *= letterBand;
+        diffuseColor.rgb = mix(diffuseColor.rgb, uBand, marks.r * 0.9);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86), marks.g * 0.85);
         // Scrubbed shoulders are a touch lighter than the tread.
         diffuseColor.rgb *= 1.0 + 0.25 * smoothstep(0.34, 0.355, wheelR) * smoothstep(0.55, 0.85, side);`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(0.9, 0.62, stripe * onWall);`);
+        roughnessFactor = mix(0.9, 0.62, max(stripe * onWall, max(marks.r, marks.g)));`);
   };
-  material.customProgramCacheKey = () => 'car-tyre-v1';
+  material.customProgramCacheKey = () => 'car-tyre-v2';
+  return material;
+}
+
+/**
+ * The rim's face as the camera sees it spinning: the spokes averaged over the
+ * shutter, from crisp at a crawl to a soft disc at speed. It fades in as the
+ * wheel speeds up; above that the spoke geometry beneath is hidden, so the
+ * wheel never strobes into looking still.
+ */
+export function createRimBlurMaterial(rim: Color): MeshStandardMaterial {
+  const material = new MeshStandardMaterial({ color: '#ffffff', metalness: 0.75, roughness: 0.38, transparent: true, depthWrite: false });
+  material.name = 'car-rim-blur';
+  const uniforms = { uRim: { value: rim }, uSpin: { value: 0 }, uFade: { value: 0 }, uSpokes: { value: 10 } };
+  material.userData.uniforms = uniforms;
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vDiscPos;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vDiscPos = position;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vDiscPos;
+        uniform vec3 uRim;
+        uniform float uSpin;
+        uniform float uFade;
+        uniform float uSpokes;`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float discR = length(vDiscPos.yz);
+        float discA = atan(vDiscPos.y, vDiscPos.z);
+        float span = uSpin * ${WHEEL_SHUTTER_SECONDS.toFixed(5)};
+        float spokes = 0.0;
+        for (int k = 0; k < 10; k++) {
+          float a = discA + (float(k) / 9.0 - 0.5) * span;
+          float cell = 6.2831853 / uSpokes;
+          float d = abs(mod(a + cell * 0.5, cell) - cell * 0.5) * discR;
+          spokes += 1.0 - smoothstep(0.012, 0.02, d);
+        }
+        spokes /= 10.0;
+        // Hub and lip are solid rim; between them, spokes over the dark drum.
+        float solid = max(1.0 - smoothstep(0.075, 0.085, discR), smoothstep(0.212, 0.218, discR));
+        float cover = max(solid, spokes * smoothstep(0.07, 0.09, discR));
+        diffuseColor.rgb = mix(vec3(0.05, 0.05, 0.055), uRim, cover);
+        diffuseColor.a = uFade;`);
+  };
+  material.customProgramCacheKey = () => 'car-rim-blur-v1';
   return material;
 }
 

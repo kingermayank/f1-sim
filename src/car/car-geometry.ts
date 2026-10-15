@@ -1,4 +1,4 @@
-import { BoxGeometry, BufferGeometry, CylinderGeometry, LatheGeometry, SphereGeometry, Vector2, Vector3 } from 'three';
+import { BoxGeometry, BufferGeometry, CylinderGeometry, LatheGeometry, RingGeometry, SphereGeometry, Vector2, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {
   bothSides,
@@ -47,6 +47,10 @@ export interface WheelGeometry {
   rim: BufferGeometry;
   brake: BufferGeometry;
   nut: BufferGeometry;
+  /** A disc over the rim face that draws the spokes motion-blurred once the wheel spins fast. */
+  blurDisc: BufferGeometry;
+  /** Spokes on the rim, which the blur disc draws. */
+  spokes: number;
   halfWidth: number;
 }
 
@@ -482,7 +486,12 @@ function wheel(halfWidth: number, r: Resolution): WheelGeometry {
   nutGeometry.translate(W * 0.68, 0, 0);
   const nut = merge([nutGeometry]);
 
-  return { tyre: merge([tyre]), rim, brake, nut, halfWidth: W };
+  // Facing outboard (+X), just proud of the spokes, out to the rim's lip.
+  const blurDisc = new RingGeometry(0.03, 0.236, Math.max(24, r.wheelSegments), 1);
+  blurDisc.rotateY(Math.PI / 2);
+  blurDisc.translate(W * 0.7, 0, 0);
+
+  return { tyre: merge([tyre]), rim, brake, nut, blurDisc, spokes, halfWidth: W };
 }
 
 function build(detail: CarDetail): CarGeometry {

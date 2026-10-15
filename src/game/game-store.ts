@@ -9,7 +9,8 @@ import type { CarState as AiCarState } from '../simulation/events';
 import { KERB_OUTER_METRES, kerbAt, runoffAt, wallAt } from '../track/circuit-layout';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { CAR, createCarState, gearFor, stepCar, type CarInput, type CarState, type Surface } from './car-physics';
-import { avoidanceTarget, resolveCarContact, spaceField, type Pose } from './field';
+import { overtakeTarget, resolveCarContact, spaceField, steerLateral, type Pose } from './field';
+import { computeRacingGuide, type GuideSample } from './racing-line';
 import { constrainToWalls, createProjectedTrack } from './track-projection';
 
 /**
@@ -39,10 +40,28 @@ export const FIELD_SIZE = 10;
 const AI_PACE: Record<Difficulty, number> = { easy: 0.72, medium: 0.86, hard: 1.0 };
 const REFERENCE_LAP_SECONDS = 76.2;
 const DRS_GAP_SECONDS = 1.0;
-/** Rivals within this many metres of the player (either way) move off the racing line. */
-const AVOIDANCE_RANGE_METRES = 40;
-const AVOIDANCE_OFFSET_METRES = 3.6;
-const AVOIDANCE_RATE = 3;
+/** A rival this far behind the player and faster plans a pass; it holds its line until this far clear. */
+const OVERTAKE_BEHIND_METRES = 30;
+const OVERTAKE_CLEAR_METRES = 10;
+/** Sideways room a passing rival leaves the player, centre to centre. */
+const OVERTAKE_GAP_METRES = 2.9;
+/** No rival changes line faster than this, metres a second sideways. */
+const LANE_CHANGE_RATE = 1.8;
+/**
+ * Driving assists, by difficulty. Braking: the car will not carry more than
+ * the guide's speed (plus a tolerance) into a corner, braking for you if you
+ * have not. Steering: near the edge of the track, drifting outward, the car
+ * is eased back toward the road. Hard is all yours.
+ */
+export const ASSISTS: Record<Difficulty, { brake: number; tolerance: number; steer: number }> = {
+  easy: { brake: 1, tolerance: 0.1, steer: 1 },
+  medium: { brake: 0.55, tolerance: 0.16, steer: 0.5 },
+  hard: { brake: 0, tolerance: 0, steer: 0 },
+};
+/** The steering assist starts this far inside the track edge. */
+const EDGE_ASSIST_METRES = 2.6;
+/** Ride height over the drawn road, which sits a little above the centreline. */
+const RIDE_LIFT_METRES = 0.015;
 /** Grid row pitch, matching the engine's own grid. */
 export const GRID_ROW_METRES = 9.5;
 export const INTRO_SECONDS = 11;
@@ -63,7 +82,7 @@ const PROJECTED_AI_SPEED_MPS = 52;
  * a tick, which on the grid looks like teleporting away. Engine time is
  * ramped over these seconds so the field accelerates off the line.
  */
-const AI_LAUNCH_SECONDS = 4.5;
+const AI_LAUNCH_SECONDS = 3.2;
 
 export interface LapRecord {
   lap: number;
@@ -148,6 +167,11 @@ export interface GameState {
   bodyPitch: number;
   gear: number;
   rpm: number;
+  /** Pedals as the car received them (assist included), 0-1, for the dash. */
+  throttle: number;
+  brake: number;
+  /** The braking assist is braking for the driver this frame. */
+  assisting: boolean;
   ai: readonly AiCarState[];
   events: GameEvent[];
   /** The player is on their last lap: the marshal waves the flag at the line. */
@@ -220,6 +244,11 @@ function gridStart(field: readonly AiCarState[]): CarState {
   return createCarState(point.x, point.z, Math.atan2(tangent.z, tangent.x));
 }
 
+/** A rival's road speed in m/s: the engine speaks in laps per engine second, and the race clock runs at AI pace. */
+export function rivalSpeedMps(rival: AiCarState, difficulty: Difficulty): number {
+  return rival.speed * projectedTrack.lengthMeters * AI_PACE[difficulty];
+}
+
 function progressOf(car: AiCarState): number {
   return car.lap + car.distance;
 }
@@ -242,13 +271,44 @@ function wallFor(projection: { fraction: number; lateral: number }): number {
   return wallAt(projection.fraction, Math.sign(projection.lateral) || 1);
 }
 
+let guide: GuideSample[] | null = null;
+/** The racing guide's target speed (m/s) at a lap fraction, a few metres ahead. */
+function guideSpeedAt(fraction: number): number {
+  guide ??= computeRacingGuide(projectedTrack, 2048);
+  const ahead = fraction + 6 / projectedTrack.lengthMeters;
+  const index = Math.floor((((ahead % 1) + 1) % 1) * guide.length) % guide.length;
+  return guide[index].speed;
+}
+
+/** The braking assist: input as the driver gave it, with the brakes it was missing. */
+export function assistInput(input: CarInput, speed: number, fraction: number, difficulty: Difficulty): CarInput {
+  const level = ASSISTS[difficulty];
+  if (level.brake <= 0 || speed < 15) return input;
+  const target = guideSpeedAt(fraction) * (1 + level.tolerance);
+  const excess = speed - target;
+  if (excess <= 0) return input;
+  const brake = Math.min(1, excess / 5) * level.brake;
+  return {
+    ...input,
+    brake: Math.max(input.brake, brake),
+    throttle: input.throttle * (1 - Math.min(1, excess / 2.5) * level.brake),
+  };
+}
+
+/** Kerbs are raised: the car rides up over them by this much. */
+function kerbLift(lateral: number, fraction: number): number {
+  const distance = Math.abs(lateral);
+  if (distance < projectedTrack.halfWidth || distance > KERB_OUTER_METRES || !kerbAt(fraction, Math.sign(lateral) || 1)) return 0;
+  return 0.035;
+}
+
 export function createGameStore() {
   let engine: RaceEngine | null = null;
   // The previous lap fraction, for detecting the line crossing.
   let previousFraction = 0;
-  // Smoothed lateral offset per rival, so moving aside reads as a decision,
-  // and the side each rival chose, so it never changes its mind mid-move and
-  // crosses the player's nose.
+  // Each rival's lateral position as drawn, driven toward its line, and the
+  // side it chose to pass the player on, so it never changes its mind mid-move
+  // and crosses the player's nose.
   const aiLateral = new Map<string, number>();
   const aiSide = new Map<string, number>();
   // Race clock at which each AI car took the flag.
@@ -268,7 +328,12 @@ export function createGameStore() {
     return next.length > EVENT_LIMIT ? next.slice(next.length - EVENT_LIMIT) : next;
   }
 
-  function stepField(dt: number, playerProgress: number, playerLateral: number, raceSeconds = Number.POSITIVE_INFINITY): AiCarState[] {
+  function stepField(
+    dt: number,
+    player: { progress: number; lateral: number; speed: number } | null,
+    raceSeconds = Number.POSITIVE_INFINITY,
+    pace = 1,
+  ): AiCarState[] {
     if (!engine) return [];
     // Launch ramp: engine time runs slow for the first seconds after lights out.
     const launch = Math.min(1, Math.max(0.08, raceSeconds / AI_LAUNCH_SECONDS));
@@ -282,24 +347,37 @@ export function createGameStore() {
       const lap = Math.floor(progress);
       return { ...rival, lap, distance: progress - lap };
     });
-    const ease = 1 - Math.exp(-dt * AVOIDANCE_RATE);
-    return spaceField(smoothed, projectedTrack.lengthMeters).map((rival) => {
-      let target = 0;
-      if (rival.status === 'running' && rival.pitState === 'track') {
-        const inRange = Math.abs(progressOf(rival) - playerProgress) * projectedTrack.lengthMeters <= AVOIDANCE_RANGE_METRES;
-        if (!inRange) aiSide.delete(rival.driverId);
-        else if (!aiSide.has(rival.driverId)) aiSide.set(rival.driverId, playerLateral >= 0 ? 1 : -1);
-        const side = aiSide.get(rival.driverId) ?? 1;
-        target = avoidanceTarget(progressOf(rival), playerProgress, side, {
-          rangeLaps: AVOIDANCE_RANGE_METRES / projectedTrack.lengthMeters,
-          offsetMetres: AVOIDANCE_OFFSET_METRES,
+    const length = projectedTrack.lengthMeters;
+    return spaceField(smoothed, length).map((rival) => {
+      const id = rival.driverId;
+      const running = rival.status === 'running' && rival.pitState === 'track';
+      if (!running) {
+        aiSide.delete(id);
+        aiLateral.set(id, rival.lateralOffset);
+        return rival;
+      }
+      // The engine's own line: grid lanes off the start, then the racing,
+      // attacking or defending line. Rivals ahead of the player keep to it.
+      const current = aiLateral.get(id) ?? rival.lateralOffset;
+      let target = rival.lateralOffset;
+      if (player) {
+        const gap = (progressOf(rival) - player.progress) * length;
+        const closing = rival.speed * length * pace * launch - player.speed;
+        const pass = overtakeTarget(current, gap, closing, player.lateral, aiSide.get(id) ?? null, {
+          behindMetres: OVERTAKE_BEHIND_METRES,
+          clearMetres: OVERTAKE_CLEAR_METRES,
+          passGapMetres: OVERTAKE_GAP_METRES,
           halfWidth: projectedTrack.halfWidth,
         });
+        if (pass) {
+          aiSide.set(id, pass.side);
+          target = pass.lateral;
+        } else aiSide.delete(id);
       }
-      const current = aiLateral.get(rival.driverId) ?? 0;
-      const avoidance = current + (target - current) * ease;
-      aiLateral.set(rival.driverId, avoidance);
-      return { ...rival, lateralOffset: rival.lateralOffset + avoidance };
+      // Every change of line is driven, never snapped.
+      const lateral = steerLateral(current, target, LANE_CHANGE_RATE, dt);
+      aiLateral.set(id, lateral);
+      return { ...rival, lateralOffset: lateral };
     });
   }
 
@@ -376,6 +454,9 @@ export function createGameStore() {
     bodyPitch: 0,
     gear: 1,
     rpm: 0,
+    throttle: 0,
+    brake: 0,
+    assisting: false,
     ai: [],
     events: [],
     finalLap: false,
@@ -402,8 +483,8 @@ export function createGameStore() {
         lap: -1, lapTimes: [], bestLap: null, currentLapStart: 0,
         position: FIELD_SIZE, fieldSize: FIELD_SIZE,
         gapAheadSeconds: null, gapBehindSeconds: null, drsAvailable: false, drsActive: false, hitWall: false, hitCar: 0,
-        surfaceY: projectedTrack.project(car.x, car.z).point.y, bodyRoll: 0, bodyPitch: 0,
-        gear: 1, rpm: 0, ai: spaceField(engine.snapshot().cars, projectedTrack.lengthMeters),
+        surfaceY: projectedTrack.project(car.x, car.z).point.y + RIDE_LIFT_METRES, bodyRoll: 0, bodyPitch: 0,
+        gear: 1, rpm: 0, throttle: 0, brake: 0, assisting: false, ai: spaceField(engine.snapshot().cars, projectedTrack.lengthMeters),
         events: [], finalLap: false, finishPosition: null, raceTime: null, classification: [],
       });
     },
@@ -446,13 +527,13 @@ export function createGameStore() {
           previousFraction = state.fraction;
           return;
         }
-        set({ lights, lightsSeconds, rpm: revving });
+        set({ lights, lightsSeconds, rpm: revving, throttle: input.throttle, brake: input.brake });
         return;
       }
 
       if (state.phase === 'finished') {
         // Cool-down: the field keeps running and the player coasts to a stop.
-        const ai = stepField(dt, state.laps, state.lateral);
+        const ai = stepField(dt, null);
         const projection = projectedTrack.project(state.car.x, state.car.z, state.fraction);
         const stepped = stepCar(state.car, { throttle: 0, brake: 0.25, steer: input.steer, drs: false }, { onTrack: state.onTrack, surface: state.surface, drsAvailable: false }, dt);
         const after = projectedTrack.project(stepped.x, stepped.z, projection.fraction);
@@ -460,7 +541,7 @@ export function createGameStore() {
         touchingWall = walled.hitWall;
         const car = { ...stepped, x: walled.x, z: walled.z, heading: walled.heading, speed: walled.speed };
         const { gear, rpm } = gearFor(car.speed);
-        set({ ai, car, fraction: after.fraction, lateral: after.lateral, surfaceY: after.point.y, gear, rpm, hitWall: false, hitCar: 0, drsActive: false, drsAvailable: false });
+        set({ ai, car, fraction: after.fraction, lateral: after.lateral, surfaceY: after.point.y + RIDE_LIFT_METRES, gear, rpm, throttle: 0, brake: 0.25, assisting: false, hitWall: false, hitCar: 0, drsActive: false, drsAvailable: false });
         return;
       }
 
@@ -471,7 +552,7 @@ export function createGameStore() {
       const surface = surfaceAt(projection.lateral, projection.fraction);
       const onTrack = surface !== 'grass';
       const playerProgress = state.lap + projection.fraction;
-      const ai = stepField(dt, playerProgress, projection.lateral, state.elapsed);
+      const ai = stepField(dt, { progress: playerProgress, lateral: projection.lateral, speed: state.car.speed }, state.elapsed, AI_PACE[state.difficulty]);
       const elapsed = state.elapsed + dt;
       for (const rival of ai) {
         if (rival.status === 'finished' && !aiFinishTimes.has(rival.driverId)) aiFinishTimes.set(rival.driverId, elapsed);
@@ -492,7 +573,23 @@ export function createGameStore() {
       const drsAvailable = state.lap >= DRS_FROM_LAP && projectedTrack.inPassingZone(projection.fraction)
         && gapAheadSeconds !== null && gapAheadSeconds <= DRS_GAP_SECONDS;
 
-      const stepped = stepCar(state.car, input, { onTrack, surface, drsAvailable }, dt);
+      const driven = assistInput(input, state.car.speed, projection.fraction, state.difficulty);
+      const stepped = stepCar(state.car, driven, { onTrack, surface, drsAvailable }, dt);
+      // Steering assist: drifting outward near the edge, ease the nose back
+      // toward the road. A correction a driver would barely feel, not a rail.
+      const steerAssist = ASSISTS[state.difficulty].steer;
+      if (steerAssist > 0 && stepped.speed > 8) {
+        const edge = projectedTrack.halfWidth - EDGE_ASSIST_METRES;
+        const outside = Math.abs(projection.lateral) - edge;
+        let error = stepped.heading - Math.atan2(projection.tangent.z, projection.tangent.x);
+        while (error > Math.PI) error -= Math.PI * 2;
+        while (error < -Math.PI) error += Math.PI * 2;
+        const outward = Math.sin(error) * Math.sign(projection.lateral) > 0;
+        if (outside > 0 && outward && Math.abs(error) < 0.6) {
+          const strength = Math.min(1, outside / 3) * 0.45 * steerAssist;
+          stepped.heading -= Math.sign(error) * Math.min(Math.abs(error), strength * dt);
+        }
+      }
       // Re-project after moving and hold the car inside the barriers, so it can
       // never wander out over terrain the circuit model never meant to be driven.
       const after = projectedTrack.project(stepped.x, stepped.z, projection.fraction);
@@ -576,12 +673,15 @@ export function createGameStore() {
       while (dHeading < -Math.PI) dHeading += Math.PI * 2;
       const yawRate = dHeading / dt;
       const accel = (car.speed - state.car.speed) / dt;
-      const targetRoll = Math.max(-0.09, Math.min(0.09, -yawRate * car.speed * 0.0016));
-      const targetPitch = Math.max(-0.06, Math.min(0.06, -accel * 0.004));
-      const bodyEase = 1 - Math.exp(-dt * 8);
+      // An F1 car is stiff: about a degree of roll at the limit and a little
+      // more pitch under braking. Much more and it looks like it is sinking
+      // into the road on one side and lifting off on the other.
+      const targetRoll = Math.max(-0.018, Math.min(0.018, -yawRate * car.speed * 0.0004));
+      const targetPitch = Math.max(-0.014, Math.min(0.014, -accel * 0.0009));
+      const bodyEase = 1 - Math.exp(-dt * 6);
       const bodyRoll = state.bodyRoll + (targetRoll - state.bodyRoll) * bodyEase;
       const bodyPitch = state.bodyPitch + (targetPitch - state.bodyPitch) * bodyEase;
-      const surfaceY = settled.point.y;
+      const surfaceY = settled.point.y + RIDE_LIFT_METRES + kerbLift(settled.lateral, settled.fraction);
 
       // Race ends when the player completes the final lap.
       if (lap >= state.laps) {
@@ -605,6 +705,7 @@ export function createGameStore() {
         car, fraction: settled.fraction, lateral: settled.lateral, surface, onTrack, hitWall, hitCar, surfaceY, bodyRoll, bodyPitch,
         lap, lapTimes, bestLap, currentLapStart, elapsed, position,
         gapAheadSeconds, gapBehindSeconds, drsAvailable, drsActive, gear, rpm, ai, events, finalLap, reactionSeconds,
+        throttle: driven.throttle, brake: driven.brake, assisting: driven.brake > input.brake + 0.05,
       });
     },
 
@@ -616,7 +717,7 @@ export function createGameStore() {
       touchingWall = false;
       set({
         car: createCarState(point.x, point.z, Math.atan2(tangent.z, tangent.x)),
-        lateral: 0, surface: 'tarmac', onTrack: true, surfaceY: point.y, bodyRoll: 0, bodyPitch: 0, placement: placement + 1,
+        lateral: 0, surface: 'tarmac', onTrack: true, surfaceY: point.y + RIDE_LIFT_METRES, bodyRoll: 0, bodyPitch: 0, placement: placement + 1,
       });
     },
 
@@ -645,6 +746,8 @@ export function formatGap(seconds: number): string {
 }
 
 export const gameStore = createGameStore();
+// Development builds expose the store for manual testing from the console.
+if (import.meta.env.DEV && typeof window !== 'undefined') Object.assign(window, { __apexGame: gameStore });
 export const useGameStore = <T,>(selector: (state: GameStore) => T): T => useStore(gameStore, selector);
 
 /**

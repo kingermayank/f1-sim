@@ -8,11 +8,13 @@ import { liveryFor } from '../car/liveries';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { createSplineTrack } from '../track/spline-track';
 import { createEngineAudio } from './engine-audio';
-import { INTRO_SECONDS, gameStore, projectedTrack, useGameStore } from './game-store';
+import { INTRO_SECONDS, gameStore, projectedTrack, rivalSpeedMps, useGameStore } from './game-store';
 import { getPlayerInput } from './input';
 import { GuideLine } from './GuideLine';
 import { CarFillLights } from './TeamCarModel';
 import { RaceReady } from './RaceReady';
+import { kerbAt } from '../track/circuit-layout';
+import { CarEffects } from './CarEffects';
 import { RaceWorld } from './RaceWorld';
 
 const SPLINE = createSplineTrack(SHANGHAI_TRACK);
@@ -111,7 +113,7 @@ function GameLoop({ muted }: { muted: boolean }) {
     }
 
     audio.update({
-      rpm: after.rpm, gear: after.gear, throttle: controls.throttle, brake: controls.brake,
+      rpm: after.rpm, gear: after.gear, throttle: after.throttle, brake: after.brake,
       slip: after.car.slip, speed: after.car.speed, onTrack: after.onTrack,
       rival: nearestRival(after),
     });
@@ -163,12 +165,17 @@ function PlayerCar() {
   const driverId = useGameStore((state) => state.driverId);
   const driver = DRIVERS_2026.find((candidate) => candidate.id === driverId);
   const teamId = driver?.teamId ?? TEAMS_2026[0].id;
-  const motion = useRef<CarMotion>({ speed: 0, steer: 0, straight: false });
+  const motion = useRef<CarMotion>({ speed: 0, steer: 0, straight: false, brake: 0 });
+  const lastSpeed = useRef(0);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const object = group.current;
     if (!object) return;
     const { car, surfaceY, bodyRoll, bodyPitch, drsActive } = gameStore.getState();
+    // Braking read back from the deceleration: heats the discs.
+    const decel = delta > 0 ? (lastSpeed.current - car.speed) / Math.min(delta, 0.1) : 0;
+    lastSpeed.current = car.speed;
+    motion.current.brake = Math.max(0, Math.min(1, (decel - 6) / 20));
     // Height comes from the track point directly under the car — never from
     // the terrain, which drops away steeply outside the circuit.
     object.position.set(car.x, surfaceY, car.z);
@@ -223,7 +230,12 @@ function AiCar({ driverId, teamId }: { driverId: string; teamId: string }) {
       object.rotation.set(0, -Math.atan2(tangent.z, tangent.x) + Math.PI / 2, 0);
     }
     object.visible = car.status !== 'retired';
-    motion.current.speed = car.speed ?? 0;
+    motion.current.speed = rivalSpeedMps(car, state.difficulty) * (state.phase === 'racing' || state.phase === 'finished' ? 1 : 0);
+    // Front wheels follow the corner: the turn of the track over the next few metres.
+    const ahead = projectedTrack.at(car.distance + 4 / projectedTrack.lengthMeters).tangent;
+    const here = projectedTrack.at(car.distance).tangent;
+    const turn = Math.atan2(here.x * ahead.z - here.z * ahead.x, here.x * ahead.x + here.z * ahead.z) / 4;
+    motion.current.steer = Math.max(-1, Math.min(1, -Math.atan(turn * 3.6) / STEER_DISPLAY_LOCK));
     motion.current.straight = state.phase === 'racing' && projectedTrack.inPassingZone(car.distance) && car.lap >= 1;
     const distance = Math.hypot(object.position.x - state.car.x, object.position.z - state.car.z);
     const wantNear = nearRef.current ? distance < LOD_FAR_METRES : distance < LOD_NEAR_METRES;
@@ -272,6 +284,7 @@ function ChaseCamera() {
   const snapped = useRef(false);
   const placement = useRef(gameStore.getState().placement);
   const intro = useMemo(() => createIntroShots(), []);
+  const shakeTime = useRef(0);
 
   useFrame((_, delta) => {
     const { car, surfaceY, phase, introSeconds } = gameStore.getState();
@@ -297,8 +310,20 @@ function ChaseCamera() {
     snapped.current = true;
     offset.lerp(desiredOffset, k);
     lookOffset.lerp(desiredLook, k);
-    camera.position.set(car.x + offset.x, surfaceY + offset.y, car.z + offset.z);
-    target.set(car.x + lookOffset.x, surfaceY + lookOffset.y, car.z + lookOffset.z);
+    // A camera bolted to a car at speed: a fine tremor that grows with speed,
+    // a hard buzz over the kerbs and a rougher one off the road.
+    const state = gameStore.getState();
+    const kerb = Math.abs(state.lateral) > projectedTrack.halfWidth && Math.abs(state.lateral) < 8.2
+      && kerbAt(state.fraction, Math.sign(state.lateral) || 1);
+    const roughness = state.phase === 'racing'
+      ? speedFraction * 0.012 + (kerb ? 0.05 * Math.min(1, car.speed / 30) : 0) + (state.onTrack ? 0 : 0.08 * Math.min(1, car.speed / 25))
+      : 0;
+    shakeTime.current += Math.min(delta, 0.1);
+    const t = shakeTime.current;
+    const shakeY = roughness * (Math.sin(t * 61) * 0.6 + Math.sin(t * 37.3 + 1.1) * 0.4);
+    const shakeX = roughness * 0.5 * Math.sin(t * 47.7 + 0.4);
+    camera.position.set(car.x + offset.x + shakeX * -Math.sin(car.heading), surfaceY + offset.y + shakeY, car.z + offset.z + shakeX * Math.cos(car.heading));
+    target.set(car.x + lookOffset.x, surfaceY + lookOffset.y + shakeY * 0.5, car.z + lookOffset.z);
     camera.lookAt(target);
     if (camera instanceof PerspectiveCamera) {
       const fov = 62 + speedFraction * 10;
@@ -468,6 +493,7 @@ export function GameScene({ muted, lite = false, onWarm }: { muted: boolean; lit
       <CarFillLights />
       <AiField />
       <PlayerCar />
+      <CarEffects lite={lite} />
       <ChequeredFlag />
       <RaceReady onReady={onWarm} />
       <DevExpose />

@@ -6,9 +6,9 @@ import type { CarState as AiCarState } from '../simulation/events';
  * The race engine is authoritative about who is where in lap terms, but two
  * matched drivers can legitimately be a metre apart, which in a driving game
  * puts one car inside another. So before the player races them, the field is
- * spaced nose-to-tail and rivals near the player move off the racing line to
- * leave room. Both are pure functions of the engine snapshot plus a little
- * smoothed state, and the engine never sees them.
+ * spaced nose-to-tail, and a rival catching the player pulls out to pass
+ * rather than driving through them. Both are pure functions of the engine
+ * snapshot plus a little smoothed state, and the engine never sees them.
  */
 
 /** Real 2026-era car length; the circuit is authored in metres. */
@@ -48,33 +48,65 @@ export function spaceField(cars: readonly AiCarState[], lengthMeters: number): A
   return result;
 }
 
-export interface AvoidanceOptions {
-  /** How far (in lap fraction) ahead or behind the player a rival starts to move over. */
-  rangeLaps: number;
-  /** Lateral metres a rival offsets by when the player is alongside. */
-  offsetMetres: number;
+export interface OvertakeOptions {
+  /** How far behind the player (metres) a faster rival starts planning its pass. */
+  behindMetres: number;
+  /** How far past the player (metres) it holds its passing line before rejoining its own. */
+  clearMetres: number;
+  /** Lateral distance (metres) it keeps from the player while alongside. */
+  passGapMetres: number;
   /** Track half-width the rival may use. */
   halfWidth: number;
 }
 
 /**
- * Lateral target for one rival given where the player is. Rivals within range
- * of the player longitudinally move to the side of the track the player is not
- * on; everyone else runs the racing line. Smoothing is the caller's job.
+ * Where a rival wants to be across the track, given the player.
+ *
+ * Rivals race their own line and never move out of the way of a car behind
+ * them: that is the player's job, as in a real race. A rival closing on the
+ * player from behind pulls out to overtake, on the side it is already on (or
+ * the side with more room when it is right behind), holds that line while
+ * alongside, and rejoins its own line once it is clear. `side` is the side
+ * already chosen for this pass, so a rival never changes its mind halfway
+ * and crosses the player's nose; null when it has not chosen one yet.
+ *
+ * Returns the lateral target and the side, or null when the rival should
+ * simply race its own line.
  */
-export function avoidanceTarget(
-  rivalProgress: number,
-  playerProgress: number,
+export function overtakeTarget(
+  ownLateral: number,
+  gapMetres: number,
+  closingSpeed: number,
   playerLateral: number,
-  options: AvoidanceOptions,
-): number {
-  const delta = Math.abs(rivalProgress - playerProgress);
-  if (delta > options.rangeLaps) return 0;
-  const side = playerLateral >= 0 ? -1 : 1;
-  const offset = Math.min(options.offsetMetres, options.halfWidth - CAR_WIDTH_METRES / 2);
-  // Ease in over the outer half of the range so the move reads as a decision, not a snap.
-  const weight = Math.min(1, (options.rangeLaps - delta) / (options.rangeLaps * 0.5));
-  return side * offset * weight;
+  side: number | null,
+  options: OvertakeOptions,
+): { lateral: number; side: number } | null {
+  // gapMetres: rival progress minus the player's, so negative when it is behind.
+  const passing = side !== null
+    ? gapMetres > -options.behindMetres && gapMetres < options.clearMetres
+    : gapMetres < 0 && gapMetres > -options.behindMetres && closingSpeed > 0.5;
+  if (!passing) return null;
+  // Already clear of the player sideways: no need to move.
+  if (side === null && Math.abs(ownLateral - playerLateral) >= options.passGapMetres) return null;
+  const limit = options.halfWidth - CAR_WIDTH_METRES / 2;
+  let chosen = side;
+  if (chosen === null) {
+    const preferred = Math.sign(ownLateral - playerLateral) || (playerLateral >= 0 ? -1 : 1);
+    const roomPreferred = limit - preferred * playerLateral;
+    chosen = roomPreferred >= options.passGapMetres ? preferred : -preferred;
+  }
+  const lateral = Math.max(-limit, Math.min(limit, playerLateral + chosen * options.passGapMetres));
+  return { lateral, side: chosen };
+}
+
+/**
+ * Moves a lateral position toward its target the way a car changes line: an
+ * eased approach, never faster than `rate` metres a second sideways.
+ */
+export function steerLateral(current: number, target: number, rate: number, dt: number): number {
+  const eased = (target - current) * Math.min(1, dt * 2.2);
+  const limit = rate * dt;
+  return current + Math.max(-limit, Math.min(limit, eased));
 }
 
 export interface Pose {

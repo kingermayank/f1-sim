@@ -58,12 +58,27 @@ export const CAR = {
   topSpeed: 85, // m/s ≈ 306 km/h
   drsDragFactor: 0.8,
   drsTopSpeed: 92,
-  offTrackGripFactor: 0.42,
-  offTrackDragFactor: 3.2,
+  /** Grass and gravel: slower and looser, but a mistake, not a dead end. */
+  offTrackGripFactor: 0.6,
+  offTrackDragFactor: 2.5,
   /** Kerbs: a little less grip, a little more drag, still a racing surface. */
   kerbGripFactor: 0.9,
   kerbDragFactor: 1.2,
   steerResponse: 12,
+  /**
+   * Off the line the rear tyres, not the engine, set the pace: drive is
+   * limited to this acceleration (m/s²) at rest, rising with speed until the
+   * engine is the limit (~20 m/s). Without it a keyboard launch is a wheelspin-
+   * free catapult into the car in front.
+   */
+  launchTraction: 9,
+  launchTractionPerSpeed: 0.36,
+  /**
+   * Full steering lock at speed asks for this much more than the tyres can
+   * give, so holding the key through a corner turns the car at the grip
+   * limit instead of scrubbing it sideways off the road.
+   */
+  steerOverGrip: 1.15,
 } as const;
 
 export function createCarState(x: number, z: number, heading: number): CarState {
@@ -81,7 +96,8 @@ export function stepCar(state: CarState, input: CarInput, env: CarEnvironment, d
   if (surface === 'grass') drag *= CAR.offTrackDragFactor;
   else if (surface === 'kerb') drag *= CAR.kerbDragFactor;
   const rolling = CAR.rollingResistance * Math.sign(v);
-  const engine = CAR.engineForce * Math.max(0, Math.min(1, input.throttle));
+  const traction = CAR.mass * (CAR.launchTraction + CAR.launchTractionPerSpeed * Math.abs(v));
+  const engine = Math.min(CAR.engineForce, traction) * Math.max(0, Math.min(1, input.throttle));
   const brake = CAR.brakeForce * Math.max(0, Math.min(1, input.brake)) * Math.sign(v || 1);
   const accel = (engine - drag - rolling - brake) / CAR.mass;
   let speed = v + accel * dt;
@@ -89,18 +105,22 @@ export function stepCar(state: CarState, input: CarInput, env: CarEnvironment, d
   speed = Math.max(-8, Math.min(topSpeed, speed));
 
   // ---- steering ----------------------------------------------------------
-  // Lock shrinks with speed so the car is stable when fast and agile when slow.
+  let grip = CAR.baseGrip + CAR.downforceGrip * speed * speed;
+  if (surface === 'grass') grip *= CAR.offTrackGripFactor;
+  else if (surface === 'kerb') grip *= CAR.kerbGripFactor;
+  const maxYaw = Math.abs(speed) > 0.5 ? grip / Math.abs(speed) : Number.POSITIVE_INFINITY;
+  // Lock shrinks with speed so the car is stable when fast and agile when
+  // slow, and never asks for much more than the grip there is: full input is
+  // the limit of the car, not a spin.
   const speedFraction = Math.min(1, Math.abs(speed) / CAR.topSpeed);
-  const lock = CAR.maxSteer * (1 - (1 - CAR.highSpeedSteerFraction) * speedFraction);
+  const geometricLock = CAR.maxSteer * (1 - (1 - CAR.highSpeedSteerFraction) * speedFraction);
+  const gripLock = Math.abs(speed) > 1 ? Math.atan((maxYaw * CAR.wheelbase * CAR.steerOverGrip) / Math.abs(speed)) : geometricLock;
+  const lock = Math.min(geometricLock, gripLock);
   const targetSteer = Math.max(-1, Math.min(1, input.steer)) * lock;
   const steer = state.steer + (targetSteer - state.steer) * Math.min(1, CAR.steerResponse * dt);
 
   // Bicycle model yaw demand, limited by available grip.
   const demandedYaw = (speed / CAR.wheelbase) * Math.tan(steer);
-  let grip = CAR.baseGrip + CAR.downforceGrip * speed * speed;
-  if (surface === 'grass') grip *= CAR.offTrackGripFactor;
-  else if (surface === 'kerb') grip *= CAR.kerbGripFactor;
-  const maxYaw = Math.abs(speed) > 0.5 ? grip / Math.abs(speed) : Number.POSITIVE_INFINITY;
   const yaw = Math.max(-maxYaw, Math.min(maxYaw, demandedYaw));
   const slip = Math.abs(demandedYaw) > 1e-6 ? Math.min(1, Math.max(0, 1 - Math.abs(yaw) / Math.abs(demandedYaw))) : 0;
 

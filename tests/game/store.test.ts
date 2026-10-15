@@ -201,18 +201,25 @@ describe('game store', () => {
     store.getState().configure({ driverId: 'norris', laps: 3, seed: 'avoid', difficulty: 'easy' });
     const gridLaterals = new Map(store.getState().ai.map((car) => [car.driverId, car.lateralOffset]));
     launch(store);
-    for (let t = 0; t < 2; t += 1 / 60) store.getState().step(1 / 60, FULL_THROTTLE);
+    const playerLane = store.getState().lateral;
+    let contact = 0;
+    for (let t = 0; t < 2.5; t += 1 / 60) {
+      store.getState().step(1 / 60, FULL_THROTTLE);
+      contact = Math.max(contact, store.getState().hitCar);
+    }
     const { car, ai, fraction, lap } = store.getState();
     const playerProgress = lap + fraction;
-    let nearest = Number.POSITIVE_INFINITY;
+    let aheadInLane = Number.POSITIVE_INFINITY;
     for (const rival of ai) {
+      // Nobody moves over for the player: every rival is still in its grid box's lane.
       expect(rival.lateralOffset).toBeCloseTo(gridLaterals.get(rival.driverId) ?? 0, 1);
-      if (rival.status !== 'running') continue;
+      if (rival.status !== 'running' || Math.abs(rival.lateralOffset - playerLane) > 1.5) continue;
       const along = ((rival.lap + rival.distance) - playerProgress) * projectedTrack.lengthMeters;
-      if (along > 0) nearest = Math.min(nearest, along);
+      if (along > 0) aheadInLane = Math.min(aheadInLane, along);
     }
-    expect(nearest).toBeGreaterThan(18);
-    expect(nearest).toBeLessThan(48);
+    // A flat-out launch does not run into the car ahead in the same lane.
+    expect(contact).toBe(0);
+    expect(aheadInLane).toBeGreaterThan(10);
     expect(car.speed).toBeLessThan(40);
   });
 

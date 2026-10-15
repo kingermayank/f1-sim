@@ -3,9 +3,10 @@ import type { CarState as AiCarState } from '../../src/simulation/events';
 import {
   CAR_LENGTH_METRES,
   MIN_AI_GAP_METRES,
-  avoidanceTarget,
+  overtakeTarget,
   resolveCarContact,
   spaceField,
+  steerLateral,
 } from '../../src/game/field';
 
 const LENGTH = 5340;
@@ -59,19 +60,43 @@ describe('spaceField', () => {
   });
 });
 
-describe('avoidanceTarget', () => {
-  const options = { rangeLaps: 40 / LENGTH, offsetMetres: 3.6, halfWidth: 6.8 };
+describe('overtakeTarget', () => {
+  const options = { behindMetres: 30, clearMetres: 10, passGapMetres: 2.9, halfWidth: 6.8 };
 
-  it('moves a nearby rival to the side of the track the player is not on', () => {
-    expect(avoidanceTarget(2.5, 2.5, 1.0, options)).toBeCloseTo(-3.6);
-    expect(avoidanceTarget(2.5, 2.5, -1.0, options)).toBeCloseTo(3.6);
+  it('leaves a rival ahead of the player on its own line', () => {
+    expect(overtakeTarget(0, 15, -5, 0, null, options)).toBeNull();
+    expect(overtakeTarget(0, 3, 10, 0.5, null, options)).toBeNull();
   });
 
-  it('is zero out of range and eases in at the edge', () => {
-    expect(avoidanceTarget(2.5 + 60 / LENGTH, 2.5, 0, options)).toBe(0);
-    const edge = Math.abs(avoidanceTarget(2.5 + 35 / LENGTH, 2.5, 0, options));
-    expect(edge).toBeGreaterThan(0);
-    expect(edge).toBeLessThan(3.6);
+  it('pulls a faster rival out from behind the player, on the side with room', () => {
+    const pass = overtakeTarget(0.4, -20, 6, 0, null, options);
+    expect(pass?.side).toBe(1);
+    expect(pass?.lateral).toBeCloseTo(2.9);
+    // The player hugging the right: the rival goes left instead.
+    const squeezed = overtakeTarget(-5.2, -12, 6, -5, null, options);
+    expect(squeezed?.side).toBe(1);
+  });
+
+  it('does not move for a player it is not catching, or one already clear sideways', () => {
+    expect(overtakeTarget(0, -20, -2, 0, null, options)).toBeNull();
+    expect(overtakeTarget(4, -20, 6, 0, null, options)).toBeNull();
+  });
+
+  it('holds its side while alongside, then rejoins its line once clear', () => {
+    const alongside = overtakeTarget(2.9, 2, -1, 0.2, 1, options);
+    expect(alongside?.side).toBe(1);
+    expect(overtakeTarget(2.9, 14, 2, 0.2, 1, options)).toBeNull();
+  });
+});
+
+describe('steerLateral', () => {
+  it('changes line at no more than the given rate', () => {
+    let lateral = -3.2;
+    for (let step = 0; step < 60; step += 1) lateral = steerLateral(lateral, 0, 1.8, 1 / 60);
+    expect(lateral).toBeGreaterThanOrEqual(-3.2 + 1.8 - 1e-9 - 1.8);
+    expect(lateral - -3.2).toBeLessThanOrEqual(1.8 + 1e-9);
+    for (let step = 0; step < 600; step += 1) lateral = steerLateral(lateral, 0, 1.8, 1 / 60);
+    expect(lateral).toBeCloseTo(0, 2);
   });
 });
 

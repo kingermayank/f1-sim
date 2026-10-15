@@ -1,11 +1,12 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, type RefObject } from 'react';
-import { Color, Group, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, Vector3 } from 'three';
+import { Color, Group, Mesh, MeshBasicMaterial, MeshPhysicalMaterial, MeshStandardMaterial, Vector3 } from 'three';
 import { carGeometry, CAR_DIMENSIONS, STRAIGHT_MODE_FRONT_FLAP, STRAIGHT_MODE_REAR_FLAP, type CarDetail } from './car-geometry';
 import {
   COMPOUNDS,
   createCarbonMaterial,
   createPaintMaterial,
+  createRimBlurMaterial,
   createTyreMaterial,
   glowColour,
   numberTexture,
@@ -23,6 +24,8 @@ export interface CarMotion {
   steer: number;
   /** Wings flat for the straight. */
   straight: boolean;
+  /** Braking, 0-1: heats the brake discs until they glow. */
+  brake?: number;
 }
 
 export interface F1CarProps {
@@ -96,6 +99,8 @@ export function F1Car({
 
   const materials = useMemo(() => {
     const rimMaterial = () => new MeshPhysicalMaterial({ color: livery.rim, metalness: 0.9, roughness: 0.36, clearcoat: 0.4, clearcoatRoughness: 0.2 });
+    const rimFront = rimMaterial();
+    const rimRear = rimMaterial();
     const nutMaterial = () => new MeshStandardMaterial({ color: livery.accent, metalness: 0.7, roughness: 0.28 });
     const paint = createPaintMaterial(livery);
     return {
@@ -104,11 +109,14 @@ export function F1Car({
       carbon: createCarbonMaterial(),
       tyreFront: createTyreMaterial(COMPOUNDS[compound], CAR_DIMENSIONS.frontTyreHalfWidth),
       tyreRear: createTyreMaterial(COMPOUNDS[compound], CAR_DIMENSIONS.rearTyreHalfWidth),
-      rimFront: rimMaterial(),
-      rimRear: rimMaterial(),
+      rimFront,
+      rimRear,
+      // Share the rims' colours, so a livery wipe recolours the blur too.
+      rimBlurFront: createRimBlurMaterial(rimFront.color),
+      rimBlurRear: createRimBlurMaterial(rimRear.color),
       nutFront: nutMaterial(),
       nutRear: nutMaterial(),
-      brake: new MeshStandardMaterial({ color: '#232427', metalness: 0.2, roughness: 0.75 }),
+      brake: new MeshStandardMaterial({ color: '#232427', metalness: 0.2, roughness: 0.75, emissive: '#ff4a10', emissiveIntensity: 0 }),
       helmet: new MeshPhysicalMaterial({ color: livery.helmet, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.04 }),
       visor: new MeshPhysicalMaterial({ color: '#08090b', metalness: 0.85, roughness: 0.06, iridescence: 1, iridescenceIOR: 1.9, iridescenceThicknessRange: [260, 640] }),
       chrome: new MeshStandardMaterial({ color: '#dfe6ee', metalness: 1, roughness: 0.03 }),
@@ -172,6 +180,8 @@ export function F1Car({
   const frontFlaps = useRef<Group>(null);
   const steer = useRef<(Group | null)[]>([]);
   const spin = useRef<(Group | null)[]>([]);
+  const rims = useRef<(Mesh | null)[]>([]);
+  const heat = useRef(0);
   const rolled = useRef(0);
   const flapOpen = useRef(0);
   const steerAngle = useRef(0);
@@ -207,7 +217,22 @@ export function F1Car({
     materials.lights.color.setRGB(3 * level, 0.3 * level, 0.45 * level);
 
     if (live) {
+      const omega = Math.abs(live.speed) / CAR_DIMENSIONS.tyreRadius;
       rolled.current = (rolled.current + (live.speed / CAR_DIMENSIONS.tyreRadius) * delta) % (Math.PI * 2);
+      // The camera's view of a spinning wheel: lettering smeared round the
+      // sidewall and the spokes blurred into a disc, instead of a strobe.
+      const fade = Math.min(1, Math.max(0, (omega - 14) / 18));
+      for (const material of [materials.tyreFront, materials.tyreRear]) material.userData.uniforms.uSpin.value = omega;
+      for (const material of [materials.rimBlurFront, materials.rimBlurRear]) {
+        material.userData.uniforms.uSpin.value = omega;
+        material.userData.uniforms.uFade.value = fade;
+        material.userData.uniforms.uSpokes.value = geometry.front.spokes;
+      }
+      for (const rim of rims.current) if (rim) rim.visible = fade < 0.98;
+      // Brake discs heat up under hard braking from speed and cool off again.
+      const braking = (live.brake ?? 0) * Math.min(1, Math.abs(live.speed) / 40);
+      heat.current = Math.min(1, Math.max(0, heat.current + braking * delta * 1.4 - delta * 0.35));
+      materials.brake.emissiveIntensity = heat.current * heat.current * 2.4;
       steerAngle.current += (live.steer * MAX_STEER - steerAngle.current) * (1 - Math.exp(-delta * 12));
       for (let index = 0; index < 4; index += 1) {
         const spinner = spin.current[index];
@@ -242,7 +267,8 @@ export function F1Car({
             <group rotation={[0, outboardLeft ? 0 : Math.PI, 0]}>
               <group ref={(node) => { spin.current[index] = node; }}>
                 <mesh geometry={wheel.tyre} material={isFront ? materials.tyreFront : materials.tyreRear} {...shadow} />
-                <mesh geometry={wheel.rim} material={isFront ? materials.rimFront : materials.rimRear} castShadow={castShadow} />
+                <mesh ref={(node) => { rims.current[index] = node; }} geometry={wheel.rim} material={isFront ? materials.rimFront : materials.rimRear} castShadow={castShadow} />
+                {motion && <mesh geometry={wheel.blurDisc} material={isFront ? materials.rimBlurFront : materials.rimBlurRear} renderOrder={1} />}
                 <mesh geometry={wheel.nut} material={isFront ? materials.nutFront : materials.nutRear} />
               </group>
               <mesh geometry={wheel.brake} material={materials.brake} />

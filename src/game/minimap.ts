@@ -65,3 +65,6 @@ export const MINIMAP_START = (() => {
   const b = mapPoint(0, 9);
   return { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
 })();
+
+/** The three timing sectors as path segments, start to finish. */
+export const MINIMAP_SECTORS = SHANGHAI_TRACK.sectors.map((end, index, sectors) => pathBetween(index === 0 ? 0 : sectors[index - 1], end % 1 || 0.99999));
