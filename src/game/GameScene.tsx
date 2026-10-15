@@ -121,6 +121,12 @@ function GameLoop({ muted }: { muted: boolean }) {
   return null;
 }
 
+/** Lights lit on the start gantry: counting up during the start, dark otherwise. */
+function litStartLights(): number {
+  const { phase, lights } = gameStore.getState();
+  return phase === 'lights' ? lights : 0;
+}
+
 /** The nearest running rival: distance in metres and which side it is on, for the audio field. */
 function nearestRival(state: ReturnType<typeof gameStore.getState>): { distance: number; pan: number } | null {
   let best: { distance: number; pan: number } | null = null;
@@ -338,8 +344,9 @@ function createIntroShots() {
     apply(camera: { position: Vector3; lookAt(target: Vector3): void; fov?: number; updateProjectionMatrix?: () => void }, seconds: number, car: { x: number; z: number; heading: number; speed: number }, surfaceY: number) {
       if (seconds < SHOT_A) {
         const t = smoothstep(seconds / SHOT_A);
-        point(a, -70, 60, 42);
-        point(b, 30, 34, 26);
+        // Over the pit wall, clear of the pit building's roof and the grandstand's.
+        point(a, -80, 14, 44);
+        point(b, 30, 12, 28);
         position.lerpVectors(a, b, t);
         point(look, -20, 0, 0.5);
       } else if (seconds < SHOT_B) {
@@ -456,7 +463,7 @@ export function GameScene({ muted, lite = false, onWarm }: { muted: boolean; lit
         flipflops={3}
         onFallback={() => setDpr(1)}
       />
-      <RaceWorld quality={lite ? 'mobile' : 'high'} shadowFocus={playerFocus} />
+      <RaceWorld quality={lite ? 'mobile' : 'high'} shadowFocus={playerFocus} lights={litStartLights} />
       <GuideLine />
       <CarFillLights />
       <AiField />

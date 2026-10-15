@@ -1,6 +1,10 @@
 /** Public runtime URLs for the race scene. Keep these paths stable for loaders. */
 export const ASSETS = {
   track: '/assets/models/shanghai-track.glb',
+  /** The APEX Shanghai circuit built in Blender by scripts/circuit; what the races draw. */
+  circuit: '/assets/models/circuit/shanghai-apex.glb',
+  /** The sky over it, rendered in Blender by scripts/circuit/render_sky.py. */
+  sky: '/assets/textures/sky/shanghai-sky.webp',
   car: '/assets/models/f1-car.glb',
   teamCar: (teamId: string) => `/assets/models/cars/${teamId}.glb`,
   /** About a tenth of the triangles and 256 px textures: what a rival more than a few dozen metres away draws. */

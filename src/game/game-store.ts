@@ -6,6 +6,7 @@ import { DRIVERS_2026, TEAMS_2026 } from '../domain/grid-2026';
 import type { Driver } from '../domain/race-types';
 import { TICK_SECONDS, createRaceEngine, type RaceEngine } from '../simulation/race-engine';
 import type { CarState as AiCarState } from '../simulation/events';
+import { KERB_OUTER_METRES, kerbAt, runoffAt, wallAt } from '../track/circuit-layout';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import { CAR, createCarState, gearFor, stepCar, type CarInput, type CarState, type Surface } from './car-physics';
 import { avoidanceTarget, resolveCarContact, spaceField, type Pose } from './field';
@@ -223,11 +224,22 @@ function progressOf(car: AiCarState): number {
   return car.lap + car.distance;
 }
 
-function surfaceAt(lateral: number): Surface {
+/**
+ * What the car is driving on. Past the kerb it depends on the circuit:
+ * asphalt run-off costs a little, like a kerb; grass and gravel cost a lot.
+ */
+function surfaceAt(lateral: number, fraction: number): Surface {
   const distance = Math.abs(lateral);
   if (distance <= projectedTrack.halfWidth) return 'tarmac';
-  if (distance <= projectedTrack.kerbHalfWidth) return 'kerb';
-  return 'grass';
+  const side = Math.sign(lateral) || 1;
+  if (distance <= projectedTrack.kerbHalfWidth || (distance <= KERB_OUTER_METRES && kerbAt(fraction, side))) return 'kerb';
+  const runoff = runoffAt(fraction, side);
+  return runoff === 'g' || runoff === 'r' ? 'grass' : 'kerb';
+}
+
+/** The barrier on whichever side of the centreline the car is. */
+function wallFor(projection: { fraction: number; lateral: number }): number {
+  return wallAt(projection.fraction, Math.sign(projection.lateral) || 1);
 }
 
 export function createGameStore() {
@@ -444,7 +456,7 @@ export function createGameStore() {
         const projection = projectedTrack.project(state.car.x, state.car.z, state.fraction);
         const stepped = stepCar(state.car, { throttle: 0, brake: 0.25, steer: input.steer, drs: false }, { onTrack: state.onTrack, surface: state.surface, drsAvailable: false }, dt);
         const after = projectedTrack.project(stepped.x, stepped.z, projection.fraction);
-        const walled = constrainToWalls(stepped, after, projectedTrack.wallHalfWidth, touchingWall);
+        const walled = constrainToWalls(stepped, after, wallFor(after), touchingWall);
         touchingWall = walled.hitWall;
         const car = { ...stepped, x: walled.x, z: walled.z, heading: walled.heading, speed: walled.speed };
         const { gear, rpm } = gearFor(car.speed);
@@ -456,7 +468,7 @@ export function createGameStore() {
 
       // ---- AI -----------------------------------------------------------
       const projection = projectedTrack.project(state.car.x, state.car.z, state.fraction);
-      const surface = surfaceAt(projection.lateral);
+      const surface = surfaceAt(projection.lateral, projection.fraction);
       const onTrack = surface !== 'grass';
       const playerProgress = state.lap + projection.fraction;
       const ai = stepField(dt, playerProgress, projection.lateral, state.elapsed);
@@ -484,7 +496,7 @@ export function createGameStore() {
       // Re-project after moving and hold the car inside the barriers, so it can
       // never wander out over terrain the circuit model never meant to be driven.
       const after = projectedTrack.project(stepped.x, stepped.z, projection.fraction);
-      const walled = constrainToWalls(stepped, after, projectedTrack.wallHalfWidth, touchingWall);
+      const walled = constrainToWalls(stepped, after, wallFor(after), touchingWall);
       touchingWall = walled.hitWall;
 
       // Contact with rivals close enough to matter. Only nearby cars are tested.
@@ -520,7 +532,7 @@ export function createGameStore() {
       let { lap, lapTimes, bestLap, currentLapStart } = state;
       const settled = projectedTrack.project(car.x, car.z, after.fraction);
       const crossedForward = previousFraction > 0.85 && settled.fraction < 0.15
-        && Math.abs(settled.lateral) <= projectedTrack.wallHalfWidth;
+        && Math.abs(settled.lateral) <= wallFor(settled) + 0.1;
       if (crossedForward) {
         // Lap -1 is the grid; the first crossing starts lap 1 and records nothing.
         if (lap >= 0) {

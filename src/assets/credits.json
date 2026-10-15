@@ -12,6 +12,30 @@
     "modifications": "Optimized for the web with gltf-transform: pruned, deduplicated, flattened, joined, meshopt-compressed, textures recompressed to WebP at 1024px, geometry simplified from 1,366,382 to 820,303 triangles (92.81 MB to 14.85 MB). World transform preserved so the mesh stays aligned to the fitted centerline. Source textures include third-party sponsor marks that are NOT project-original and are not covered by a verified license."
   },
   {
+    "id": "shanghai-apex-circuit-original",
+    "title": "APEX Shanghai circuit (project original)",
+    "creator": "Shanghai 2026 Simulation contributors",
+    "source": "Project original; modelled in Blender by scripts/circuit/build_shanghai_circuit.py from the layout scripts/circuit/export-shanghai-layout.mjs derives from the simulation's centreline",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "downloadedAt": "2026-10-15 (created locally)",
+    "originalFile": "scripts/circuit/build-circuit.mjs",
+    "runtimeFile": "/assets/models/circuit/shanghai-apex.glb",
+    "modifications": "Built end to end by scripts/circuit/build-circuit.mjs: terrain, run-off, kerbs, barriers and fencing, grandstands and crowds, pit building, gantry, bridges, signage, trees and skyline, with APEX artwork rendered by scripts/circuit/render-posters.mjs. Compressed with glTF Transform (meshopt geometry, WebP textures). Contains no third-party geometry or marks."
+  },
+  {
+    "id": "shanghai-apex-sky-original",
+    "title": "APEX Shanghai sky (project original)",
+    "creator": "Shanghai 2026 Simulation contributors",
+    "source": "Project original; rendered in Blender (Cycles, multiple-scattering sky with procedural clouds) by scripts/circuit/render_sky.py",
+    "license": "CC0-1.0",
+    "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+    "downloadedAt": "2026-10-15 (created locally)",
+    "originalFile": "scripts/circuit/render_sky.py",
+    "runtimeFile": "/assets/textures/sky/shanghai-sky.webp",
+    "modifications": "Rendered as a 4096 x 2048 equirectangular panorama, remapped to three.js's orientation with the sun on the game's sun direction, and encoded as WebP."
+  },
+  {
     "id": "f1-car-original",
     "title": "Low-poly Open-wheel Race Car (project original)",
     "creator": "Shanghai 2026 Simulation contributors",

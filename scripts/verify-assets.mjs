@@ -341,6 +341,8 @@ if (Array.isArray(manifest)) {
   const FONTS = ['formula1-display-regular', 'formula1-wide', 'monospec-variable'];
   const requiredRuntimeFiles = new Set([
     '/assets/models/shanghai-track.glb',
+    '/assets/models/circuit/shanghai-apex.glb',
+    '/assets/textures/sky/shanghai-sky.webp',
     '/assets/models/f1-car.glb',
     ...RACING_TEAMS.map((team) => `/assets/models/cars/${team}.glb`),
     ...RACING_TEAMS.map((team) => `/assets/textures/teams/${team}.webp`),
@@ -348,7 +350,7 @@ if (Array.isArray(manifest)) {
     ...generatedTracks.map(({ runtimeFile }) => runtimeFile),
   ]);
 
-  const EXPECTED_ENTRIES = 2 + RACING_TEAMS.length * 2 + FONTS.length + generatedTracks.length;
+  const EXPECTED_ENTRIES = 4 + RACING_TEAMS.length * 2 + FONTS.length + generatedTracks.length;
   if (manifest.length !== EXPECTED_ENTRIES) {
     problems.push(`Asset manifest must contain ${EXPECTED_ENTRIES} entries; found ${manifest.length}`);
   }
@@ -392,6 +394,7 @@ if (Array.isArray(manifest)) {
         const bytes = readFileSync(runtimePath);
         const limit = asset.runtimeFile.startsWith('/assets/models/tracks/') ? undefined
           : asset.runtimeFile.endsWith('shanghai-track.glb') ? 20_000_000
+          : asset.runtimeFile.startsWith('/assets/models/circuit/') ? 12_000_000
           : asset.runtimeFile.startsWith('/assets/models/cars/') ? 4_000_000
           : asset.runtimeFile.endsWith('f1-car.glb') ? 2_000_000 : 300_000;
         if (limit !== undefined && statSync(runtimePath).size > limit) problems.push(`${label}: runtime file exceeds ${limit} bytes`);

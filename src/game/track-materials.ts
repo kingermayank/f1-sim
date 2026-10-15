@@ -1,4 +1,4 @@
-import { Color, MeshStandardMaterial, type Material } from 'three';
+import { Color, DoubleSide, MeshStandardMaterial, type Material } from 'three';
 
 /**
  * Procedural circuit materials, computed in world space so the generated
@@ -190,6 +190,92 @@ export function upgradeGrass(material: MeshStandardMaterial) {
         roughnessFactor = 0.92 + 0.06 * (1.0 - stripe);`);
   };
   material.customProgramCacheKey = () => 'track-grass-v1';
+  material.needsUpdate = true;
+}
+
+/** Gravel traps: sandy stone, mottled in broad raked patches, pebbly close up. */
+export function upgradeGravel(material: MeshStandardMaterial) {
+  material.map = null;
+  material.color.set('#ffffff');
+  material.metalness = 0;
+  material.roughness = 1;
+  material.onBeforeCompile = (shader) => {
+    addWorldPosition(shader);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec3 vTrkWorld;
+        ${NOISE}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        vec2 gvXZ = vTrkWorld.xz;
+        float gvPx = length(fwidth(gvXZ));
+        float gvBroad = trkFbm(gvXZ * 0.08);
+        float gvStones = trkNoise(gvXZ * 9.0) * trkFade(gvPx, 1.0 / 9.0);
+        float gvGrit = trkNoise(gvXZ * 31.0) * trkFade(gvPx, 1.0 / 31.0);
+        vec3 gvSand = mix(vec3(0.47, 0.41, 0.31), vec3(0.6, 0.54, 0.43), gvBroad);
+        gvSand *= 0.86 + 0.22 * (gvStones - 0.5) + 0.16 * (gvGrit - 0.5);
+        diffuseColor.rgb = gvSand;`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        float gvHeight = trkNoise(vTrkWorld.xz * 9.0) * trkFade(length(fwidth(vTrkWorld.xz)), 1.0 / 9.0);
+        normal = trkBump(-vViewPosition, normal, vec2(dFdx(gvHeight), dFdy(gvHeight)) * 0.9, faceDirection);`);
+  };
+  material.customProgramCacheKey = () => 'track-gravel-v1';
+  material.needsUpdate = true;
+}
+
+/**
+ * Debris fencing: a chain-link diamond mesh with tension wires, drawn from
+ * texture coordinates laid out in metres. Far away, where a wire would be
+ * thinner than a pixel, it settles to an even grey veil instead of shimmering.
+ */
+export function upgradeFence(material: MeshStandardMaterial) {
+  material.map = null;
+  material.color.set('#b9c0c8');
+  material.metalness = 0.6;
+  material.roughness = 0.45;
+  material.transparent = true;
+  material.depthWrite = false;
+  material.side = DoubleSide;
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        varying vec2 vFenceUv;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vFenceUv = uv;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec2 vFenceUv;`)
+      .replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
+        vec2 fGrid = vec2(vFenceUv.x + vFenceUv.y, vFenceUv.x - vFenceUv.y) * 12.0;
+        vec2 fCell = abs(fract(fGrid) - 0.5);
+        float fWidth = max(fwidth(fGrid.x), fwidth(fGrid.y));
+        float fWire = 1.0 - smoothstep(0.06, 0.06 + fWidth * 1.5, min(fCell.x, fCell.y));
+        float fVeil = smoothstep(0.25, 0.9, fWidth);
+        float fTension = 1.0 - smoothstep(0.02, 0.02 + fwidth(vFenceUv.y) * 1.5, min(abs(vFenceUv.y - 0.08), abs(vFenceUv.y - (floor(vFenceUv.y) + 0.98))));
+        diffuseColor.a = max(mix(fWire * 0.9, 0.3, fVeil), fTension * 0.95);`);
+  };
+  material.customProgramCacheKey = () => 'track-fence-v1';
+  material.needsUpdate = true;
+}
+
+/**
+ * Spectators: cut out of the crowd atlas, each tinted by their own colour
+ * where the atlas marks a shirt (alpha below 0.9), skin and hair untinted.
+ */
+export function upgradeCrowd(material: MeshStandardMaterial) {
+  material.transparent = false;
+  material.depthWrite = true;
+  material.alphaTest = 0.22;
+  material.roughness = 0.9;
+  material.metalness = 0;
+  material.side = DoubleSide;
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
+      #if defined( USE_COLOR_ALPHA ) || defined( USE_COLOR )
+        diffuseColor.rgb *= mix(vec3(1.0), vColor.rgb, 1.0 - step(0.9, diffuseColor.a));
+      #endif
+      diffuseColor.a = diffuseColor.a > 0.22 ? 1.0 : 0.0;`);
+  };
+  material.customProgramCacheKey = () => 'track-crowd-v1';
   material.needsUpdate = true;
 }
 

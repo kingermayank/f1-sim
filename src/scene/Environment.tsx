@@ -1,30 +1,22 @@
-import { useGLTF } from '@react-three/drei';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { Component, Suspense, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   BufferGeometry,
-  CanvasTexture,
   CatmullRomCurve3,
   DirectionalLight,
   Float32BufferAttribute,
-  Mesh,
-  MeshStandardMaterial,
-  RepeatWrapping,
-  SRGBColorSpace,
   TubeGeometry,
   Vector3,
 } from 'three';
-import { ASSETS } from '../assets/asset-registry';
 import { SHANGHAI_TRACK } from '../track/shanghai-track';
 import type { TrackPoint } from '../track/track-types';
+import { ApexCircuit } from './ApexCircuit';
+import { CircuitSky, HORIZON_HAZE } from './CircuitSky';
 import type { SceneQualityTier } from './RaceScene';
-import { cloneSceneWithOwnedMaterials } from './scene-resources';
-import { upgradeAsphalt, upgradeGrass } from '../game/track-materials';
 
 /**
- * Shanghai is authored in real metres and the supplied model spans roughly
- * 3.4 km including surrounding terrain, so lighting, fog and ground geometry are
- * sized to the real circuit rather than to the previous stylised layout.
+ * Shanghai is authored in real metres and the circuit spans about 2 km with
+ * its surroundings, so lighting and shadows are sized to the real circuit.
  */
 const CIRCUIT_EXTENT = 1950;
 
@@ -82,186 +74,7 @@ function createRibbon(points: readonly TrackPoint[], width: number, closed = tru
 }
 
 /**
- * Geometry the circuit should not show: the source game's AI-line helper (a
- * solid black ribbon lying exactly on the tarmac, which flickers against it)
- * and the sponsor cubes it scattered along the grid and barriers.
- */
-const HIDDEN_TRACK_MATERIALS = new Set(['raceline', 'wall8']);
-/** Also hidden under the generated racing surface, which paints its own braking marks. */
-const HIDDEN_WITH_SURFACE = new Set(['skid']);
-
-/**
- * The model's road is three layers that the source game composited with its
- * own shaders: a 64-pixel streaky asphalt tile (`tarmac`), a white-line strip
- * on black laid over the whole road (`Line_asf`), and run-off asphalt whose
- * texture coordinates span thousands of repeats (`Out`). Drawn plainly, the
- * black of the line strip and the smeared run-off read as blotches. Each is
- * rebuilt here: the lines become an alpha-masked decal, the tarmac gets a
- * generated fine grain at a two-metre tile, and the run-off a plain surface.
- */
-const ROAD_TARMAC_MATERIAL = 'tarmac';
-const ROAD_LINE_MATERIAL = 'Line_asf';
-const ROAD_RUNOFF_MATERIAL = 'Out';
-const GRASS_MATERIAL = 'Prato';
-export const KERB_MATERIAL = '9!0';
-/** The tarmac mesh's UVs repeat about every 1.1 m along the road and 0.5 m across it. */
-const TARMAC_UV_METRES = { along: 1.1, across: 0.5 };
-const TARMAC_TILE_METRES = 2;
-
-/**
- * Meshes whose triangle winding must agree with their vertex normals. About
- * 8% of the tarmac's triangles in the supplied model are wound the other way;
- * on a double-sided material three.js flips the normal for a back-facing
- * triangle, so those patches are lit from below and render black.
- */
-const WINDING_FIX_MATERIALS = new Set(['tarmac', 'Line_asf', 'Out', 'Prato', '9!0', '22', '13', '28', 'Kerb_giallo', 'skid', 'sha_gridlines_a']);
-
-/** Re-winds any triangle whose geometric normal opposes its vertex normal. */
-function alignWindingToNormals(mesh: Mesh): number {
-  const geometry = mesh.geometry;
-  const position = geometry.getAttribute('position');
-  const normal = geometry.getAttribute('normal');
-  const index = geometry.getIndex();
-  if (!position || !normal || !index) return 0;
-  const a = new Vector3();
-  const b = new Vector3();
-  const c = new Vector3();
-  const n = new Vector3();
-  let fixed = 0;
-  for (let face = 0; face < index.count; face += 3) {
-    const ia = index.getX(face);
-    const ib = index.getX(face + 1);
-    const ic = index.getX(face + 2);
-    a.fromBufferAttribute(position, ia);
-    b.fromBufferAttribute(position, ib).sub(a);
-    c.fromBufferAttribute(position, ic).sub(a);
-    b.cross(c);
-    n.fromBufferAttribute(normal, ia);
-    if (b.dot(n) < 0) {
-      index.setX(face + 1, ic);
-      index.setX(face + 2, ib);
-      fixed += 1;
-    }
-  }
-  if (fixed > 0) index.needsUpdate = true;
-  return fixed;
-}
-
-/** Fine asphalt grain: a base grey, coarse 32 px cells, per-pixel noise, and sparse light chips. Tiles seamlessly. */
-function createAsphaltTexture(size = 512): CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext('2d')!;
-  const image = context.createImageData(size, size);
-  const cells = size / 32;
-  const cell = Array.from({ length: cells * cells }, () => (Math.random() - 0.5) * 8);
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const coarse = cell[Math.floor(y / 32) * cells + Math.floor(x / 32)];
-      const fine = (Math.random() - 0.5) * 18;
-      const chip = Math.random() < 0.002 ? 28 : 0;
-      const value = Math.max(0, Math.min(255, 56 + coarse + fine + chip));
-      const offset = (y * size + x) * 4;
-      image.data[offset] = value;
-      image.data[offset + 1] = value;
-      image.data[offset + 2] = value + 2;
-      image.data[offset + 3] = 255;
-    }
-  }
-  context.putImageData(image, 0, 0);
-  const texture = new CanvasTexture(canvas);
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
-  texture.colorSpace = SRGBColorSpace;
-  return texture;
-}
-
-/**
- * Paint and rubber that sit on the road surface at the same height as the
- * tarmac beneath them: the lined asphalt layer, skid marks, kerb paint, grid
- * boxes and pit lines. Drawn with a small depth offset so they always land on
- * top instead of fighting the tarmac pixel by pixel.
- */
-const ROAD_DECAL_MATERIALS = new Set(['Line_asf', 'skid', 'Kerb_giallo', 'sha_gridlines_a', 'LInea_PITNew', 'Pit_lane']);
-
-/**
- * The supplied Shanghai circuit, and the visible road surface. The centerline
- * that drives the simulation was fitted to this same mesh, so the racing line
- * and the rendered tarmac cannot drift apart.
- */
-function LoadedTrack({ procedural }: { procedural: boolean }) {
-  const gltf = useGLTF(ASSETS.track);
-  const maxAnisotropy = useThree((state) => state.gl.capabilities.getMaxAnisotropy());
-  const asphalt = useMemo(() => {
-    const texture = createAsphaltTexture();
-    texture.repeat.set(TARMAC_UV_METRES.along / TARMAC_TILE_METRES, TARMAC_UV_METRES.across / TARMAC_TILE_METRES);
-    texture.anisotropy = maxAnisotropy;
-    return texture;
-  }, [maxAnisotropy]);
-  useEffect(() => () => asphalt.dispose(), [asphalt]);
-
-  const resources = useMemo(() => cloneSceneWithOwnedMaterials(gltf.scene, (material) => {
-    if (!(material instanceof MeshStandardMaterial)) return;
-    material.roughness = Math.max(0.55, material.roughness);
-    if (ROAD_DECAL_MATERIALS.has(material.name)) {
-      material.polygonOffset = true;
-      material.polygonOffsetFactor = -1;
-      material.polygonOffsetUnits = -2;
-    }
-    if (procedural && (material.name === ROAD_TARMAC_MATERIAL || material.name === ROAD_RUNOFF_MATERIAL)) {
-      // World-space asphalt, continuous with the generated racing surface.
-      upgradeAsphalt(material, material.name === ROAD_TARMAC_MATERIAL ? 0.072 : 0.09);
-    } else if (procedural && material.name === GRASS_MATERIAL) {
-      upgradeGrass(material);
-    } else if (material.name === ROAD_TARMAC_MATERIAL) {
-      material.map = asphalt;
-      material.color.set('#ffffff');
-      material.roughness = 0.93;
-      material.metalness = 0;
-      material.needsUpdate = true;
-    } else if (material.name === ROAD_LINE_MATERIAL && material.map) {
-      // White where the strip is white, nothing where it is black.
-      material.map.anisotropy = maxAnisotropy;
-      material.alphaMap = material.map;
-      material.map = null;
-      material.color.set('#f2f2ee');
-      material.alphaTest = 0.5;
-      material.roughness = 0.7;
-      material.needsUpdate = true;
-    } else if (material.name === ROAD_RUNOFF_MATERIAL) {
-      material.map = null;
-      material.color.set('#3f4042');
-      material.roughness = 0.95;
-      material.needsUpdate = true;
-    } else if (material.name === KERB_MATERIAL && material.map) {
-      // Kerbs read at grazing angles: filter their stripes as sharply as the GPU allows.
-      material.map.anisotropy = maxAnisotropy;
-    } else if (material.map) {
-      material.map.anisotropy = Math.min(4, maxAnisotropy);
-    }
-  }), [gltf.scene, asphalt, maxAnisotropy, procedural]);
-  useEffect(() => () => resources.dispose(), [resources]);
-  useEffect(() => {
-    resources.scene.traverse((object) => {
-      if (!(object instanceof Mesh)) return;
-      object.receiveShadow = true;
-      // The circuit receives car shadows; making 820k triangles cast them costs
-      // far more than it adds.
-      object.castShadow = false;
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      if (materials.some((material) => HIDDEN_TRACK_MATERIALS.has(material.name))) object.visible = false;
-      if (procedural && materials.some((material) => HIDDEN_WITH_SURFACE.has(material.name))) object.visible = false;
-      if (materials.some((material) => WINDING_FIX_MATERIALS.has(material.name))) alignWindingToNormals(object);
-      if (materials.some((material) => ROAD_DECAL_MATERIALS.has(material.name))) object.renderOrder = 1;
-    });
-  }, [resources, procedural]);
-
-  return <primitive object={resources.scene} dispose={null} />;
-}
-
-/**
- * Legal procedural fallback, rendered only when the supplied circuit fails to
+ * Legal procedural fallback, rendered only when the circuit model fails to
  * load. Delivery checks assert the real asset is present, so this standing in
  * is treated as a delivery failure rather than an acceptable substitute.
  */
@@ -374,19 +187,19 @@ function FollowingSun({ focus, shadows }: { focus: () => ShadowFocus; shadows: b
   );
 }
 
-export function Environment({ quality, shadowFocus, racingLine = true, atmosphere = true, procedural = false }: {
+export function Environment({ quality, shadowFocus, racingLine = true, fog = [800, 3600], lights }: {
   quality: SceneQualityTier;
   shadowFocus?: () => ShadowFocus;
   racingLine?: boolean;
-  /** Draw the flat sky colour and fog; off when the caller brings its own sky. */
-  atmosphere?: boolean;
-  /** Procedural world-space asphalt and grass in place of the supplied textures. */
-  procedural?: boolean;
+  /** Where the haze begins and where it hides everything, metres. */
+  fog?: readonly [number, number];
+  /** How many start lights are lit, for the gantry. */
+  lights?: () => number;
 }) {
   return (
     <>
-      {atmosphere && <color attach="background" args={['#8fb2c4']} />}
-      {atmosphere && <fog attach="fog" args={['#9db9c8', 900, 3400]} />}
+      <Suspense fallback={<color attach="background" args={[HORIZON_HAZE]} />}><CircuitSky /></Suspense>
+      <fog attach="fog" args={[HORIZON_HAZE, fog[0], fog[1]]} />
       <hemisphereLight args={['#dceaf3', '#2b3338', quality === 'high' ? 1.05 : 1.35]} />
       {shadowFocus ? <FollowingSun focus={shadowFocus} shadows={quality === 'high'} /> : (
         <directionalLight
@@ -403,15 +216,9 @@ export function Environment({ quality, shadowFocus, racingLine = true, atmospher
           shadow-bias={-0.0006}
         />
       )}
-      {/* Sits below the circuit datum so the supplied terrain reads as the
-          surface and this only fills the far horizon. */}
-      <mesh position={[0, -8, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[CIRCUIT_EXTENT * 4, CIRCUIT_EXTENT * 4, 1, 1]} />
-        <meshStandardMaterial color="#5d6a54" roughness={1} />
-      </mesh>
       {racingLine && <RacingLineOverlay quality={quality} />}
       <TrackAssetBoundary fallback={<CircuitFallback />}>
-        <Suspense fallback={null}><LoadedTrack procedural={procedural} /></Suspense>
+        <Suspense fallback={null}><ApexCircuit quality={quality} lights={lights} /></Suspense>
       </TrackAssetBoundary>
     </>
   );
