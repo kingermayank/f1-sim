@@ -66,6 +66,15 @@ function configure(material: Material, maxAnisotropy: number, lite: boolean) {
     material.roughness = 0.06;
     material.metalness = 0.15;
     material.envMapIntensity = 1.3;
+  } else if (name === 'apex_glass_green') {
+    // The pods' tinted glazing reads darker than it is, under the cladding's shade.
+    material.color.set('#1d3a37');
+    material.envMapIntensity = 1.2;
+  } else if (name === 'apex_aluminium') {
+    // The wing pods' satin cladding: kept silver against the green the grass bounces into it.
+    material.envMapIntensity = 0.55;
+    material.emissive.set('#9aa2ab');
+    material.emissiveIntensity = 0.22;
   } else if (GANTRY_LIGHT.test(name)) {
     material.emissive.copy(RED);
     material.emissiveIntensity = 0;

@@ -352,7 +352,30 @@ function roomBehind(side, from, to) {
 
 const grandstands = [];
 // The main grandstand faces the pit building across the start/finish straight.
-grandstands.push({ id: 'main', from: fraction(rowOf(0.958)), to: fraction(rowOf(0.032)), side: -pitSide, setback: 4, depth: 30, tiers: 3, roof: 'wing' });
+// Like Shanghai's, 400 m long, three tiers under one flat cantilevered roof.
+grandstands.push({ id: 'main', from: fraction(rowOf(0.958)), to: fraction(rowOf(0.032)), side: -pitSide, setback: 4, depth: 36, tiers: 3, roof: 'flat' });
+// Stands H and K face each other over the last 290 m of the back straight,
+// under rows of white lotus-leaf umbrellas.
+const backStraight = (() => {
+  let best = { from: 0, length: 0 };
+  let start = null;
+  for (let i = 0; i < 2 * N; i += 1) {
+    const straight = Math.abs(curvature[wrap(i)]) < 0.0025;
+    if (straight && start === null) start = i;
+    if (!straight && start !== null) {
+      if (start < N && i - start > best.length) best = { from: start, length: i - start };
+      start = null;
+    }
+  }
+  return { from: best.from, to: best.from + best.length };
+})();
+for (const [id, side] of [['H', pitSide], ['K', -pitSide]]) {
+  const to = backStraight.to - 6;
+  const from = to - 140;
+  if (roomBehind(side, from, to) >= 34) {
+    grandstands.push({ id, from: fraction(from), to: fraction(to), side, setback: 6, depth: 24, tiers: 2, roof: 'lotus' });
+  }
+}
 // Corner stands on the outside of the corners cars arrive at fastest, where there is room.
 const cornerCandidates = corners
   .map((corner, number) => {
@@ -363,7 +386,7 @@ const cornerCandidates = corners
   })
   .sort((a, b) => b.entry - a.entry);
 for (const corner of cornerCandidates) {
-  if (grandstands.length >= 7) break;
+  if (grandstands.length >= 9) break;
   const half = 40;
   const from = corner.row - half;
   const to = corner.row + half;

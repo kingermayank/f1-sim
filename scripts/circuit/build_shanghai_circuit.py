@@ -282,6 +282,16 @@ def define_materials():
     material('apex_city', '#ffffff', 0.7, 0.2, vertex_colours=True)
     material('apex_water', '#1d3a4a', 0.05, 0.2)
     material('apex_marshal_light', '#2bff7a', 0.5, emission='#2bff7a', strength=2.5)
+    # Shanghai's own: the wing pods, their red drums and glass towers, the
+    # grandstand roof's lantern lights, the lotus umbrellas and the paddock lake.
+    material('apex_aluminium', '#dde1e6', 0.4, 0.25)
+    material('apex_glass_green', '#3d756a', 0.05, 0.45)
+    material('apex_glass_teal', '#1c3a42', 0.06, 0.6)
+    material('apex_red_drum', '#c0121e', 0.22, 0.12)
+    material('apex_lantern_red', '#ff4426', 0.4, emission='#ff4426', strength=2.2)
+    material('apex_membrane', '#f3f4f1', 0.62, emission='#eceee9', strength=0.4)
+    material('apex_deck', '#6d5b49', 0.85)
+    material('apex_roof_grey', '#a9aeb2', 0.7, 0.1)
     for light in range(1, 6):
         material(f'apex_gantry_light_{light}', '#2a0505', 0.4, emission='#ff1a12', strength=0.0)
     for poster in sorted(POSTERS.glob('*.png')):
@@ -669,10 +679,12 @@ def build_kerbs():
 
 
 def build_verges():
-    """Grass, asphalt run-off with a painted band, and gravel traps, from the
-    kerb (or road edge) out to the barrier."""
+    """Grass, asphalt run-off and gravel traps, from the kerb (or road edge)
+    out to the barrier. Corner run-off is painted as at Shanghai: a blue
+    stripe by the kerb, then green; the pit straight keeps an APEX band."""
     builders = chunked('verge', ['apex_grass', 'apex_runoff', 'apex_gravel', 'apex_paint'], 'track')
     amber, graphite = srgb('#ffb82e'), srgb('#20252d')
+    blue, green = srgb('#1679b8'), srgb('#3f8a3c')
     for side in (1, -1):
         for i in range(N):
             b = builders[i // CHUNK]
@@ -688,7 +700,15 @@ def build_verges():
 
             if kind == 'o':
                 strip(inner0, inner1, outer0 + 4, outer1 + 4, 1, -0.06)
-            elif kind in ('a', 'p'):
+            elif kind == 'a':
+                band = min(1.4, outer0 - inner0 - 0.5)
+                strip(inner0, inner1, inner0 + band, inner1 + band, 3, -0.025, blue)
+                paint0 = min(outer0 - 1.5, inner0 + band + 7.0)
+                paint1 = min(outer1 - 1.5, inner1 + band + 7.0)
+                if paint0 > inner0 + band + 1.0 and paint1 > inner1 + band + 1.0:
+                    strip(inner0 + band, inner1 + band, paint0, paint1, 3, -0.026, green)
+                strip(inner0 + band, inner1 + band, outer0, outer1, 1)
+            elif kind == 'p':
                 band = min(1.2, outer0 - inner0 - 0.5)
                 # A painted run-off band in APEX amber and graphite, 4 m blocks.
                 strip(inner0, inner1, inner0 + band, inner1 + band, 3, -0.025, amber if (i // 2) % 2 == 0 else graphite)
@@ -775,6 +795,10 @@ STAND_PALETTES = {
 SHIRTS = [('#d4002b', 14), ('#ff8000', 10), ('#1e2a5a', 10), ('#3e8ede', 8), ('#f2f2f2', 14), ('#151515', 12),
           ('#1f7a4d', 5), ('#f5c400', 6), ('#f58cc4', 3), ('#8a8f99', 6), ('#ffb82e', 8), ('#00a19c', 4)]
 SHIRT_POOL = [colour for colour, weight in SHIRTS for _ in range(weight)]
+# Shanghai's seats: a random mosaic of red, orange, yellow and white.
+SEAT_MOSAIC = [colour for colour, weight in (('#c8102e', 7), ('#e8541c', 4), ('#f3b81e', 5), ('#eef0f3', 4)) for _ in range(weight)]
+# What each grandstand was built as, for the structures that join them.
+STANDS = {}
 
 
 def stand_profile(tiers, depth):
@@ -833,6 +857,7 @@ def build_stands():
             continue
         points, rows, fascias, back, top = stand_profile(stand['tiers'], depth)
         palette = [srgb(c) for c in STAND_PALETTES['main' if main else 'corner']]
+        mosaic = stand['roof'] in ('flat', 'lotus')
         b = MeshBuilder(f"stand_{stand['id']}", ['apex_concrete', 'apex_seat', 'poster_wrap-navy', 'poster_wrap-amber',
                                                 'poster_stand-back', 'apex_concrete_dark', 'apex_white', 'apex_graphite',
                                                 'apex_led_amber', 'apex_steel'], 'stands')
@@ -865,9 +890,12 @@ def build_stands():
                     b.quad(*quad, 2 if j == 0 else 3, uv=uv, facing=inward)
                 elif vertical:
                     k, n = seat_rows.get((d1, h1), (0, 1))
-                    colour = palette[min(k, len(palette) - 1)]
-                    if n % 6 == 0:
-                        colour = srgb('#ffb82e') if main else srgb('#eef0f3')
+                    if mosaic:
+                        colour = srgb(RNG.choice(SEAT_MOSAIC))
+                    else:
+                        colour = palette[min(k, len(palette) - 1)]
+                        if n % 6 == 0:
+                            colour = srgb('#ffb82e') if main else srgb('#eef0f3')
                     b.quad(*quad, 1, colour=colour, facing=inward)
                 else:
                     b.quad(*quad, 0, facing=UP)
@@ -882,6 +910,7 @@ def build_stands():
             b.face(outline, 5, facing=tuple(facing))
         roof_stand(b, stand, side, start, count, samples, P, back, top, depth)
         b.build()
+        STANDS[stand['id']] = {'start': start, 'count': count, 'side': side, 'front': front, 'back': back, 'top': top, 'depth': depth}
         crowd_stand(stand, side, start, count, rows, F)
         for k in range(0, count + 1, 3):
             c = at(start + k, side * (front[k] + back / 2))
@@ -890,9 +919,73 @@ def build_stands():
     print('  stands:', ', '.join(built))
 
 
+def roof_height(top):
+    """Height of a flat grandstand roof above the track, from the stand's top row."""
+    return top + 5.5
+
+
 def roof_stand(b, stand, side, start, count, samples, P, back, top, depth):
     white, graphite, led, steel = 6, 7, 8, 9
-    if stand['roof'] == 'wing':
+    if stand['roof'] == 'flat':
+        # Shanghai's main grandstand: one thin flat plane cantilevered from the
+        # back over every seat, silver underneath and dotted with red and amber
+        # lantern lights.
+        alu, lantern = b.mat('apex_aluminium'), b.mat('apex_lantern_red')
+        front_d, rear = depth * 0.05, back + 1.5
+        h, thick = roof_height(top), 1.4
+        for s in range(len(samples) - 1):
+            r0, r1 = samples[s], samples[s + 1]
+            out, inward = tuple(normal(r0) * side), tuple(-normal(r0) * side)
+            b.quad(P(r0, front_d, h), P(r1, front_d, h), P(r1, rear, h), P(r0, rear, h), white, facing=UP)
+            b.quad(P(r0, front_d, h - thick), P(r1, front_d, h - thick), P(r1, rear, h - thick), P(r0, rear, h - thick), alu, facing=-UP)
+            b.quad(P(r0, front_d, h), P(r1, front_d, h), P(r1, front_d, h - thick), P(r0, front_d, h - thick), graphite, facing=inward)
+            b.quad(P(r0, rear, h), P(r1, rear, h), P(r1, rear, h - thick), P(r0, rear, h - thick), graphite, facing=out)
+            b.quad(P(r0, front_d, h - thick - 0.02), P(r1, front_d, h - thick - 0.02), P(r1, front_d + 0.35, h - thick - 0.02),
+                   P(r0, front_d + 0.35, h - thick - 0.02), led, facing=-UP)
+        for end, facing in ((start, -tangent(start)), (start + count, tangent(start + count))):
+            b.quad(P(end, front_d, h), P(end, rear, h), P(end, rear, h - thick), P(end, front_d, h - thick), graphite, facing=tuple(facing))
+        y = h - thick - 0.03
+        for k in range(2, count - 1, 3):
+            r = start + k
+            column = 0
+            d = front_d + 3.0
+            while d < rear - 2.0:
+                lamp = led if (k // 3 + column) % 3 == 0 else lantern
+                b.quad(P(r - 0.25, d - 0.5, y), P(r + 0.25, d - 0.5, y), P(r + 0.25, d + 0.5, y), P(r - 0.25, d + 0.5, y), lamp, facing=-UP)
+                d += 5.5
+                column += 1
+        for k in range(0, count + 1, 12):
+            r = start + k
+            b.beam(Vector(P(r, rear - 0.8, -0.5)), Vector(P(r, rear - 0.8, h - thick)), 0.9, steel)
+    elif stand['roof'] == 'lotus':
+        # Stands H and K: white membrane "lotus leaves", each a disc 28 m
+        # across on a central column, held by stays from a mast above.
+        membrane = b.mat('apex_membrane')
+        radius, thick = 14.0, 0.3
+        for n, k in enumerate(range(6, count - 2, 12)):
+            r = start + k
+            centre = Vector(P(r, depth * 0.55, 0.0))
+            ground = centre.y - 0.5
+            rim_y = centre.y + top + 4.2 + (0.7 if n % 2 else 0.0)
+            hub_y = rim_y - 0.7  # cupped like a leaf
+            ring = []
+            for j in range(28):
+                a = j / 28 * math.tau
+                rr = radius * (1 + 0.035 * math.sin(a * 5 + n))
+                ring.append(Vector((centre.x + math.cos(a) * rr, rim_y, centre.z + math.sin(a) * rr)))
+            hub_top = Vector((centre.x, hub_y, centre.z))
+            hub_bottom = hub_top - UP * thick
+            for j in range(28):
+                a, c = ring[j], ring[(j + 1) % 28]
+                b.face((hub_top, a, c), membrane, facing=UP)
+                b.face((hub_bottom, a - UP * thick, c - UP * thick), membrane, facing=-UP)
+                b.quad(a, c, c - UP * thick, a - UP * thick, membrane, facing=tuple((a + c) / 2 - hub_top))
+            b.beam(Vector((centre.x, ground, centre.z)), hub_bottom, 0.7, white)
+            mast_top = hub_top + UP * 8.5
+            b.beam(hub_top, mast_top, 0.32, white)
+            for j in range(0, 28, 4):
+                b.beam(mast_top, hub_top + (ring[j] - hub_top) * 0.82, 0.07, steel)
+    elif stand['roof'] == 'wing':
         # A cantilevered blade on masts, rising towards the track.
         rear, front_d = back + 2.0, depth * 0.08
         h_rear, h_front, thick = top + 4.5, top + 7.0, 0.8
@@ -1098,48 +1191,169 @@ def build_pit_wall_stands():
     b.build()
 
 
+def nearest_pit_sample(row):
+    x, _, z = at(row, 0.0)
+    return min(range(len(PIT)), key=lambda k: (PIT[k][0] - x) ** 2 + (PIT[k][2] - z) ** 2)
+
+
+def wing_sites():
+    """Where Shanghai's two wing pods cross the start straight: near each end
+    of the main grandstand, from a red drum behind the stand to a round glass
+    tower behind the pit building. Returns (track row, pit sample, tower centre)."""
+    main = next(stand for stand in LAYOUT['grandstands'] if stand['id'] == 'main')
+    start = row_of(main['from'])
+    count = (row_of(main['to']) - start) % N
+    sites = []
+    for row in (start + 16, start + count - 16):
+        k = nearest_pit_sample(row)
+        sites.append((row, k, Vector(pit_at(k, LANE_EDGE + BUILDING_DEPTH + 9.0))))
+    return sites
+
+
+def paddock_room(k, start, limit=150.0):
+    """How far past the pit lane, at a pit sample, the ground stays clear of
+    the rest of the circuit (keeping 40 m from it)."""
+    base_row = nearest_row(*pit_at(k, 0.0)[::2])[0]
+    d = start
+    while d < limit:
+        x, _, z = pit_at(k, d)
+        index, distance = nearest_row(x, z)
+        if abs(((index - base_row) + N // 2) % N - N // 2) > 60 and distance < 40:
+            return d - 40
+        if not (BOUNDS[0] + 60 < x < BOUNDS[1] - 60 and BOUNDS[2] + 60 < z < BOUNDS[3] - 60):
+            return d
+        d += 3.0
+    return limit
+
+
 def build_paddock():
-    """Team hospitality units and the race control tower behind the pits, and
-    a big screen on the pit roof facing the main grandstand."""
+    """Shanghai's paddock: a paved boulevard behind the garages, then the team
+    pavilions standing on stilts in a lake, linked by zig-zag walkways (a nod
+    to the Yu Garden's nine-bend bridge), with willows on small islands. A big
+    screen on the pit roof faces the main grandstand."""
     first, last = PIT_FIRST, PIT_LAST
     back = LANE_EDGE + BUILDING_DEPTH
-    b = MeshBuilder('paddock', ['apex_runoff', 'apex_white', 'apex_glass', 'apex_graphite', 'apex_trim', 'apex_led_amber',
-                                'apex_steel', 'poster_screen'], 'pit')
-    asphalt, white, glass, graphite, trim, led, steel, screen = range(8)
-    paddock_depth = 66.0
-    for k in range(first, last, 2):
-        k1 = min(k + 2, last)
-        b.quad(pit_at(k, back, 0.05), pit_at(k1, back, 0.05), pit_at(k1, back + paddock_depth, 0.05),
-               pit_at(k, back + paddock_depth, 0.05), asphalt, facing=UP)
-    unit = 13
-    n = 0
-    for k in range(first + 3, last - unit, unit + 2):
-        mid = k + unit // 2
-        _, t, _ = pit_frame(mid)
+    boulevard = 18.0
+    near = back + boulevard
+    b = MeshBuilder('paddock', ['apex_concrete', 'apex_water', 'apex_glass', 'apex_white', 'apex_roof_grey', 'apex_deck',
+                                'apex_graphite', 'apex_trim', 'apex_steel', 'poster_screen', 'apex_grass', 'apex_leaves',
+                                'apex_trunk'], 'pit')
+    paving, water, glass, white, roof, deck, graphite, trim, steel, screen, grass, leaves, trunk = range(13)
+    span = last - first
+    room = [paddock_room(k, near) for k in range(first, last + 1)]
+    widest = min(110.0, max(room) - near)
+    far = []
+    for i, k in enumerate(range(first, last + 1)):
+        t = i / span
+        shape = math.sin(math.pi * t) ** 0.35 * (1 + 0.08 * math.sin(t * math.tau * 1.5 + 0.6))
+        far.append(near + max(0.0, min(widest * shape, room[i] - near)))
+    print(f'  paddock lake: {widest:.0f} m at its widest')
+    # The boulevard, the lake and its stone coping.
+    for i, k in enumerate(range(first, last)):
+        b.quad(pit_at(k, back, 0.06), pit_at(k + 1, back, 0.06), pit_at(k + 1, near, 0.06), pit_at(k, near, 0.06), paving, facing=UP)
+        f0, f1 = far[i], far[i + 1]
+        if f0 - near > 2 and f1 - near > 2:
+            b.quad(pit_at(k, near + 0.6, -0.12), pit_at(k + 1, near + 0.6, -0.12), pit_at(k + 1, f1 - 0.6, -0.12),
+                   pit_at(k, f0 - 0.6, -0.12), water, facing=UP)
+        # Stone coping along both shores.
+        away = pit_frame(k)[2]
+        b.quad(pit_at(k, near, 0.2), pit_at(k + 1, near, 0.2), pit_at(k + 1, near + 0.6, 0.2), pit_at(k, near + 0.6, 0.2), paving, facing=UP)
+        b.quad(pit_at(k, near + 0.6, -0.12), pit_at(k + 1, near + 0.6, -0.12), pit_at(k + 1, near + 0.6, 0.2), pit_at(k, near + 0.6, 0.2),
+               paving, facing=tuple(away))
+        if f0 - near > 2 and f1 - near > 2:
+            b.quad(pit_at(k, f0 - 0.6, 0.2), pit_at(k + 1, f1 - 0.6, 0.2), pit_at(k + 1, f1, 0.2), pit_at(k, f0, 0.2), paving, facing=UP)
+            b.quad(pit_at(k, f0 - 0.6, -0.12), pit_at(k + 1, f1 - 0.6, -0.12), pit_at(k + 1, f1 - 0.6, 0.2), pit_at(k, f0 - 0.6, 0.2),
+                   paving, facing=tuple(-away))
+            b.quad(pit_at(k, f0, -0.3), pit_at(k + 1, f1, -0.3), pit_at(k + 1, f1, 0.2), pit_at(k, f0, 0.2), paving, facing=tuple(away))
+    towers = [site[2] for site in wing_sites()]
+
+    def deck_between(p0, p1, y, width=2.4):
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        d.y = 0.0
+        yaw = math.atan2(d.z, d.x)
+        centre = (p0 + p1) / 2
+        centre.y = y
+        b.box(tuple(centre), (d.length + width * 0.5, 0.22, width), yaw, deck)
+        across = UP.cross(d.normalized()) * (width / 2 - 0.05)
+        for offset in (across, -across):
+            b.beam(Vector((p0.x, y + 1.0, p0.z)) + offset, Vector((p1.x, y + 1.0, p1.z)) + offset, 0.06, white)
+
+    def zigzag(k, l0, l1, y, swing):
+        """A walkway from l0 to l1 past the lane at sample k, in three bends."""
+        _, t, _ = pit_frame(k)
+        points = []
+        for n in range(4):
+            lateral = l0 + (l1 - l0) * n / 3
+            jog = (0.0 if n in (0, 3) else (swing if n == 1 else -swing))
+            points.append(Vector(pit_at(k, lateral, 0.0)) + t * jog)
+        for p0, p1 in zip(points, points[1:]):
+            deck_between(p0, p1, y)
+            for p in (p0, p1):
+                b.beam(Vector((p.x, p.y - 0.4, p.z)), Vector((p.x, y, p.z)), 0.25, steel)
+
+    def pavilion(k, lateral, colour):
+        """A square team pavilion on stilts: dark glass under a wide shallow pyramid roof."""
+        _, t, _ = pit_frame(k)
         yaw = math.atan2(t.z, t.x)
-        for row, offset in enumerate((back + 16.0, back + 46.0)):
-            centre = Vector(pit_at(mid, offset, 0.0))
-            colour = srgb(TEAM_COLOURS[(n * 2 + row) % len(TEAM_COLOURS)])
-            length = unit * 2 - 4
-            b.box(tuple(centre + UP * 2.0), (length, 4.0, 13.0), yaw, glass)
-            b.box(tuple(centre + UP * 4.3), (length + 1, 0.6, 14.0), yaw, white)
-            b.box(tuple(centre + UP * 6.5), (length - 1, 3.8, 11.0), yaw, glass)
-            b.box(tuple(centre + UP * 8.7), (length + 2, 0.6, 15.0), yaw, white)
-            b.box(tuple(centre + UP * 8.25), (length + 2.1, 0.3, 15.1), yaw, trim, colour=colour)
-            b.box(tuple(centre + UP * 9.05), (length + 1.9, 0.1, 15.05), yaw, led, faces=('front', 'back', 'left', 'right'))
-            occupy(centre.x, centre.z, 16)
-        n += 1
-    # Race control tower, in the middle of the paddock.
-    k = (first + last) // 2
-    base = Vector(pit_at(k, back + 31.0, 0.0))
-    b.prism(tuple(base), 4.2, -0.5, 30.0, 8, white)
-    b.prism(tuple(base), 4.5, 6.0, 6.6, 8, graphite)
-    b.prism(tuple(base), 8.5, 30.0, 31.0, 12, white, radius_top=9.0)
-    b.prism(tuple(base), 9.0, 31.0, 36.5, 12, glass, top=False, radius_top=9.6)
-    b.prism(tuple(base), 9.6, 36.5, 37.6, 12, white, radius_top=9.0)
-    b.prism(tuple(base), 9.65, 36.9, 37.2, 12, led, top=False, radius_top=9.65)
-    b.beam(tuple(base + UP * 37.6), tuple(base + UP * 52.0), 0.5, steel)
-    occupy(base.x, base.z, 14)
+        c = Vector(pit_at(k, lateral, 0.0))
+        for u in (-5.0, 5.0):
+            for w in (-5.0, 5.0):
+                foot = c + t * u + UP.cross(t) * w
+                b.beam(foot - UP * 0.5, foot + UP * 1.3, 0.35, graphite)
+        b.box(tuple(c + UP * 1.45), (14.0, 0.3, 14.0), yaw, deck)
+        b.box(tuple(c + UP * 3.4), (12.0, 3.6, 12.0), yaw, glass)
+        b.box(tuple(c + UP * 5.35), (12.6, 0.3, 12.6), yaw, white)
+        b.box(tuple(c + UP * 5.62), (17.2, 0.24, 17.2), yaw, trim, colour=colour, faces=('front', 'back', 'left', 'right'))
+        eave = 8.6
+        corners = [c + (t * u + UP.cross(t) * w) * eave + UP * 5.75 for u, w in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        apex = c + UP * 7.4
+        for j in range(4):
+            a, d = corners[j], corners[(j + 1) % 4]
+            b.face((a, d, apex), roof, facing=tuple((a + d) / 2 - c))
+        b.face(corners, white, facing=-UP)
+        for j in range(4):
+            a, d = corners[j], corners[(j + 1) % 4]
+            b.quad(a, d, d - UP * 0.25, a - UP * 0.25, graphite, facing=tuple((a + d) / 2 - c - UP * 5.75))
+        occupy(c.x, c.z, 10)
+
+    rows = [near + 16.0, near + 45.0]
+    placed = 0
+    for row_index, lateral in enumerate(rows):
+        for n in range(13):
+            k = first + 14 + round((span - 28) * (n + 0.5 * row_index) / 12.5)
+            k = min(last - 1, k)
+            i = k - first
+            spot = Vector(pit_at(k, lateral))
+            if lateral + 10 > far[i] or any((spot - tower).length < 24 for tower in towers):
+                continue
+            pavilion(k, lateral, srgb(TEAM_COLOURS[(n + row_index * 3) % len(TEAM_COLOURS)]))
+            # Front-row walkways zig-zag widely; back-row ones thread between the front pavilions.
+            zigzag(k, near + 0.6, lateral - 7.2, 0.95, 4.5 if row_index == 0 else 1.8)
+            placed += 1
+    # Willow islands between the pavilions.
+    sphere_verts, sphere_faces = unit_icosphere()
+    for n in (1, 4, 8, 11):
+        # Behind a front-row pavilion, between the back-row walkways.
+        k = first + 14 + round((span - 28) * n / 12.5)
+        lateral = (rows[0] + rows[1]) / 2
+        if lateral + 8 > far[k - first]:
+            continue
+        c = Vector(pit_at(k, lateral))
+        b.prism(tuple(c), 6.5, c.y - 0.3, c.y + 0.25, 10, grass, radius_top=5.8)
+        for dx, dz, height in ((-1.5, 0.8, 8.5), (2.2, -1.2, 6.5)):
+            x, z = c.x + dx, c.z + dz
+            radius = height * 0.42
+            crown_y = c.y + height - radius * 0.6
+            b.prism((x, 0, z), 0.3, c.y, crown_y, 6, trunk, top=False, radius_top=0.2)
+            colour = srgb('#86a85c')
+            for face in sphere_faces:
+                tri = [(x + sphere_verts[q][0] * radius, crown_y + sphere_verts[q][2] * radius * 0.85, z + sphere_verts[q][1] * radius) for q in face]
+                mid_y = sum(p[1] for p in tri) / 3
+                light = 0.8 + 0.35 * (mid_y - crown_y + radius) / (2 * radius)
+                centroid = sum((Vector(p) for p in tri), Vector()) / 3
+                b.face(tri, leaves, colour=scale_colour(colour, light), facing=tuple(centroid - Vector((x, crown_y, z))))
+    print(f'  paddock pavilions: {placed}')
     # Big screen on the pit roof, facing the main grandstand.
     middle = (first + last) // 2 + 20
     _, t, away = pit_frame(middle)
@@ -1153,9 +1367,95 @@ def build_paddock():
     b.box(tuple(centre - facing * 0.45), (17.2, 10.6, 0.8), yaw, graphite)
     b.board(tuple(centre), tuple(facing), 16.0, 9.0, screen, back=None)
     b.build()
-    for k in range(first, last, 4):
-        c = pit_at(k, back + paddock_depth / 2)
-        occupy(c[0], c[2], paddock_depth / 2 + 4)
+    for i, k in enumerate(range(first, last, 4)):
+        outer = far[k - first]
+        c = pit_at(k, (back + outer) / 2)
+        occupy(c[0], c[2], (outer - back) / 2 + 4)
+
+
+def build_wings():
+    """Shanghai's signature: two silver lens-shaped pods spanning the start
+    straight and the pit lane near each end of the main grandstand. Each rests
+    on a glossy red drum behind the stand and a round glass tower behind the
+    garages, with a ribbon of green glass along both sides."""
+    stand = STANDS.get('main')
+    if stand is None:
+        return
+    b = MeshBuilder('wings', ['apex_aluminium', 'apex_glass_green', 'apex_red_drum', 'apex_glass_teal', 'apex_white',
+                              'apex_graphite'], 'bridges')
+    alu, green, red, teal, white, graphite = range(6)
+    side = stand['side']
+    front = max(stand['front'])
+    roof_y = roof_height(stand['top'])
+    width, thick, overhang = 36.0, 10.0, 15.0
+    along, around = 48, 20
+
+    def section(u):
+        f = max(0.0, 1.0 - u * u) ** 0.9
+        return width / 2 * f, thick / 2 * f
+
+    def soft(value):
+        return math.copysign(abs(value) ** 0.8, value)
+
+    for row, _k, tower in wing_sites():
+        base_y = CENTRE[wrap(row)][1]
+        drum = Vector(at(row, side * (front + stand['back'] + 6.5)))
+        a, c = Vector((drum.x, 0.0, drum.z)), Vector((tower.x, 0.0, tower.z))
+        axis = c - a
+        span = axis.length
+        axis.normalize()
+        across = UP.cross(axis).normalized()
+        length = span + 2 * overhang
+        middle = (a + c) / 2
+
+        def u_of(point):
+            return (Vector((point.x, 0.0, point.z)) - middle).dot(axis) / (length / 2)
+
+        # Sit the pod just clear of the grandstand roof wherever it passes over it.
+        roof_front = Vector(at(row, side * (front + stand['depth'] * 0.05)))
+        u_drum, u_roof = u_of(drum), u_of(roof_front)
+        clear = max(section(u_drum + (u_roof - u_drum) * q / 8)[1] for q in range(9))
+        yc = base_y + roof_y + 0.6 + clear
+        rings = []
+        for i in range(1, along):
+            u = -1 + 2 * i / along
+            w, h = section(u)
+            p0 = middle + axis * (u * length / 2) + UP * yc
+            rings.append([p0 + across * (w * soft(math.cos(j / around * math.tau))) + UP * (h * soft(math.sin(j / around * math.tau)))
+                          for j in range(around)])
+        tips = (middle - axis * (length / 2) + UP * yc, middle + axis * (length / 2) + UP * yc)
+
+        def mat_for(j):
+            mid = (j + 0.5) / around * math.tau
+            return green if abs(math.sin(mid)) < 0.17 else alu
+
+        def out_dir(j):
+            mid = (j + 0.5) / around * math.tau
+            return across * math.cos(mid) + UP * math.sin(mid)
+
+        for i in range(len(rings) - 1):
+            for j in range(around):
+                j1 = (j + 1) % around
+                b.quad(rings[i][j], rings[i + 1][j], rings[i + 1][j1], rings[i][j1], mat_for(j), facing=tuple(out_dir(j)))
+        for tip, ring, direction in ((tips[0], rings[0], -axis), (tips[1], rings[-1], axis)):
+            for j in range(around):
+                j1 = (j + 1) % around
+                b.face((tip, ring[j], ring[j1]), mat_for(j), facing=tuple(out_dir(j) + direction * 0.5))
+        # The red drum behind the grandstand, up into the pod.
+        under_drum = yc - section(u_drum)[1]
+        b.prism((drum.x, 0.0, drum.z), 7.5, base_y - 0.5, under_drum + 0.6, 24, red)
+        occupy(drum.x, drum.z, 10)
+        # The glass tower behind the garages: six floors, white slab edges.
+        top_y = yc - section(u_of(tower))[1] + 0.6
+        b.prism((tower.x, 0.0, tower.z), 9.0, base_y - 0.5, top_y, 24, teal)
+        y = base_y + 4.4
+        while y < top_y - 1.5:
+            b.prism((tower.x, 0.0, tower.z), 9.12, y, y + 0.45, 24, white, top=False)
+            y += 4.4
+        b.prism((tower.x, 0.0, tower.z), 9.3, base_y - 0.5, base_y + 0.4, 24, graphite, top=False)
+        occupy(tower.x, tower.z, 12)
+        print(f'  wing at row {row}: span {span:.0f} m, {length:.0f} m long, centre {yc - base_y:.1f} m up')
+    b.build(smooth=True)
 
 
 def build_pit_signs():
@@ -1591,36 +1891,46 @@ def build_trees():
 
 
 def build_skyline():
-    """A city on the horizon in every direction, taller towards the east."""
+    """The flat delta around Anting, 30 km from central Shanghai: estates of
+    20-30 storey residential towers on the horizon, and car-industry sheds
+    and warehouses nearer in. No supertall skyline: the city is too far."""
     b = MeshBuilder('skyline', ['apex_city', 'apex_led_white', 'apex_led_amber'], 'skyline')
-    tones = [srgb(c) for c in ('#9aa6b4', '#b8c0c8', '#7e8a99', '#c9c3b8', '#8d97a6', '#a7b3c2', '#6f7c8c')]
+    walls = [srgb(c) for c in ('#cfcbc1', '#bfc2c5', '#d9d4c8', '#b3bac1', '#c8bdac', '#a6afb9', '#d2c7b8')]
+    roofs = [srgb(c) for c in ('#c3ccd4', '#a9b9c7', '#d7dbde', '#8fa5b8', '#b9bec2')]
     cx, cz = MIDDLE
     base = MEAN_Y - 9
-    for k in range(340):
+    sides = ('top', 'front', 'back', 'left', 'right')
+    towers = 0
+    for estate in range(52):
         angle = RNG.uniform(0, math.tau)
-        east = 0.5 + 0.5 * math.cos(angle - 0.4)
-        distance = RNG.uniform(1700, 3300)
-        height = min(360.0, 25 + RNG.paretovariate(2.2) * 30 * (0.6 + 1.4 * east))
-        width = RNG.uniform(22, 60)
-        deep = RNG.uniform(22, 60)
-        x = cx + math.cos(angle) * distance
-        z = cz + math.sin(angle) * distance
+        distance = RNG.uniform(1900, 3400)
+        ex, ez = cx + math.cos(angle) * distance, cz + math.sin(angle) * distance
+        height = RNG.randint(18, 32) * 3.0
+        columns, rows = RNG.randint(2, 4), RNG.randint(2, 4)
         yaw = RNG.uniform(0, math.pi)
-        colour = RNG.choice(tones)
-        b.box((x, base + height / 2, z), (width, height, deep), yaw, 0, colour=colour, faces=('top', 'front', 'back', 'left', 'right'))
-        if height > 120:
-            # A slimmer crown and a light on top.
-            b.box((x, base + height + 8, z), (width * 0.6, 16, deep * 0.6), yaw, 0, colour=scale_colour(colour, 1.1),
-                  faces=('top', 'front', 'back', 'left', 'right'))
-            b.box((x, base + height + 16.75, z), (width * 0.2, 1.5, deep * 0.2), yaw, 1 if RNG.random() < 0.6 else 2)
-    # A few landmark towers together in the east.
-    for offset, height, radius in ((0, 470, 22), (140, 420, 26), (-160, 380, 20), (260, 300, 18)):
-        angle = 0.4 + offset / 2600
-        x = cx + math.cos(angle) * 2600
-        z = cz + math.sin(angle) * 2600
-        b.prism((x, 0, z), radius, base, base + height * 0.85, 8, 0, colour=tones[1], radius_top=radius * 0.65)
-        b.prism((x, 0, z), radius * 0.65, base + height * 0.85, base + height, 8, 0, colour=tones[5], radius_top=radius * 0.15)
-        b.prism((x, 0, z), radius * 0.75, base + height * 0.6, base + height * 0.61, 8, 1, top=False, radius_top=radius * 0.74)
+        colour = RNG.choice(walls)
+        pitch_u, pitch_w = RNG.uniform(46, 60), RNG.uniform(55, 72)
+        cos_y, sin_y = math.cos(yaw), math.sin(yaw)
+        for i in range(columns):
+            for j in range(rows):
+                if RNG.random() < 0.12:
+                    continue
+                u = (i - (columns - 1) / 2) * pitch_u
+                w = (j - (rows - 1) / 2) * pitch_w
+                x, z = ex + u * cos_y - w * sin_y, ez + u * sin_y + w * cos_y
+                h = height * RNG.uniform(0.92, 1.06)
+                tone = scale_colour(colour, RNG.uniform(0.94, 1.05))
+                b.box((x, base + h / 2, z), (34.0, h, 15.0), yaw, 0, colour=tone, faces=sides)
+                b.box((x, base + h + 2.2, z), (11.0, 4.4, 8.0), yaw, 0, colour=scale_colour(tone, 0.9), faces=sides)
+                towers += 1
+    for shed in range(150):
+        angle = RNG.uniform(0, math.tau)
+        distance = RNG.uniform(1350, 2500)
+        x, z = cx + math.cos(angle) * distance, cz + math.sin(angle) * distance
+        h = RNG.uniform(14, 24)
+        b.box((x, base + h / 2, z), (RNG.uniform(60, 170), h, RNG.uniform(40, 110)), RNG.uniform(0, math.pi), 0,
+              colour=RNG.choice(roofs), faces=sides)
+    print(f'  skyline: {towers} towers in 52 estates, 150 sheds')
     b.build()
 
 
@@ -1635,7 +1945,7 @@ def main():
         ('terrain', build_terrain), ('road', build_road), ('pit lane', build_pit_lane), ('kerbs', build_kerbs),
         ('verges', build_verges), ('barriers', build_barriers), ('pit building', build_pit_building),
         ('pit wall stands', build_pit_wall_stands), ('paddock', build_paddock), ('pit signs', build_pit_signs),
-        ('pit outer wall', build_pit_outer_wall), ('stands', build_stands), ('gantry', build_gantry),
+        ('pit outer wall', build_pit_outer_wall), ('stands', build_stands), ('wings', build_wings), ('gantry', build_gantry),
         ('bridges', build_bridges), ('marshal posts', build_marshal_posts), ('billboards', build_billboards),
         ('boards', build_trackside_boards), ('screens', build_screens), ('camera towers', build_camera_towers),
         ('marquees', build_marquees), ('spectator banks', build_spectator_banks), ('car park', build_car_park),
